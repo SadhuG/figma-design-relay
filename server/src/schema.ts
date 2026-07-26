@@ -121,21 +121,63 @@ export const setNodePropertiesInput = z.object({
   fileKey: fileKeyField,
 });
 
-export const setSolidFillInput = z.object({
+const solidFillTarget = z
+  .enum(["fill", "stroke"])
+  .optional()
+  .describe("Apply to fills or strokes (default fill)");
+
+/**
+ * Advertised shape. `fillHex`/`fillOpacity` are declared so the MCP SDK keeps
+ * them instead of stripping them as unknown keys; `setSolidFillInput`
+ * normalises them onto `hex`/`opacity` before the request reaches the plugin.
+ */
+export const setSolidFillShape = z.object({
   nodeId: createFigmaNodeIdSchema().describe("The node ID to update"),
-  hex: createHexColorSchema().describe("Solid color as hex (e.g. '#FFAA00')"),
+  hex: createHexColorSchema()
+    .optional()
+    .describe(
+      "Solid color as hex (e.g. '#FFAA00'). Required unless fillHex is given."
+    ),
+  fillHex: createHexColorSchema()
+    .optional()
+    .describe(
+      "Alias for hex, matching the create_* tools. Supply one of the two."
+    ),
   opacity: z
     .number()
     .min(0)
     .max(1)
     .optional()
     .describe("Optional paint opacity from 0 to 1 (default 1)"),
-  target: z
-    .enum(["fill", "stroke"])
+  fillOpacity: z
+    .number()
+    .min(0)
+    .max(1)
     .optional()
-    .describe("Apply to fills or strokes (default fill)"),
+    .describe("Alias for opacity, matching the create_* tools"),
+  target: solidFillTarget,
   fileKey: fileKeyField,
 });
+
+/**
+ * Normalises the create_* spellings onto the canonical fields. Derived from the
+ * advertised shape so the two cannot drift; the canonical name wins when both
+ * spellings are supplied.
+ */
+export const setSolidFillInput = setSolidFillShape.transform(
+  ({ fillHex, fillOpacity, ...rest }, ctx) => {
+    const hex = rest.hex ?? fillHex;
+    if (hex === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["hex"],
+        message: "hex is required (fillHex is accepted as an alias)",
+      });
+      return z.NEVER;
+    }
+    return { ...rest, hex, opacity: rest.opacity ?? fillOpacity };
+  }
+);
 
 const blendMode = z.enum([
   "PASS_THROUGH",
@@ -378,6 +420,43 @@ export const createFrameInput = z.object({
     .describe("Optional solid fill opacity from 0 to 1"),
   fileKey: fileKeyField,
 });
+
+/**
+ * Advertised shape. `characters` is declared so the MCP SDK keeps it instead of
+ * stripping it as an unknown key; `setTextContentInput` normalises it onto
+ * `text` before the request reaches the plugin.
+ */
+export const setTextContentShape = z.object({
+  nodeId: createFigmaNodeIdSchema().describe("The text node ID to update"),
+  text: z
+    .string()
+    .optional()
+    .describe("The new text content. Required unless characters is given."),
+  characters: z
+    .string()
+    .optional()
+    .describe("Alias for text, matching create_text. Supply one of the two."),
+  fileKey: fileKeyField,
+});
+
+/**
+ * Normalises `characters` onto `text`. Derived from the advertised shape so the
+ * two cannot drift; `text` wins when both spellings are supplied.
+ */
+export const setTextContentInput = setTextContentShape.transform(
+  ({ characters, ...rest }, ctx) => {
+    const text = rest.text ?? characters;
+    if (text === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["text"],
+        message: "text is required (characters is accepted as an alias)",
+      });
+      return z.NEVER;
+    }
+    return { ...rest, text };
+  }
+);
 
 export const setTextPropertiesShape = z.object({
   nodeId: createFigmaNodeIdSchema().describe("The text node ID to update"),
@@ -633,11 +712,7 @@ export const toolInputSchemas = {
     fileKey: fileKeyField,
   }),
 
-  set_text_content: z.object({
-    nodeId: createFigmaNodeIdSchema().describe("The text node ID to update"),
-    text: z.string().describe("The new text content"),
-    fileKey: fileKeyField,
-  }),
+  set_text_content: setTextContentInput,
 
   set_text_properties: setTextPropertiesInput,
 
@@ -881,19 +956,53 @@ const rpcToArgs: Record<
 };
 
 /**
+ * Result of validating an RPC request.
+ *
+ * `params` carries the schema's output so callers forward normalised values
+ * rather than the caller's raw object. Without it a schema that rewrites input
+ * — such as the create_* field aliases on `set_solid_fill` / `set_text_content`
+ * — would pass validation here and then be rejected by the plugin, which only
+ * understands the canonical spelling.
+ */
+export interface RpcValidation {
+  /** Human-readable message when validation failed, null when it passed. */
+  error: string | null;
+  /**
+   * Normalised params to forward to the plugin. Undefined when validation
+   * failed, or when the tool has no schema and nothing was normalised — in that
+   * case forward the caller's original params.
+   */
+  params?: Record<string, unknown>;
+}
+
+/**
  * Validate an RPC request against the corresponding tool's input schema.
- * Returns an error string on failure, null if valid or no schema exists for the tool.
+ *
+ * Tools without a schema are passed through unvalidated, matching the previous
+ * behaviour.
  */
 export function validateRpc(
   tool: string,
   nodeIds?: string[],
   params?: Record<string, unknown>
-): string | null {
-  if (!(tool in toolInputSchemas)) return null;
+): RpcValidation {
+  if (!(tool in toolInputSchemas)) return { error: null };
 
   const name = tool as ToolName;
   const result = toolInputSchemas[name].safeParse(
     rpcToArgs[name](nodeIds, params)
   );
-  return result.success ? null : result.error.issues[0].message;
+  if (!result.success) {
+    return { error: result.error.issues[0].message };
+  }
+
+  // `rpcToArgs` folds the transport-level `nodeIds` into a `nodeId` field so the
+  // tool schema can validate it. The plugin reads node ids off `request.nodeIds`
+  // instead, so drop it again — along with `fileKey`, which travels beside the
+  // params rather than inside them.
+  const { nodeId: _nodeId, fileKey: _fileKey, ...rest } = result.data as Record<
+    string,
+    unknown
+  >;
+  return { error: null, params: rest };
 }
