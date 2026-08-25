@@ -88,11 +88,7 @@ interface SaveScreenshotItemResult {
  * @param node - The node coordinator for leader/follower routing.
  * @param port - The port used for follower-to-leader HTTP calls.
  */
-export function registerTools(
-  server: McpServer,
-  node: Node,
-  port: number
-): void {
+export function registerTools(server: McpServer, node: Node, port: number): void {
   server.tool(
     "list_files",
     "List all currently connected Figma files. Returns fileKey and fileName for each. Use the fileKey to target a specific file in other tools.",
@@ -126,9 +122,7 @@ export function registerTools(
     "Get the current Figma page document tree. When multiple files are connected, specify fileKey.",
     toolInputSchemas.get_document.shape,
     async ({ fileKey }): Promise<ToolResult> => {
-      return renderResponse(() =>
-        node.send("get_document", undefined, fileKey)
-      );
+      return renderResponse(() => node.send("get_document", undefined, fileKey));
     }
   );
 
@@ -137,9 +131,7 @@ export function registerTools(
     "Get the currently selected nodes in Figma. When multiple files are connected, specify fileKey.",
     toolInputSchemas.get_selection.shape,
     async ({ fileKey }): Promise<ToolResult> => {
-      return renderResponse(() =>
-        node.send("get_selection", undefined, fileKey)
-      );
+      return renderResponse(() => node.send("get_selection", undefined, fileKey));
     }
   );
 
@@ -166,9 +158,7 @@ export function registerTools(
     "Get metadata about the current Figma document including file name, pages, and current page info. When multiple files are connected, specify fileKey.",
     toolInputSchemas.get_metadata.shape,
     async ({ fileKey }): Promise<ToolResult> => {
-      return renderResponse(() =>
-        node.send("get_metadata", undefined, fileKey)
-      );
+      return renderResponse(() => node.send("get_metadata", undefined, fileKey));
     }
   );
 
@@ -192,9 +182,7 @@ export function registerTools(
     "Get all local variable definitions including variable collections, modes, and variable values. Variables are Figma's system for design tokens (colors, numbers, strings, booleans). When multiple files are connected, specify fileKey.",
     toolInputSchemas.get_variable_defs.shape,
     async ({ fileKey }): Promise<ToolResult> => {
-      return renderResponse(() =>
-        node.send("get_variable_defs", undefined, fileKey)
-      );
+      return renderResponse(() => node.send("get_variable_defs", undefined, fileKey));
     }
   );
 
@@ -207,9 +195,7 @@ export function registerTools(
       if (format) params.format = format;
       if (scale !== undefined && scale > 0) params.scale = scale;
       if (clip !== undefined) params.clip = clip;
-      return renderResponse(() =>
-        node.sendWithParams("get_screenshot", nodeIds, params, fileKey)
-      );
+      return renderResponse(() => node.sendWithParams("get_screenshot", nodeIds, params, fileKey));
     }
   );
 
@@ -219,12 +205,7 @@ export function registerTools(
     toolInputSchemas.set_node_visibility.shape,
     async ({ items, fileKey }): Promise<ToolResult> => {
       return renderResponse(() =>
-        node.sendWithParams(
-          "set_node_visibility",
-          undefined,
-          { items },
-          fileKey
-        )
+        node.sendWithParams("set_node_visibility", undefined, { items }, fileKey)
       );
     }
   );
@@ -252,12 +233,7 @@ export function registerTools(
       if (!parsed.success) return parsed.error;
       const { nodeId, fileKey, ...properties } = parsed.data;
       return renderResponse(() =>
-        node.sendWithParams(
-          "set_text_properties",
-          [nodeId],
-          properties,
-          fileKey
-        )
+        node.sendWithParams("set_text_properties", [nodeId], properties, fileKey)
       );
     }
   );
@@ -271,12 +247,7 @@ export function registerTools(
       if (!parsed.success) return parsed.error;
       const { nodeId, fileKey, ...properties } = parsed.data;
       return renderResponse(() =>
-        node.sendWithParams(
-          "set_node_properties",
-          [nodeId],
-          properties,
-          fileKey
-        )
+        node.sendWithParams("set_node_properties", [nodeId], properties, fileKey)
       );
     }
   );
@@ -289,9 +260,7 @@ export function registerTools(
       const parsed = parseToolInput(setSolidFillInput, args);
       if (!parsed.success) return parsed.error;
       const { nodeId, fileKey, ...params } = parsed.data;
-      return renderResponse(() =>
-        node.sendWithParams("set_solid_fill", [nodeId], params, fileKey)
-      );
+      return renderResponse(() => node.sendWithParams("set_solid_fill", [nodeId], params, fileKey));
     }
   );
 
@@ -314,9 +283,7 @@ export function registerTools(
       const parsed = parseToolInput(setEffectsInput, args);
       if (!parsed.success) return parsed.error;
       const { nodeId, fileKey, ...params } = parsed.data;
-      return renderResponse(() =>
-        node.sendWithParams("set_effects", [nodeId], params, fileKey)
-      );
+      return renderResponse(() => node.sendWithParams("set_effects", [nodeId], params, fileKey));
     }
   );
 
@@ -325,10 +292,7 @@ export function registerTools(
     "Patch stroke geometry properties: weight, align, dash pattern, cap, join. Use set_solid_fill/set_gradient_fill with target='stroke' to set the paint itself.",
     setStrokePropertiesInput.shape,
     async (args): Promise<ToolResult> => {
-      const parsed = parseToolInput(
-        toolInputSchemas.set_stroke_properties,
-        args
-      );
+      const parsed = parseToolInput(toolInputSchemas.set_stroke_properties, args);
       if (!parsed.success) return parsed.error;
       const { nodeId, fileKey, ...params } = parsed.data;
       return renderResponse(() =>
@@ -359,9 +323,7 @@ export function registerTools(
       const parsed = parseToolInput(toolInputSchemas.create_page, args);
       if (!parsed.success) return parsed.error;
       const { fileKey, ...params } = parsed.data;
-      return renderResponse(() =>
-        node.sendWithParams("create_page", undefined, params, fileKey)
-      );
+      return renderResponse(() => node.sendWithParams("create_page", undefined, params, fileKey));
     }
   );
 
@@ -373,9 +335,7 @@ export function registerTools(
       const parsed = parseToolInput(toolInputSchemas.create_frame, args);
       if (!parsed.success) return parsed.error;
       const { fileKey, ...params } = parsed.data;
-      return renderResponse(() =>
-        node.sendWithParams("create_frame", undefined, params, fileKey)
-      );
+      return renderResponse(() => node.sendWithParams("create_frame", undefined, params, fileKey));
     }
   );
 
@@ -387,9 +347,7 @@ export function registerTools(
       const parsed = parseToolInput(createTextInput, args);
       if (!parsed.success) return parsed.error;
       const { fileKey, ...params } = parsed.data;
-      return renderResponse(() =>
-        node.sendWithParams("create_text", undefined, params, fileKey)
-      );
+      return renderResponse(() => node.sendWithParams("create_text", undefined, params, fileKey));
     }
   );
 
@@ -401,9 +359,7 @@ export function registerTools(
       const parsed = parseToolInput(createShapeInput, args);
       if (!parsed.success) return parsed.error;
       const { fileKey, ...params } = parsed.data;
-      return renderResponse(() =>
-        node.sendWithParams("create_shape", undefined, params, fileKey)
-      );
+      return renderResponse(() => node.sendWithParams("create_shape", undefined, params, fileKey));
     }
   );
 
@@ -413,17 +369,9 @@ export function registerTools(
     createImageInput.shape,
     async ({ source, fileKey, ...params }): Promise<ToolResult> => {
       try {
-        const imageBase64 = await loadImageSourceAsBase64(
-          source,
-          process.cwd()
-        );
+        const imageBase64 = await loadImageSourceAsBase64(source, process.cwd());
         return await renderResponse(() =>
-          node.sendWithParams(
-            "create_image",
-            undefined,
-            { ...params, imageBase64 },
-            fileKey
-          )
+          node.sendWithParams("create_image", undefined, { ...params, imageBase64 }, fileKey)
         );
       } catch (err) {
         return {
@@ -466,9 +414,7 @@ export function registerTools(
     "Wrap a list of nodes in a new group. Nodes must share a common parent (or supply parentId explicitly). Returns the new group's node ID.",
     groupNodesInput.shape,
     async ({ nodeIds, fileKey, ...params }): Promise<ToolResult> => {
-      return renderResponse(() =>
-        node.sendWithParams("group_nodes", nodeIds, params, fileKey)
-      );
+      return renderResponse(() => node.sendWithParams("group_nodes", nodeIds, params, fileKey));
     }
   );
 
@@ -500,12 +446,7 @@ export function registerTools(
     scrollAndZoomIntoViewInput.shape,
     async ({ nodeIds, fileKey }): Promise<ToolResult> => {
       return renderResponse(() =>
-        node.sendWithParams(
-          "scroll_and_zoom_into_view",
-          nodeIds,
-          undefined,
-          fileKey
-        )
+        node.sendWithParams("scroll_and_zoom_into_view", nodeIds, undefined, fileKey)
       );
     }
   );
@@ -526,9 +467,7 @@ export function registerTools(
     "List all available animation presets in Figma (Motion API beta). When multiple files are connected, specify fileKey.",
     toolInputSchemas.get_motion_styles.shape,
     async ({ fileKey }): Promise<ToolResult> => {
-      return renderResponse(() =>
-        node.send("get_motion_styles", undefined, fileKey)
-      );
+      return renderResponse(() => node.send("get_motion_styles", undefined, fileKey));
     }
   );
 
@@ -537,9 +476,7 @@ export function registerTools(
     "Read a node's current animationStyles, animations, manualKeyframeTracks, and timelines (Motion API beta). When multiple files are connected, specify fileKey.",
     toolInputSchemas.get_node_motion.shape,
     async ({ nodeId, fileKey }): Promise<ToolResult> => {
-      return renderResponse(() =>
-        node.send("get_node_motion", [nodeId], fileKey)
-      );
+      return renderResponse(() => node.send("get_node_motion", [nodeId], fileKey));
     }
   );
 
@@ -552,12 +489,7 @@ export function registerTools(
       if (!parsed.success) return parsed.error;
       const { nodeId, fileKey, ...properties } = parsed.data;
       return renderResponse(() =>
-        node.sendWithParams(
-          "apply_animation_style",
-          [nodeId],
-          properties,
-          fileKey
-        )
+        node.sendWithParams("apply_animation_style", [nodeId], properties, fileKey)
       );
     }
   );
@@ -571,12 +503,7 @@ export function registerTools(
       if (!parsed.success) return parsed.error;
       const { nodeId, fileKey, ...properties } = parsed.data;
       return renderResponse(() =>
-        node.sendWithParams(
-          "remove_animation_style",
-          [nodeId],
-          properties,
-          fileKey
-        )
+        node.sendWithParams("remove_animation_style", [nodeId], properties, fileKey)
       );
     }
   );
@@ -590,12 +517,7 @@ export function registerTools(
       if (!parsed.success) return parsed.error;
       const { nodeId, fileKey, ...properties } = parsed.data;
       return renderResponse(() =>
-        node.sendWithParams(
-          "apply_manual_keyframe_track",
-          [nodeId],
-          properties,
-          fileKey
-        )
+        node.sendWithParams("apply_manual_keyframe_track", [nodeId], properties, fileKey)
       );
     }
   );
@@ -609,12 +531,7 @@ export function registerTools(
       if (!parsed.success) return parsed.error;
       const { nodeId, fileKey, ...properties } = parsed.data;
       return renderResponse(() =>
-        node.sendWithParams(
-          "remove_manual_keyframe_track",
-          [nodeId],
-          properties,
-          fileKey
-        )
+        node.sendWithParams("remove_manual_keyframe_track", [nodeId], properties, fileKey)
       );
     }
   );
@@ -628,12 +545,7 @@ export function registerTools(
       if (!parsed.success) return parsed.error;
       const { nodeId, fileKey, ...properties } = parsed.data;
       return renderResponse(() =>
-        node.sendWithParams(
-          "set_timeline_duration",
-          [nodeId],
-          properties,
-          fileKey
-        )
+        node.sendWithParams("set_timeline_duration", [nodeId], properties, fileKey)
       );
     }
   );
@@ -649,13 +561,7 @@ export function registerTools(
           sendWithParams: (requestType, nodeIds, params) =>
             node.sendWithParams(requestType, nodeIds, params, fileKey),
         };
-        const result = await executeSaveScreenshots(
-          sender,
-          items,
-          format,
-          scale,
-          clip
-        );
+        const result = await executeSaveScreenshots(sender, items, format, scale, clip);
         return {
           content: [{ type: "text", text: JSON.stringify(result) }],
         };
@@ -728,9 +634,7 @@ export async function executeSaveScreenshots(
  * @param fn - Bridge call to execute.
  * @returns Tool result with the bridge response or an error message.
  */
-async function renderResponse(
-  fn: () => Promise<BridgeResponse>
-): Promise<ToolResult> {
+async function renderResponse(fn: () => Promise<BridgeResponse>): Promise<ToolResult> {
   try {
     const resp = await fn();
     if (resp.error) {
@@ -787,19 +691,13 @@ function parseToolInput<T>(
  * @param workspaceRoot - Root directory that must contain the resolved path.
  * @returns Absolute path inside the workspace root.
  */
-function resolveAndValidateOutputPath(
-  outputPath: string,
-  workspaceRoot: string
-): string {
+function resolveAndValidateOutputPath(outputPath: string, workspaceRoot: string): string {
   const resolvedRoot = path.resolve(workspaceRoot);
   const resolvedPath = path.resolve(resolvedRoot, outputPath);
   const relativePath = path.relative(resolvedRoot, resolvedPath);
-  const escapesRoot =
-    relativePath.startsWith("..") || path.isAbsolute(relativePath);
+  const escapesRoot = relativePath.startsWith("..") || path.isAbsolute(relativePath);
   if (escapesRoot) {
-    throw new Error(
-      `outputPath must be inside the MCP server working directory: ${resolvedRoot}`
-    );
+    throw new Error(`outputPath must be inside the MCP server working directory: ${resolvedRoot}`);
   }
   return resolvedPath;
 }
@@ -810,10 +708,7 @@ function resolveAndValidateOutputPath(
  * @param workspaceRoot - Root directory for resolving relative local paths.
  * @returns Base64-encoded image bytes.
  */
-async function loadImageSourceAsBase64(
-  source: string,
-  workspaceRoot: string
-): Promise<string> {
+async function loadImageSourceAsBase64(source: string, workspaceRoot: string): Promise<string> {
   if (/^https?:\/\//i.test(source)) {
     const bytes = await fetchImageBytes(source);
     return bytes.toString("base64");
@@ -827,8 +722,7 @@ async function loadImageSourceAsBase64(
   const resolvedRoot = path.resolve(workspaceRoot);
   const resolvedPath = path.resolve(resolvedRoot, source);
   const relativePath = path.relative(resolvedRoot, resolvedPath);
-  const escapesRoot =
-    relativePath.startsWith("..") || path.isAbsolute(relativePath);
+  const escapesRoot = relativePath.startsWith("..") || path.isAbsolute(relativePath);
   if (escapesRoot) {
     throw new Error(
       `image source must be inside the MCP server working directory: ${resolvedRoot}`
@@ -854,10 +748,7 @@ async function fetchImageBytes(source: string): Promise<Buffer> {
     await assertSafeHttpUrl(url);
 
     const controller = new AbortController();
-    const timeout = setTimeout(
-      () => controller.abort(),
-      IMAGE_FETCH_TIMEOUT_MS
-    );
+    const timeout = setTimeout(() => controller.abort(), IMAGE_FETCH_TIMEOUT_MS);
     let resp: Response;
     try {
       resp = await fetch(url, {
@@ -866,9 +757,7 @@ async function fetchImageBytes(source: string): Promise<Buffer> {
       });
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
-        throw new Error(
-          `Timed out fetching image after ${IMAGE_FETCH_TIMEOUT_MS}ms`
-        );
+        throw new Error(`Timed out fetching image after ${IMAGE_FETCH_TIMEOUT_MS}ms`);
       }
       throw err;
     } finally {
@@ -878,24 +767,18 @@ async function fetchImageBytes(source: string): Promise<Buffer> {
     if (resp.status >= 300 && resp.status < 400) {
       const location = resp.headers.get("location");
       if (!location) {
-        throw new Error(
-          `Image redirect missing Location header: ${resp.status}`
-        );
+        throw new Error(`Image redirect missing Location header: ${resp.status}`);
       }
       redirects += 1;
       if (redirects > MAX_IMAGE_REDIRECTS) {
-        throw new Error(
-          `Image fetch exceeded ${MAX_IMAGE_REDIRECTS} redirects`
-        );
+        throw new Error(`Image fetch exceeded ${MAX_IMAGE_REDIRECTS} redirects`);
       }
       url = new URL(location, url);
       continue;
     }
 
     if (!resp.ok) {
-      throw new Error(
-        `Failed to fetch image: ${resp.status} ${resp.statusText}`
-      );
+      throw new Error(`Failed to fetch image: ${resp.status} ${resp.statusText}`);
     }
 
     const contentLength = resp.headers.get("content-length");
@@ -996,10 +879,7 @@ function normalizeHostname(hostname: string): string {
  * @param maxBytes - Maximum number of bytes to accept.
  * @returns Concatenated response bytes.
  */
-async function readBoundedResponse(
-  resp: Response,
-  maxBytes: number
-): Promise<Buffer> {
+async function readBoundedResponse(resp: Response, maxBytes: number): Promise<Buffer> {
   if (!resp.body) {
     return Buffer.alloc(0);
   }
@@ -1050,9 +930,7 @@ function resolveExportFormat(
   inferredFormat: ExportFormat | null
 ): ExportFormat {
   if (format && inferredFormat && format !== inferredFormat) {
-    throw new Error(
-      `format ${format} conflicts with outputPath extension (${inferredFormat})`
-    );
+    throw new Error(`format ${format} conflicts with outputPath extension (${inferredFormat})`);
   }
   return format ?? inferredFormat ?? "PNG";
 }
@@ -1112,15 +990,9 @@ async function saveScreenshotItemToFile(
   let resolvedOutputPath = item.outputPath;
 
   try {
-    resolvedOutputPath = resolveAndValidateOutputPath(
-      item.outputPath,
-      workspaceRoot
-    );
+    resolvedOutputPath = resolveAndValidateOutputPath(item.outputPath, workspaceRoot);
     const inferredFormat = inferFormatFromPath(resolvedOutputPath);
-    const resolvedFormat = resolveExportFormat(
-      item.format ?? defaultFormat,
-      inferredFormat
-    );
+    const resolvedFormat = resolveExportFormat(item.format ?? defaultFormat, inferredFormat);
     const resolvedScale = resolveScale(item.scale, defaultScale);
     const resolvedClip = item.clip ?? defaultClip;
 
@@ -1132,20 +1004,13 @@ async function saveScreenshotItemToFile(
       params.clip = resolvedClip;
     }
 
-    const resp = await sender.sendWithParams(
-      "get_screenshot",
-      [item.nodeId],
-      params
-    );
+    const resp = await sender.sendWithParams("get_screenshot", [item.nodeId], params);
     if (resp.error) {
       throw new Error(resp.error);
     }
 
     const screenshotExport = getSingleScreenshotExport(resp.data);
-    const bytesWritten = await writeBase64ToFile(
-      screenshotExport.base64,
-      resolvedOutputPath
-    );
+    const bytesWritten = await writeBase64ToFile(screenshotExport.base64, resolvedOutputPath);
 
     return {
       index,
@@ -1175,10 +1040,7 @@ async function saveScreenshotItemToFile(
  * @param outputPath - Destination file path.
  * @returns Number of bytes written.
  */
-async function writeBase64ToFile(
-  base64: string,
-  outputPath: string
-): Promise<number> {
+async function writeBase64ToFile(base64: string, outputPath: string): Promise<number> {
   const bytes = Buffer.from(base64, "base64");
   await mkdir(path.dirname(outputPath), { recursive: true });
   try {
@@ -1198,10 +1060,7 @@ async function writeBase64ToFile(
  * @param defaultScale - Default scale for the batch.
  * @returns Positive scale value, or undefined if not applicable.
  */
-function resolveScale(
-  itemScale?: number,
-  defaultScale?: number
-): number | undefined {
+function resolveScale(itemScale?: number, defaultScale?: number): number | undefined {
   const resolvedScale = itemScale ?? defaultScale;
   if (resolvedScale === undefined || resolvedScale <= 0) {
     return undefined;

@@ -31,7 +31,6 @@ It also includes a small, opt-in set of **write tools** for safe agent-driven ed
 
 [![Watch the video](https://img.youtube.com/vi/ouygIhFBx0g/maxresdefault.jpg)](https://youtu.be/ouygIhFBx0g)
 
-
 ## Quick Start
 
 ### 1. Add the MCP server to your favourite AI tool
@@ -63,46 +62,46 @@ If you want to know more about how it works, read the [How it works](#how-it-wor
 
 ## Available Tools
 
-| Tool | Description |
-|------|-------------|
-| `list_files` | List all connected Figma files (supports multi-file workflows) |
-| `get_document` | Get the current Figma page document tree |
-| `get_selection` | Get the currently selected nodes in Figma |
-| `get_node` | Get a specific Figma node by ID (colon format, e.g. `4029:12345`) |
-| `get_styles` | Get all local paint, text, effect, and grid styles |
-| `get_metadata` | Get file name, pages, and current page info |
-| `get_design_context` | Get a depth-limited tree optimized for understanding design context |
-| `get_variable_defs` | Get all variable collections, modes, and values (design tokens) |
-| `get_screenshot` | Export nodes as PNG/SVG/JPG/PDF (base64-encoded) |
-| `save_screenshots` | Export and save screenshots directly to the local filesystem |
-| `get_motion_styles` | List all available animation presets (beta) |
-| `get_node_motion` | Read a node's current animation styles and properties (beta) |
-| `apply_animation_style` | Apply a preset animation style to a node (beta) |
-| `remove_animation_style` | Remove an applied animation style from a node (beta) |
-| `apply_manual_keyframe_track` | Apply a manual keyframe track to a node property (beta) |
-| `remove_manual_keyframe_track` | Remove a manual keyframe track from a node property (beta) |
-| `set_timeline_duration` | Set the duration of a timeline in seconds (beta) |
-| `set_node_visibility` | Show or hide specific nodes |
-| `set_text_content` | Replace the contents of a text node |
-| `set_text_properties` | Patch font, size, alignment, auto-resize, color, and bounds on a text node |
-| `set_node_properties` | Patch common node properties: name, position, size, visibility, opacity, corner radius |
-| `set_solid_fill` | Replace a node's fill or stroke with a single solid paint |
-| `set_gradient_fill` | Replace a node's fill or stroke with a linear/radial/angular/diamond gradient |
-| `set_effects` | Replace a node's effects list (drop/inner shadows, layer/background blurs) |
-| `set_stroke_properties` | Patch stroke weight, align, dash pattern, cap, and join |
-| `set_auto_layout` | Configure auto-layout direction, padding, gap, alignment, sizing, and wrap |
-| `create_page` | Create a new page in the document, optionally switching to it |
-| `create_frame` | Create a new frame, optionally under a parent |
-| `create_text` | Create a new text node |
-| `create_shape` | Create a rectangle, ellipse, or line |
-| `create_image` | Create an image-backed rectangle from a local path, URL, or data URI |
-| `duplicate_nodes` | Duplicate nodes in place |
-| `reparent_nodes` | Move nodes into another parent |
-| `group_nodes` | Wrap a list of nodes (sharing a parent) in a new group |
-| `ungroup_node` | Ungroup a group or frame — children move up to its parent |
-| `set_selection` | Set the page selection to a list of node IDs (works in Dev Mode) |
-| `scroll_and_zoom_into_view` | Frame the viewport around the given nodes (works in Dev Mode) |
-| `delete_nodes` | Delete nodes with explicit confirmation |
+| Tool                           | Description                                                                            |
+| ------------------------------ | -------------------------------------------------------------------------------------- |
+| `list_files`                   | List all connected Figma files (supports multi-file workflows)                         |
+| `get_document`                 | Get the current Figma page document tree                                               |
+| `get_selection`                | Get the currently selected nodes in Figma                                              |
+| `get_node`                     | Get a specific Figma node by ID (colon format, e.g. `4029:12345`)                      |
+| `get_styles`                   | Get all local paint, text, effect, and grid styles                                     |
+| `get_metadata`                 | Get file name, pages, and current page info                                            |
+| `get_design_context`           | Get a depth-limited tree optimized for understanding design context                    |
+| `get_variable_defs`            | Get all variable collections, modes, and values (design tokens)                        |
+| `get_screenshot`               | Export nodes as PNG/SVG/JPG/PDF (base64-encoded)                                       |
+| `save_screenshots`             | Export and save screenshots directly to the local filesystem                           |
+| `get_motion_styles`            | List all available animation presets (beta)                                            |
+| `get_node_motion`              | Read a node's current animation styles and properties (beta)                           |
+| `apply_animation_style`        | Apply a preset animation style to a node (beta)                                        |
+| `remove_animation_style`       | Remove an applied animation style from a node (beta)                                   |
+| `apply_manual_keyframe_track`  | Apply a manual keyframe track to a node property (beta)                                |
+| `remove_manual_keyframe_track` | Remove a manual keyframe track from a node property (beta)                             |
+| `set_timeline_duration`        | Set the duration of a timeline in seconds (beta)                                       |
+| `set_node_visibility`          | Show or hide specific nodes                                                            |
+| `set_text_content`             | Replace the contents of a text node                                                    |
+| `set_text_properties`          | Patch font, size, alignment, auto-resize, color, and bounds on a text node             |
+| `set_node_properties`          | Patch common node properties: name, position, size, visibility, opacity, corner radius |
+| `set_solid_fill`               | Replace a node's fill or stroke with a single solid paint                              |
+| `set_gradient_fill`            | Replace a node's fill or stroke with a linear/radial/angular/diamond gradient          |
+| `set_effects`                  | Replace a node's effects list (drop/inner shadows, layer/background blurs)             |
+| `set_stroke_properties`        | Patch stroke weight, align, dash pattern, cap, and join                                |
+| `set_auto_layout`              | Configure auto-layout direction, padding, gap, alignment, sizing, and wrap             |
+| `create_page`                  | Create a new page in the document, optionally switching to it                          |
+| `create_frame`                 | Create a new frame, optionally under a parent                                          |
+| `create_text`                  | Create a new text node                                                                 |
+| `create_shape`                 | Create a rectangle, ellipse, or line                                                   |
+| `create_image`                 | Create an image-backed rectangle from a local path, URL, or data URI                   |
+| `duplicate_nodes`              | Duplicate nodes in place                                                               |
+| `reparent_nodes`               | Move nodes into another parent                                                         |
+| `group_nodes`                  | Wrap a list of nodes (sharing a parent) in a new group                                 |
+| `ungroup_node`                 | Ungroup a group or frame — children move up to its parent                              |
+| `set_selection`                | Set the page selection to a list of node IDs (works in Dev Mode)                       |
+| `scroll_and_zoom_into_view`    | Frame the viewport around the given nodes (works in Dev Mode)                          |
+| `delete_nodes`                 | Delete nodes with explicit confirmation                                                |
 
 All tools accept an optional `fileKey` parameter when multiple Figma files are connected. Use `list_files` to discover connected files and their keys.
 
@@ -124,25 +123,35 @@ The current version is intentionally limited — no components/instances, no var
 
 ## Local development
 
+This repo uses [Bun](https://bun.sh) as its package manager and script runner throughout. Install it first if you don't have it.
+
 #### 1. Clone this repository locally
 
 ```bash
 git clone git@github.com:gethopp/figma-mcp-bridge.git
 ```
 
-#### 2. Build the server
+#### 2. Install root tooling
+
+Install the root dependencies once. This runs Husky's `prepare` script, which installs the Git pre-commit hook that formats staged files with Prettier.
 
 ```bash
-cd server && npm install && npm run build
+cd figma-mcp-bridge && bun install
 ```
 
-#### 3. Build the plugin
+#### 3. Build the server
+
+```bash
+cd server && bun install && bun run build
+```
+
+#### 4. Build the plugin
 
 ```bash
 cd plugin && bun install && bun run build
 ```
 
-#### 4. Add the MCP server to your favourite AI tool
+#### 5. Add the MCP server to your favourite AI tool
 
 For local development, add the following to your AI tool's MCP config:
 
@@ -153,6 +162,15 @@ For local development, add the following to your AI tool's MCP config:
     "args": ["/path/to/figma-mcp-bridge/server/dist/index.js"]
   }
 }
+```
+
+### Code style
+
+The repo is formatted with [Prettier](https://prettier.io) (config in `.prettierrc`). A Husky pre-commit hook runs `lint-staged`, which formats only your staged files, so commits stay formatted automatically. You can also run it manually:
+
+```bash
+bun run format        # format the whole repo
+bun run format:check  # verify formatting without writing (useful in CI)
 ```
 
 ## Structure
@@ -183,11 +201,11 @@ The Figma plugin is the user interface for the Figma MCP Bridge. You run this in
 ### 2. The MCP Server
 
 The MCP server is the core of the Figma MCP Bridge. It maintains a registry of WebSocket connections keyed by `fileKey`, so multiple Figma files can be connected simultaneously. The server is responsible for:
+
 - Handling WebSocket connections from one or more Figma plugin instances
 - Routing tool calls to the correct file based on `fileKey`
 - Forwarding responses back to the AI client
 - Handling leader election (as we can have only one WS connection to an MCP server at a time)
-
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐

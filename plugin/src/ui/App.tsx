@@ -58,7 +58,7 @@ export default function App() {
   const [status, setStatus] = useState<PluginStatus>({
     fileName: "Unknown file",
     fileKey: "",
-    selectionCount: 0
+    selectionCount: 0,
   });
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<number | null>(null);
@@ -163,8 +163,6 @@ export default function App() {
       }
     };
   }, [status.fileKey, status.fileName]);
-
-
 
   return (
     <div className="container">

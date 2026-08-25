@@ -7,10 +7,10 @@ export default defineConfig({
       entry: "src/main/code.ts",
       formats: ["iife"],
       name: "code",
-      fileName: () => "code.js"
+      fileName: () => "code.js",
     },
     outDir: "dist",
     emptyOutDir: false,
-    minify: false
-  }
+    minify: false,
+  },
 });

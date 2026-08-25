@@ -6,11 +6,7 @@ type SerializedSolidPaint = {
 };
 
 type SerializedGradientPaint = {
-  type:
-    | "GRADIENT_LINEAR"
-    | "GRADIENT_RADIAL"
-    | "GRADIENT_ANGULAR"
-    | "GRADIENT_DIAMOND";
+  type: "GRADIENT_LINEAR" | "GRADIENT_RADIAL" | "GRADIENT_ANGULAR" | "GRADIENT_DIAMOND";
   gradientStops: { color: string; opacity: number; position: number }[];
   gradientTransform: Transform;
   opacity?: number;
@@ -24,10 +20,7 @@ type SerializedImagePaint = {
   opacity?: number;
 };
 
-type SerializedPaint =
-  | SerializedSolidPaint
-  | SerializedGradientPaint
-  | SerializedImagePaint;
+type SerializedPaint = SerializedSolidPaint | SerializedGradientPaint | SerializedImagePaint;
 
 // --- Serialized effect types ---
 type SerializedShadowEffect = {
@@ -106,8 +99,7 @@ type SerializedNode = {
 const isMixed = (value: unknown): value is symbol => typeof value === "symbol";
 
 const toHex = (color: RGB): string => {
-  const clamp = (value: number) =>
-    Math.min(255, Math.max(0, Math.round(value * 255)));
+  const clamp = (value: number) => Math.min(255, Math.max(0, Math.round(value * 255)));
   const [r, g, b] = [clamp(color.r), clamp(color.g), clamp(color.b)];
   return `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
 };
@@ -237,17 +229,11 @@ const serializeText = (node: TextNode, base: SerializedNode) => {
       fontFamily,
       fontStyle,
       fontWeight: isMixed(node.fontWeight) ? "mixed" : node.fontWeight,
-      textDecoration: isMixed(node.textDecoration)
-        ? "mixed"
-        : node.textDecoration,
+      textDecoration: isMixed(node.textDecoration) ? "mixed" : node.textDecoration,
       lineHeight: serializeLineHeight(node.lineHeight),
       letterSpacing: serializeLetterSpacing(node.letterSpacing),
-      textAlignHorizontal: isMixed(node.textAlignHorizontal)
-        ? "mixed"
-        : node.textAlignHorizontal,
-      textAlignVertical: isMixed(node.textAlignVertical)
-        ? "mixed"
-        : node.textAlignVertical,
+      textAlignHorizontal: isMixed(node.textAlignHorizontal) ? "mixed" : node.textAlignHorizontal,
+      textAlignVertical: isMixed(node.textAlignVertical) ? "mixed" : node.textAlignVertical,
       textAutoResize: node.textAutoResize,
     },
   };
@@ -273,9 +259,7 @@ const serializeStyles = (node: SceneNode): SerializedStyles => {
     styles.strokes = serializePaints(node.strokes);
   }
   if ("strokeWeight" in node) {
-    styles.strokeWeight = isMixed(node.strokeWeight)
-      ? "mixed"
-      : (node.strokeWeight as number);
+    styles.strokeWeight = isMixed(node.strokeWeight) ? "mixed" : (node.strokeWeight as number);
   }
   if ("strokeAlign" in node) {
     styles.strokeAlign = node.strokeAlign as string;
@@ -295,9 +279,7 @@ const serializeStyles = (node: SceneNode): SerializedStyles => {
   }
 
   if ("cornerRadius" in node) {
-    styles.cornerRadius = isMixed(node.cornerRadius)
-      ? "mixed"
-      : (node.cornerRadius as number);
+    styles.cornerRadius = isMixed(node.cornerRadius) ? "mixed" : (node.cornerRadius as number);
   }
   if ("topLeftRadius" in node) {
     const tl = node.topLeftRadius as number;
@@ -332,9 +314,7 @@ const serializeStyles = (node: SceneNode): SerializedStyles => {
         counterAxisSizing: (node as FrameNode).counterAxisSizingMode as string,
         wrap: "layoutWrap" in node ? (node.layoutWrap as string) : undefined,
         counterAxisSpacing:
-          "counterAxisSpacing" in node
-            ? (node.counterAxisSpacing as number)
-            : undefined,
+          "counterAxisSpacing" in node ? (node.counterAxisSpacing as number) : undefined,
       };
     }
   }

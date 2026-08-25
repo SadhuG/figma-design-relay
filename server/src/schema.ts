@@ -34,18 +34,10 @@ const createExportFormatSchema = () => z.enum(["PNG", "SVG", "JPG", "PDF"]);
 const createHexColorSchema = () =>
   z
     .string()
-    .regex(
-      /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/,
-      "Color must be a hex value like '#FFAA00'"
-    );
+    .regex(/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, "Color must be a hex value like '#FFAA00'");
 const textAlignHorizontal = z.enum(["LEFT", "CENTER", "RIGHT", "JUSTIFIED"]);
 const textAlignVertical = z.enum(["TOP", "CENTER", "BOTTOM"]);
-const textAutoResize = z.enum([
-  "NONE",
-  "WIDTH_AND_HEIGHT",
-  "HEIGHT",
-  "TRUNCATE",
-]);
+const textAutoResize = z.enum(["NONE", "WIDTH_AND_HEIGHT", "HEIGHT", "TRUNCATE"]);
 const shapeType = z.enum(["RECTANGLE", "ELLIPSE", "LINE"]);
 const imageScaleMode = z.enum(["FILL", "FIT"]);
 
@@ -63,12 +55,7 @@ const gradientStop = z.object({
     .max(1)
     .describe("Stop position from 0 (start of gradient) to 1 (end)"),
   hex: createHexColorSchema().describe("Stop color as hex"),
-  opacity: z
-    .number()
-    .min(0)
-    .max(1)
-    .optional()
-    .describe("Optional per-stop alpha (default 1)"),
+  opacity: z.number().min(0).max(1).optional().describe("Optional per-stop alpha (default 1)"),
 });
 
 const gradientTransform = z
@@ -89,12 +76,7 @@ export const setGradientFillInput = z.object({
     .min(2)
     .describe("Ordered list of gradient color stops (at least 2)"),
   gradientTransform: gradientTransform.optional(),
-  opacity: z
-    .number()
-    .min(0)
-    .max(1)
-    .optional()
-    .describe("Overall paint opacity (default 1)"),
+  opacity: z.number().min(0).max(1).optional().describe("Overall paint opacity (default 1)"),
   target: z
     .enum(["fill", "stroke"])
     .optional()
@@ -110,12 +92,7 @@ export const setNodePropertiesInput = z.object({
   width: z.number().positive().optional().describe("Optional width"),
   height: z.number().positive().optional().describe("Optional height"),
   rotation: z.number().optional().describe("Optional rotation in degrees"),
-  opacity: z
-    .number()
-    .min(0)
-    .max(1)
-    .optional()
-    .describe("Optional opacity from 0 to 1"),
+  opacity: z.number().min(0).max(1).optional().describe("Optional opacity from 0 to 1"),
   visible: z.boolean().optional().describe("Optional visibility"),
   cornerRadius: z.number().min(0).optional().describe("Optional corner radius"),
   fileKey: fileKeyField,
@@ -135,14 +112,10 @@ export const setSolidFillShape = z.object({
   nodeId: createFigmaNodeIdSchema().describe("The node ID to update"),
   hex: createHexColorSchema()
     .optional()
-    .describe(
-      "Solid color as hex (e.g. '#FFAA00'). Required unless fillHex is given."
-    ),
+    .describe("Solid color as hex (e.g. '#FFAA00'). Required unless fillHex is given."),
   fillHex: createHexColorSchema()
     .optional()
-    .describe(
-      "Alias for hex, matching the create_* tools. Supply one of the two."
-    ),
+    .describe("Alias for hex, matching the create_* tools. Supply one of the two."),
   opacity: z
     .number()
     .min(0)
@@ -204,12 +177,7 @@ const blendMode = z.enum([
 const shadowEffect = z.object({
   type: z.enum(["DROP_SHADOW", "INNER_SHADOW"]),
   color: createHexColorSchema().describe("Shadow color as hex"),
-  opacity: z
-    .number()
-    .min(0)
-    .max(1)
-    .optional()
-    .describe("Shadow alpha 0..1 (default 1)"),
+  opacity: z.number().min(0).max(1).optional().describe("Shadow alpha 0..1 (default 1)"),
   offset: z
     .object({
       x: z.number(),
@@ -237,15 +205,8 @@ const effectInput = z.object({
   type: z
     .enum(["DROP_SHADOW", "INNER_SHADOW", "LAYER_BLUR", "BACKGROUND_BLUR"])
     .describe("Effect type"),
-  color: createHexColorSchema()
-    .optional()
-    .describe("Required for shadow effects"),
-  opacity: z
-    .number()
-    .min(0)
-    .max(1)
-    .optional()
-    .describe("Shadow alpha 0..1 (default 1)"),
+  color: createHexColorSchema().optional().describe("Required for shadow effects"),
+  opacity: z.number().min(0).max(1).optional().describe("Shadow alpha 0..1 (default 1)"),
   offset: z
     .object({
       x: z.number(),
@@ -264,10 +225,7 @@ const effectInput = z.object({
   visible: z.boolean().optional().describe("Default true"),
 });
 
-const effectRuntimeSchema = z.discriminatedUnion("type", [
-  shadowEffect,
-  blurEffect,
-]);
+const effectRuntimeSchema = z.discriminatedUnion("type", [shadowEffect, blurEffect]);
 
 export const setSelectionInput = z.object({
   nodeIds: z
@@ -277,10 +235,7 @@ export const setSelectionInput = z.object({
 });
 
 export const scrollAndZoomIntoViewInput = z.object({
-  nodeIds: z
-    .array(createFigmaNodeIdSchema())
-    .min(1)
-    .describe("Node IDs to frame in the viewport"),
+  nodeIds: z.array(createFigmaNodeIdSchema()).min(1).describe("Node IDs to frame in the viewport"),
   fileKey: fileKeyField,
 });
 
@@ -331,11 +286,7 @@ export const setEffectsInput = setEffectsShape.superRefine((value, ctx) => {
 
 export const setStrokePropertiesInput = z.object({
   nodeId: createFigmaNodeIdSchema().describe("The node ID to update"),
-  strokeWeight: z
-    .number()
-    .min(0)
-    .optional()
-    .describe("Stroke thickness in pixels"),
+  strokeWeight: z.number().min(0).optional().describe("Stroke thickness in pixels"),
   strokeAlign: z
     .enum(["INSIDE", "OUTSIDE", "CENTER"])
     .optional()
@@ -343,24 +294,17 @@ export const setStrokePropertiesInput = z.object({
   dashPattern: z
     .array(z.number().min(0))
     .optional()
-    .describe(
-      "Dash pattern as [dash, gap, dash, gap, ...] in pixels. Pass [] for a solid stroke."
-    ),
+    .describe("Dash pattern as [dash, gap, dash, gap, ...] in pixels. Pass [] for a solid stroke."),
   strokeCap: z
     .enum(["NONE", "ROUND", "SQUARE", "ARROW_LINES", "ARROW_EQUILATERAL"])
     .optional()
     .describe("End-cap style (only meaningful on open paths/lines)"),
-  strokeJoin: z
-    .enum(["MITER", "BEVEL", "ROUND"])
-    .optional()
-    .describe("Corner join style"),
+  strokeJoin: z.enum(["MITER", "BEVEL", "ROUND"]).optional().describe("Corner join style"),
   fileKey: fileKeyField,
 });
 
 export const setAutoLayoutInput = z.object({
-  nodeId: createFigmaNodeIdSchema().describe(
-    "The node ID to update (must be a frame)"
-  ),
+  nodeId: createFigmaNodeIdSchema().describe("The node ID to update (must be a frame)"),
   layoutMode: z
     .enum(["NONE", "HORIZONTAL", "VERTICAL"])
     .optional()
@@ -403,15 +347,14 @@ export const setAutoLayoutInput = z.object({
 export const createPageInput = z.object({
   name: z
     .string()
-    .trim().min(1)
+    .trim()
+    .min(1)
     .optional()
     .describe("Optional page name (defaults to Figma's 'Page N')"),
   setAsCurrent: z
     .boolean()
     .optional()
-    .describe(
-      "When true, switch the editor to the new page after creating it (default false)"
-    ),
+    .describe("When true, switch the editor to the new page after creating it (default false)"),
   fileKey: fileKeyField,
 });
 
@@ -424,9 +367,7 @@ export const createFrameInput = z.object({
   y: z.number().optional().describe("Optional y position"),
   width: z.number().positive().optional().describe("Frame width"),
   height: z.number().positive().optional().describe("Frame height"),
-  fillHex: createHexColorSchema()
-    .optional()
-    .describe("Optional solid fill color as hex"),
+  fillHex: createHexColorSchema().optional().describe("Optional solid fill color as hex"),
   fillOpacity: z
     .number()
     .min(0)
@@ -458,47 +399,30 @@ export const setTextContentShape = z.object({
  * Normalises `characters` onto `text`. Derived from the advertised shape so the
  * two cannot drift; `text` wins when both spellings are supplied.
  */
-export const setTextContentInput = setTextContentShape.transform(
-  ({ characters, ...rest }, ctx) => {
-    const text = rest.text ?? characters;
-    if (text === undefined) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["text"],
-        message: "text is required (characters is accepted as an alias)",
-      });
-      return z.NEVER;
-    }
-    return { ...rest, text };
+export const setTextContentInput = setTextContentShape.transform(({ characters, ...rest }, ctx) => {
+  const text = rest.text ?? characters;
+  if (text === undefined) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["text"],
+      message: "text is required (characters is accepted as an alias)",
+    });
+    return z.NEVER;
   }
-);
+  return { ...rest, text };
+});
 
 export const setTextPropertiesShape = z.object({
   nodeId: createFigmaNodeIdSchema().describe("The text node ID to update"),
   fontFamily: z.string().optional().describe("Optional font family"),
   fontStyle: z.string().optional().describe("Optional font style"),
   fontSize: z.number().positive().optional().describe("Optional font size"),
-  textAlignHorizontal: textAlignHorizontal
-    .optional()
-    .describe("Optional horizontal alignment"),
-  textAlignVertical: textAlignVertical
-    .optional()
-    .describe("Optional vertical alignment"),
-  textAutoResize: textAutoResize
-    .optional()
-    .describe("Optional text auto-resize mode"),
-  lineHeightPx: z
-    .number()
-    .positive()
-    .optional()
-    .describe("Optional line height in pixels"),
-  letterSpacingPx: z
-    .number()
-    .optional()
-    .describe("Optional letter spacing in pixels"),
-  fillHex: createHexColorSchema()
-    .optional()
-    .describe("Optional text fill color as hex"),
+  textAlignHorizontal: textAlignHorizontal.optional().describe("Optional horizontal alignment"),
+  textAlignVertical: textAlignVertical.optional().describe("Optional vertical alignment"),
+  textAutoResize: textAutoResize.optional().describe("Optional text auto-resize mode"),
+  lineHeightPx: z.number().positive().optional().describe("Optional line height in pixels"),
+  letterSpacingPx: z.number().optional().describe("Optional letter spacing in pixels"),
+  fillHex: createHexColorSchema().optional().describe("Optional text fill color as hex"),
   fillOpacity: z
     .number()
     .min(0)
@@ -545,15 +469,9 @@ export const createTextShape = z.object({
   fontFamily: z.string().optional().describe("Font family, defaults to Inter"),
   fontStyle: z.string().optional().describe("Font style, defaults to Regular"),
   fontSize: z.number().positive().optional().describe("Optional font size"),
-  textAlignHorizontal: textAlignHorizontal
-    .optional()
-    .describe("Optional horizontal alignment"),
-  textAutoResize: textAutoResize
-    .optional()
-    .describe("Optional text auto-resize mode"),
-  fillHex: createHexColorSchema()
-    .optional()
-    .describe("Optional text fill color as hex"),
+  textAlignHorizontal: textAlignHorizontal.optional().describe("Optional horizontal alignment"),
+  textAutoResize: textAutoResize.optional().describe("Optional text auto-resize mode"),
+  fillHex: createHexColorSchema().optional().describe("Optional text fill color as hex"),
   fillOpacity: z
     .number()
     .min(0)
@@ -588,29 +506,16 @@ export const createShapeShape = z.object({
     .min(0)
     .optional()
     .describe("Optional corner radius for supported shapes"),
-  fillHex: createHexColorSchema()
-    .optional()
-    .describe("Optional fill color as hex"),
-  fillOpacity: z
-    .number()
-    .min(0)
-    .max(1)
-    .optional()
-    .describe("Optional fill opacity from 0 to 1"),
-  strokeHex: createHexColorSchema()
-    .optional()
-    .describe("Optional stroke color as hex"),
+  fillHex: createHexColorSchema().optional().describe("Optional fill color as hex"),
+  fillOpacity: z.number().min(0).max(1).optional().describe("Optional fill opacity from 0 to 1"),
+  strokeHex: createHexColorSchema().optional().describe("Optional stroke color as hex"),
   strokeOpacity: z
     .number()
     .min(0)
     .max(1)
     .optional()
     .describe("Optional stroke opacity from 0 to 1"),
-  strokeWeight: z
-    .number()
-    .positive()
-    .optional()
-    .describe("Optional stroke weight"),
+  strokeWeight: z.number().positive().optional().describe("Optional stroke weight"),
   fileKey: fileKeyField,
 });
 
@@ -620,8 +525,7 @@ export const createShapeInput = createShapeShape
     "fillHex is required when fillOpacity is provided"
   )
   .refine(
-    (value) =>
-      value.strokeOpacity === undefined || value.strokeHex !== undefined,
+    (value) => value.strokeOpacity === undefined || value.strokeHex !== undefined,
     "strokeHex is required when strokeOpacity is provided"
   )
   .refine(
@@ -701,10 +605,7 @@ export const toolInputSchemas = {
     format: createExportFormatSchema()
       .optional()
       .describe("Export format: PNG (default) or SVG or JPG or PDF"),
-    scale: z
-      .number()
-      .optional()
-      .describe("Export scale for raster formats (default 2)"),
+    scale: z.number().optional().describe("Export scale for raster formats (default 2)"),
     clip: z
       .boolean()
       .optional()
@@ -792,18 +693,12 @@ export const toolInputSchemas = {
   create_image: createImageInput,
 
   duplicate_nodes: z.object({
-    nodeIds: z
-      .array(createFigmaNodeIdSchema())
-      .min(1)
-      .describe("List of node IDs to duplicate"),
+    nodeIds: z.array(createFigmaNodeIdSchema()).min(1).describe("List of node IDs to duplicate"),
     fileKey: fileKeyField,
   }),
 
   reparent_nodes: z.object({
-    nodeIds: z
-      .array(createFigmaNodeIdSchema())
-      .min(1)
-      .describe("List of node IDs to move"),
+    nodeIds: z.array(createFigmaNodeIdSchema()).min(1).describe("List of node IDs to move"),
     parentId: createFigmaNodeIdSchema().describe("Destination parent node ID"),
     fileKey: fileKeyField,
   }),
@@ -817,10 +712,7 @@ export const toolInputSchemas = {
   scroll_and_zoom_into_view: scrollAndZoomIntoViewInput,
 
   delete_nodes: z.object({
-    nodeIds: z
-      .array(createFigmaNodeIdSchema())
-      .min(1)
-      .describe("List of node IDs to delete"),
+    nodeIds: z.array(createFigmaNodeIdSchema()).min(1).describe("List of node IDs to delete"),
     confirm: z.boolean().describe("Must be true to confirm deletion"),
     fileKey: fileKeyField,
   }),
@@ -858,10 +750,7 @@ export const toolInputSchemas = {
     format: createExportFormatSchema()
       .optional()
       .describe("Default export format: PNG (default) or SVG or JPG or PDF"),
-    scale: z
-      .number()
-      .optional()
-      .describe("Default export scale for raster formats (default 2)"),
+    scale: z.number().optional().describe("Default export scale for raster formats (default 2)"),
     clip: z
       .boolean()
       .optional()
@@ -883,33 +772,58 @@ export const toolInputSchemas = {
   apply_animation_style: z.object({
     nodeId: createFigmaNodeIdSchema().describe("The node ID to apply the style to"),
     styleId: z.string().describe("The ID of the animation style to apply"),
-    animationStyleData: z.record(z.unknown()).optional().describe("Optional values used to configure the applied animation style (e.g. duration, timelineOffset, axis, direction)"),
+    animationStyleData: z
+      .record(z.unknown())
+      .optional()
+      .describe(
+        "Optional values used to configure the applied animation style (e.g. duration, timelineOffset, axis, direction)"
+      ),
     fileKey: fileKeyField,
   }),
 
   remove_animation_style: z.object({
     nodeId: createFigmaNodeIdSchema().describe("The node ID to remove the style from"),
-    animationStyleId: z.string().optional().describe("The ID of the animation style to remove. If omitted, all animation styles are removed."),
+    animationStyleId: z
+      .string()
+      .optional()
+      .describe(
+        "The ID of the animation style to remove. If omitted, all animation styles are removed."
+      ),
     fileKey: fileKeyField,
   }),
 
   apply_manual_keyframe_track: z.object({
     nodeId: createFigmaNodeIdSchema().describe("The node ID to apply the track to"),
-    field: z.record(z.unknown()).describe("The property, paint, or effect field to animate. Example: { type: 'PROPERTY', name: 'TRANSLATION_X' }"),
-    track: z.record(z.unknown()).describe("The manual keyframe track to write. Contains keyframes, baseValue, etc."),
+    field: z
+      .record(z.unknown())
+      .describe(
+        "The property, paint, or effect field to animate. Example: { type: 'PROPERTY', name: 'TRANSLATION_X' }"
+      ),
+    track: z
+      .record(z.unknown())
+      .describe("The manual keyframe track to write. Contains keyframes, baseValue, etc."),
     fileKey: fileKeyField,
   }),
 
   remove_manual_keyframe_track: z.object({
     nodeId: createFigmaNodeIdSchema().describe("The node ID to remove the track from"),
-    field: z.record(z.unknown()).describe("The property, paint, or effect field to remove. Example: { type: 'PROPERTY', name: 'TRANSLATION_X' }"),
+    field: z
+      .record(z.unknown())
+      .describe(
+        "The property, paint, or effect field to remove. Example: { type: 'PROPERTY', name: 'TRANSLATION_X' }"
+      ),
     fileKey: fileKeyField,
   }),
 
   set_timeline_duration: z.object({
-    nodeId: createFigmaNodeIdSchema().describe("The node ID whose timeline duration will be changed"),
+    nodeId: createFigmaNodeIdSchema().describe(
+      "The node ID whose timeline duration will be changed"
+    ),
     timelineId: z.string().describe("A timeline id read from the node's timelines array"),
-    duration: z.number().positive().describe("The new timeline duration in seconds (must be greater than zero)"),
+    duration: z
+      .number()
+      .positive()
+      .describe("The new timeline duration in seconds (must be greater than zero)"),
     fileKey: fileKeyField,
   }),
 } as const;
@@ -926,16 +840,12 @@ type ToolName = keyof typeof toolInputSchemas;
  * path against the advertised `createImageInput` (which requires `source`)
  * rejected every follower create_image call with a 400 (#35).
  */
-const createImageRpcInput = createImageInput
-  .omit({ source: true, fileKey: true })
-  .extend({
-    imageBase64: z
-      .string()
-      .min(1)
-      .describe(
-        "Base64-encoded image bytes, resolved from `source` by the tool handler"
-      ),
-  });
+const createImageRpcInput = createImageInput.omit({ source: true, fileKey: true }).extend({
+  imageBase64: z
+    .string()
+    .min(1)
+    .describe("Base64-encoded image bytes, resolved from `source` by the tool handler"),
+});
 
 /**
  * Schemas the RPC path validates against. Tools whose handlers rewrite the
@@ -997,11 +907,26 @@ const rpcToArgs: Record<
   save_screenshots: (_nodeIds, params) => ({ ...params }),
   get_motion_styles: (_nodeIds, params) => ({ ...params }),
   get_node_motion: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
-  apply_animation_style: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
-  remove_animation_style: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
-  apply_manual_keyframe_track: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
-  remove_manual_keyframe_track: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
-  set_timeline_duration: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
+  apply_animation_style: (nodeIds, params) => ({
+    ...params,
+    nodeId: nodeIds?.[0],
+  }),
+  remove_animation_style: (nodeIds, params) => ({
+    ...params,
+    nodeId: nodeIds?.[0],
+  }),
+  apply_manual_keyframe_track: (nodeIds, params) => ({
+    ...params,
+    nodeId: nodeIds?.[0],
+  }),
+  remove_manual_keyframe_track: (nodeIds, params) => ({
+    ...params,
+    nodeId: nodeIds?.[0],
+  }),
+  set_timeline_duration: (nodeIds, params) => ({
+    ...params,
+    nodeId: nodeIds?.[0],
+  }),
 };
 
 /**
@@ -1038,9 +963,7 @@ export function validateRpc(
   if (!(tool in rpcInputSchemas)) return { error: null };
 
   const name = tool as ToolName;
-  const result = rpcInputSchemas[name].safeParse(
-    rpcToArgs[name](nodeIds, params)
-  );
+  const result = rpcInputSchemas[name].safeParse(rpcToArgs[name](nodeIds, params));
   if (!result.success) {
     return { error: result.error.issues[0].message };
   }
@@ -1049,9 +972,6 @@ export function validateRpc(
   // tool schema can validate it. The plugin reads node ids off `request.nodeIds`
   // instead, so drop it again — along with `fileKey`, which travels beside the
   // params rather than inside them.
-  const { nodeId: _nodeId, fileKey: _fileKey, ...rest } = result.data as Record<
-    string,
-    unknown
-  >;
+  const { nodeId: _nodeId, fileKey: _fileKey, ...rest } = result.data as Record<string, unknown>;
   return { error: null, params: rest };
 }
