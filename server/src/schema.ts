@@ -859,6 +859,20 @@ export const toolInputSchemas = {
       .describe("The new timeline duration in seconds (must be greater than zero)"),
     fileKey: fileKeyField,
   }),
+
+  run_script: z.object({
+    code: z
+      .string()
+      .min(1, "code must not be empty")
+      .max(
+        100_000,
+        "code must be at most 100000 characters — split it into smaller run_script calls"
+      )
+      .describe(
+        "JavaScript executed inside the Figma plugin sandbox with the full Plugin API in scope as `figma`. Top-level `await` and top-level `return` are supported."
+      ),
+    fileKey: fileKeyField,
+  }),
 } as const;
 
 type ToolName = keyof typeof toolInputSchemas;
@@ -958,6 +972,7 @@ const rpcToArgs: Record<
   apply_manual_keyframe_track: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
   remove_manual_keyframe_track: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
   set_timeline_duration: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
+  run_script: (_nodeIds, params) => ({ ...params }),
 };
 
 /**
