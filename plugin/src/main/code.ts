@@ -1,5 +1,6 @@
 import { serializeNode } from "./serializer";
 import { addLayersToFrame } from "../html-figma/figma";
+import { runScript } from "./script-runner";
 
 type RequestType =
   | "get_document"
@@ -38,7 +39,8 @@ type RequestType =
   | "remove_animation_style"
   | "apply_manual_keyframe_track"
   | "remove_manual_keyframe_track"
-  | "set_timeline_duration";
+  | "set_timeline_duration"
+  | "run_script";
 
 type ServerRequestParams = Record<string, unknown> & {
   format?: "PNG" | "SVG" | "JPG" | "PDF";
@@ -58,6 +60,7 @@ type ServerRequestParams = Record<string, unknown> & {
   track?: any;
   timelineId?: string;
   duration?: number;
+  code?: string;
 };
 
 type ServerRequest = {
@@ -354,6 +357,7 @@ const EDIT_REQUEST_TYPES = new Set<RequestType>([
   "apply_manual_keyframe_track",
   "remove_manual_keyframe_track",
   "set_timeline_duration",
+  "run_script",
 ]);
 
 const requireEditorMode = (toolName: RequestType): void => {
@@ -1833,6 +1837,24 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
             nodeId: node.id,
             timelines: node.timelines,
           },
+        };
+      }
+      case "run_script": {
+        const code = request.params?.code;
+        if (typeof code !== "string") {
+          throw new Error("run_script requires a `code` string parameter.");
+        }
+        const outcome = await runScript(code);
+        // Surface failures on the response's `error` channel so the MCP layer
+        // marks the tool result as an error instead of a successful payload
+        // that happens to contain a failure.
+        if (!outcome.ok) {
+          throw new Error(outcome.error);
+        }
+        return {
+          type: request.type,
+          requestId: request.requestId,
+          data: outcome,
         };
       }
       default:
