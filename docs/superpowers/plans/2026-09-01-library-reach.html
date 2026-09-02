@@ -1,0 +1,1565 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Library Reach and Identity · Figma Design Relay plan</title>
+    <meta
+      name="description"
+      content="Phase 5 implementation plan: team library reach and identity — manifest permissions, whoami, get_libraries, import-by-key, and an honestly-scoped design system search."
+    />
+    <link rel="stylesheet" href="../assets/doc.css" />
+  </head>
+  <body data-doc="library-reach-plan">
+    <a class="skip" href="#main">Skip to the plan</a>
+
+    <div class="shell">
+      <header class="masthead">
+        <p class="eyebrow">Implementation plan · Phase 5 · 2026-09-01</p>
+        <h1>Library Reach and Identity</h1>
+        <p class="standfirst">
+          Let the bridge see past the file the plugin happens to be open in — published team
+          libraries, the components and variables they contain, importing them by key — and report
+          who is signed in, while being honest in the tool descriptions about the reach the Plugin
+          API does not give us.
+        </p>
+
+        <dl class="masthead__meta">
+          <div>
+            <b>Spec</b> —
+            <a href="../specs/2026-09-01-official-figma-mcp-parity.html">Parity analysis</a>, phase
+            5
+          </div>
+          <div><b>Tasks</b> — 7</div>
+          <div><b>Steps</b> — 44</div>
+          <div><b>Progress</b> — saved in this browser</div>
+        </dl>
+      </header>
+
+      <blockquote>
+        <p>
+          <strong>For agentic workers:</strong> REQUIRED SUB-SKILL: Use
+          superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to
+          implement this plan task-by-task. Steps use checkbox (<code>- [ ]</code>) syntax for
+          tracking.
+        </p>
+      </blockquote>
+
+      <section class="brief">
+        <h2 id="brief" data-spy>The shape of it</h2>
+        <p>
+          <strong>Architecture.</strong> Two new manifest permissions unlock
+          <code>figma.currentUser</code> and <code>figma.teamLibrary</code>. A small
+          permission-aware error mapper turns Figma's raw refusals into messages that name the
+          permission and the plan requirement. Four tools sit on top, and
+          <code>search_design_system</code> is deliberately scoped down — its description opens by
+          saying what it cannot do, because an agent that assumes org-wide search will draw the
+          wrong conclusion from an empty result.
+        </p>
+        <p>
+          <strong>Tech stack.</strong> TypeScript, Bun (<code>bun test</code>), Zod,
+          <code>@modelcontextprotocol/sdk</code>, the Figma Plugin API.
+        </p>
+
+        <h3>Global constraints</h3>
+        <p>Every task's requirements implicitly include these.</p>
+        <ul class="plain">
+          <li>
+            Node <code>&gt;=20.0.0</code>; Bun is the package manager and script runner throughout.
+          </li>
+          <li>
+            The server is ESM with <code>"module": "Node16"</code>:
+            <strong
+              >relative imports inside <code>server/src</code> must carry a
+              <code>.js</code> extension</strong
+            >. Plugin sources use extensionless relative imports.
+          </li>
+          <li>
+            Prettier 3.9.6 formats everything; a Husky <code>pre-commit</code> hook runs
+            <code>lint-staged</code>.
+          </li>
+          <li>
+            <strong>Phase 1's test harness must already be in place</strong>; this plan writes
+            <code>bun test</code> files in both packages.
+          </li>
+          <li>
+            <strong>New plugin modules must never reference the <code>figma</code> global.</strong>
+            They take what they need as parameters, which is what lets them run under Bun.
+          </li>
+          <li>
+            <strong><code>teamlibrary</code> is a plan-gated permission.</strong> Team library APIs
+            are not available on every Figma plan, and this plan must not pretend otherwise: every
+            team-library call is wrapped so a refusal produces an actionable message rather than a
+            raw error, and the README says the permission may not be usable on all plans.
+          </li>
+          <li>
+            Every new tool registers a Zod schema in <code>toolInputSchemas</code>
+            <strong>and</strong> a mapper in <code>rpcToArgs</code>, in the same commit.
+          </li>
+          <li>
+            <strong>Do not overstate reach in a tool description.</strong> A description that
+            implies org-wide search when the implementation cannot deliver it is a defect, not
+            marketing.
+          </li>
+          <li>Never reformat or restructure code outside the files each task lists.</li>
+        </ul>
+      </section>
+
+      <div class="layout">
+        <nav class="rail" aria-label="Tasks">
+          <p class="rail__title">Tasks</p>
+          <ol>
+            <li>
+              <a href="#task-1"
+                ><span>Manifest permissions <b class="rail__done"></b></span
+              ></a>
+            </li>
+            <li>
+              <a href="#task-2"
+                ><span>Permission errors <b class="rail__done"></b></span
+              ></a>
+            </li>
+            <li>
+              <a href="#task-3"
+                ><span>whoami <b class="rail__done"></b></span
+              ></a>
+            </li>
+            <li>
+              <a href="#task-4"
+                ><span>get_libraries <b class="rail__done"></b></span
+              ></a>
+            </li>
+            <li>
+              <a href="#task-5"
+                ><span>Import by key <b class="rail__done"></b></span
+              ></a>
+            </li>
+            <li>
+              <a href="#task-6"
+                ><span>Design system search <b class="rail__done"></b></span
+              ></a>
+            </li>
+            <li>
+              <a href="#task-7"
+                ><span>Verify &amp; document <b class="rail__done"></b></span
+              ></a>
+            </li>
+          </ol>
+        </nav>
+
+        <main id="main">
+          <article class="task" id="task-1" data-spy>
+            <div class="task__head">
+              <span class="task__no">Task 01</span>
+              <h2>Request the manifest permissions</h2>
+              <span class="chip chip--phase">R36</span>
+            </div>
+            <p>
+              <code>plugin/manifest.json</code> declares <code>"permissions": []</code> today, which
+              is why <code>figma.currentUser</code> and <code>figma.teamLibrary</code> are
+              unreachable. Changing it is one line, but it is user-visible on plugin import, so the
+              README has to explain it in the same commit.
+            </p>
+
+            <div class="tension">
+              <span class="tension__count"></span><span class="tension__fill"></span>
+            </div>
+
+            <dl class="files">
+              <dt>Files</dt>
+              <dd>
+                <ul>
+                  <li>
+                    <span class="verb">Modify</span><code>plugin/manifest.json</code> — the
+                    <code>permissions</code> array
+                  </li>
+                  <li>
+                    <span class="verb">Modify</span><code>README.md</code> — the plugin install
+                    section
+                  </li>
+                </ul>
+              </dd>
+              <dt>Interfaces</dt>
+              <dd>
+                <strong>Consumes</strong> — nothing.<br />
+                <strong>Produces</strong> — <code>figma.currentUser</code> and
+                <code>figma.teamLibrary</code> become reachable in the plugin sandbox. Tasks 3, 4, 5
+                and 6 depend on this.
+              </dd>
+            </dl>
+
+            <ol class="steps">
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht1s1" />
+                  <label class="step__label" for="libraryreacht1s1">Add the permissions</label>
+                </div>
+                <div class="step__body">
+                  <p>Replace the empty array in <code>plugin/manifest.json</code>:</p>
+                  <pre><code>  "permissions": ["currentuser", "teamlibrary"],</code></pre>
+                  <p>
+                    Leave every other field alone — <code>documentAccess</code>,
+                    <code>editorType</code>, <code>networkAccess</code> and
+                    <code>capabilities</code> are all still correct.
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht1s2" />
+                  <label class="step__label" for="libraryreacht1s2"
+                    >Verify the manifest is still valid JSON and the plugin loads</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b>
+                    <code
+                      >cd plugin &amp;&amp; bun run build &amp;&amp; node -e
+                      "JSON.parse(require('fs').readFileSync('manifest.json','utf8'));
+                      console.log('manifest ok')"</code
+                    ><br />
+                    <b>Expect</b> <span class="pass">PASS</span> — prints
+                    <code>manifest ok</code> and the build succeeds
+                  </p>
+                  <p>
+                    Then re-import the plugin in Figma (_Plugins → Development → Import plugin from
+                    manifest_) and run it. Figma shows the requested permissions on import; confirm
+                    it starts without an error.
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht1s3" />
+                  <label class="step__label" for="libraryreacht1s3"
+                    >Explain the permissions in the README</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p>Add to the plugin install section in <code>README.md</code>:</p>
+                  <pre><code>The plugin requests two permissions:
+
+- `currentuser` — so `whoami` can report who is signed in.
+- `teamlibrary` — so `get_libraries`, `import_library_asset` and `search_design_system` can reach published libraries. Team library APIs are gated by Figma plan; on plans without them these three tools return an explicit "not available on this plan" error and every other tool is unaffected.</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht1s4" />
+                  <label class="step__label" for="libraryreacht1s4">Commit</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>git add plugin/manifest.json README.md
+git commit -m "feat(plugin): request currentuser and teamlibrary permissions"</code></pre>
+                  <p>---</p>
+                </div>
+              </li>
+            </ol>
+          </article>
+
+          <article class="task" id="task-2" data-spy>
+            <div class="task__head">
+              <span class="task__no">Task 02</span>
+              <h2>Permission-aware errors</h2>
+              <span class="chip chip--phase">R41</span>
+            </div>
+            <p>
+              Figma refuses a team-library call with a message that tells a human nothing and an
+              agent less. This maps refusals onto messages that name the permission, the plan
+              requirement, and the next step. It is a pure module, so it tests without Figma.
+            </p>
+
+            <div class="tension">
+              <span class="tension__count"></span><span class="tension__fill"></span>
+            </div>
+
+            <dl class="files">
+              <dt>Files</dt>
+              <dd>
+                <ul>
+                  <li>
+                    <span class="verb">Create</span><code>plugin/src/main/permissions.ts</code>
+                  </li>
+                  <li>
+                    <span class="verb">Create</span><code>plugin/src/main/permissions.test.ts</code>
+                  </li>
+                </ul>
+              </dd>
+              <dt>Interfaces</dt>
+              <dd>
+                <strong>Consumes</strong> — nothing.<br />
+                <strong>Produces</strong> — <code>describeApiError(error, api): string</code> and
+                <code>withPermissionContext(api, fn): Promise&lt;T&gt;</code>. Tasks 3, 4, 5 and 6
+                wrap every permission-gated call in <code>withPermissionContext</code>.
+              </dd>
+            </dl>
+
+            <ol class="steps">
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht2s1" />
+                  <label class="step__label" for="libraryreacht2s1">Write the failing test</label>
+                </div>
+                <div class="step__body">
+                  <p class="pre-label">plugin/src/main/permissions.test.ts — create</p>
+                  <pre><code>import { describe, expect, test } from "bun:test";
+import { describeApiError, withPermissionContext } from "./permissions";
+
+describe("describeApiError", () =&gt; {
+  test("names the permission when the manifest is missing it", () =&gt; {
+    const message = describeApiError(new Error("Missing permission: teamlibrary"), "teamLibrary");
+    expect(message).toContain("teamlibrary");
+    expect(message).toContain("manifest.json");
+  });
+
+  test("names the plan requirement when the API is plan-gated", () =&gt; {
+    const message = describeApiError(
+      new Error("This API is only available in Organization and Enterprise plans"),
+      "teamLibrary"
+    );
+    expect(message).toMatch(/plan/i);
+    expect(message).toContain("teamLibrary");
+  });
+
+  test("keeps an unrelated error readable rather than reinterpreting it", () =&gt; {
+    const message = describeApiError(new TypeError("nope"), "currentUser");
+    expect(message).toBe("TypeError: nope");
+  });
+
+  test("handles a thrown non-Error", () =&gt; {
+    expect(describeApiError("boom", "currentUser")).toBe("boom");
+  });
+});
+
+describe("withPermissionContext", () =&gt; {
+  test("passes a successful result through", async () =&gt; {
+    expect(await withPermissionContext("teamLibrary", async () =&gt; 42)).toBe(42);
+  });
+
+  test("rethrows with the mapped message", async () =&gt; {
+    const failing = withPermissionContext("teamLibrary", async () =&gt; {
+      throw new Error("Missing permission: teamlibrary");
+    });
+    await expect(failing).rejects.toThrow(/manifest\.json/);
+  });
+});</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht2s2" />
+                  <label class="step__label" for="libraryreacht2s2"
+                    >Run it to make sure it fails</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b>
+                    <code>cd plugin &amp;&amp; bun test src/main/permissions.test.ts</code><br />
+                    <b>Expect</b> <span class="fail">FAIL</span> —
+                    <code>Cannot find module './permissions'</code>
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht2s3" />
+                  <label class="step__label" for="libraryreacht2s3">Write the implementation</label>
+                </div>
+                <div class="step__body">
+                  <p class="pre-label">plugin/src/main/permissions.ts — create</p>
+                  <pre><code>/**
+ * Turns Figma's refusals into messages an agent can act on.
+ *
+ * A raw "Missing permission" or "only available in Organization plans" tells
+ * the caller nothing about what to do next, and an agent will usually retry the
+ * same call. Naming the permission, the plan and the next step stops that.
+ */
+
+/** The permission-gated API surfaces this plugin touches. */
+export type GatedApi = "teamLibrary" | "currentUser";
+
+const MANIFEST_PERMISSION: Record&lt;GatedApi, string&gt; = {
+  teamLibrary: "teamlibrary",
+  currentUser: "currentuser",
+};
+
+/**
+ * Maps a thrown value to an actionable message.
+ * @param error - Whatever was thrown.
+ * @param api - The API surface the call belonged to.
+ * @returns The message to surface, unchanged when the error is unrelated.
+ */
+export const describeApiError = (error: unknown, api: GatedApi): string =&gt; {
+  const raw = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+  const text = error instanceof Error ? error.message : String(error);
+
+  if (/missing permission/i.test(text)) {
+    return (
+      `Figma refused the ${api} call because the plugin does not have the ` +
+      `"${MANIFEST_PERMISSION[api]}" permission. Add it to the "permissions" array in ` +
+      `plugin/manifest.json, rebuild the plugin, and re-import it in Figma.`
+    );
+  }
+
+  if (/organization|enterprise|plan/i.test(text)) {
+    return (
+      `Figma refused the ${api} call because it is not available on this account's plan. ` +
+      `Team library APIs require an Organization or Enterprise plan. ` +
+      `Every other bridge tool still works; use the file the plugin is open in instead.`
+    );
+  }
+
+  return raw;
+};
+
+/**
+ * Runs a permission-gated call and rethrows with an actionable message.
+ * @param api - The API surface being called.
+ * @param fn - The call.
+ */
+export const withPermissionContext = async &lt;T&gt;(api: GatedApi, fn: () =&gt; Promise&lt;T&gt;): Promise&lt;T&gt; =&gt; {
+  try {
+    return await fn();
+  } catch (error) {
+    throw new Error(describeApiError(error, api));
+  }
+};</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht2s4" />
+                  <label class="step__label" for="libraryreacht2s4"
+                    >Run the tests and make sure they pass</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b>
+                    <code>cd plugin &amp;&amp; bun test src/main/permissions.test.ts</code><br />
+                    <b>Expect</b> <span class="pass">PASS</span> — 6 pass, 0 fail
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht2s5" />
+                  <label class="step__label" for="libraryreacht2s5">Commit</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>git add plugin/src/main/permissions.ts plugin/src/main/permissions.test.ts
+git commit -m "feat(plugin): map permission and plan refusals to actionable errors"</code></pre>
+                  <p>---</p>
+                </div>
+              </li>
+            </ol>
+          </article>
+
+          <article class="task" id="task-3" data-spy>
+            <div class="task__head">
+              <span class="task__no">Task 03</span>
+              <h2><code>whoami</code></h2>
+              <span class="chip chip--phase">R37</span>
+            </div>
+            <p>
+              The smallest tool in the phase, and the one that proves task 1 worked.
+              <code>figma.currentUser</code> can be <code>null</code> even with the permission
+              granted, so the null path is the behaviour worth specifying.
+            </p>
+
+            <div class="tension">
+              <span class="tension__count"></span><span class="tension__fill"></span>
+            </div>
+
+            <dl class="files">
+              <dt>Files</dt>
+              <dd>
+                <ul>
+                  <li>
+                    <span class="verb">Modify</span><code>plugin/src/main/code.ts</code> —
+                    <code>RequestType</code> union and a new case
+                  </li>
+                  <li>
+                    <span class="verb">Modify</span><code>server/src/schema.ts</code> — schema and
+                    <code>rpcToArgs</code> entry
+                  </li>
+                  <li>
+                    <span class="verb">Modify</span><code>server/src/tools.ts</code> — register the
+                    tool
+                  </li>
+                </ul>
+              </dd>
+              <dt>Interfaces</dt>
+              <dd>
+                <strong>Consumes</strong> — <code>withPermissionContext</code> from
+                <code>./permissions</code>.<br />
+                <strong>Produces</strong> — a bridge request <code>whoami</code> returning
+                <code>{ user: { id, name, photoUrl } | null, note?: string }</code>, and the MCP
+                tool that wraps it.
+              </dd>
+            </dl>
+
+            <ol class="steps">
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht3s1" />
+                  <label class="step__label" for="libraryreacht3s1">Add the plugin case</label>
+                </div>
+                <div class="step__body">
+                  <p>
+                    Add <code>"whoami"</code> to the <code>RequestType</code> union in
+                    <code>plugin/src/main/code.ts</code>, import
+                    <code>withPermissionContext</code> from <code>./permissions</code>, and add the
+                    case before <code>default:</code>:
+                  </p>
+                  <pre><code>      case "whoami": {
+        const user = await withPermissionContext("currentUser", async () =&gt; figma.currentUser);
+        if (!user) {
+          return {
+            type: request.type,
+            requestId: request.requestId,
+            data: {
+              user: null,
+              note:
+                "No current user is available. This happens when the plugin runs without the " +
+                '"currentuser" permission, or in a context where Figma does not expose one.',
+            },
+          };
+        }
+        return {
+          type: request.type,
+          requestId: request.requestId,
+          data: {
+            user: { id: user.id, name: user.name, photoUrl: user.photoUrl },
+          },
+        };
+      }</code></pre>
+                  <p>
+                    <code>whoami</code> is a read, so do <strong>not</strong> add it to
+                    <code>EDIT_REQUEST_TYPES</code> — it should work in Dev Mode.
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht3s2" />
+                  <label class="step__label" for="libraryreacht3s2"
+                    >Add the schema and mapper</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p>In <code>server/src/schema.ts</code>:</p>
+                  <pre><code>  whoami: z.object({
+    fileKey: fileKeyField,
+  }),</code></pre>
+                  <pre><code>  whoami: (_nodeIds, params) =&gt; ({ ...params }),</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht3s3" />
+                  <label class="step__label" for="libraryreacht3s3">Register the tool</label>
+                </div>
+                <div class="step__body">
+                  <p>In <code>server/src/tools.ts</code>:</p>
+                  <pre><code>server.tool(
+  "whoami",
+  "Report the Figma user signed in to the connected plugin. Returns null with an explanation when no user is available.",
+  toolInputSchemas.whoami.shape,
+  async ({ fileKey }): Promise&lt;ToolResult&gt; =&gt; {
+    return renderResponse(() =&gt; node.send("whoami", undefined, fileKey));
+  }
+);</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht3s4" />
+                  <label class="step__label" for="libraryreacht3s4">Verify both halves build</label>
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b>
+                    <code
+                      >cd server &amp;&amp; bun run build &amp;&amp; cd ../plugin &amp;&amp; bunx
+                      tsc --noEmit -p tsconfig.json &amp;&amp; bun run build</code
+                    ><br />
+                    <b>Expect</b> <span class="pass">PASS</span> — no errors from either
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht3s5" />
+                  <label class="step__label" for="libraryreacht3s5">Prove it in Figma</label>
+                </div>
+                <div class="step__body">
+                  <p>With the rebuilt plugin running, call <code>whoami</code>.</p>
+                  <p class="expect">
+                    <b>Expect</b> your Figma display name and user id. If it returns
+                    <code>null</code> with the note, the manifest permission did not take —
+                    re-import the plugin rather than debugging the tool.
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht3s6" />
+                  <label class="step__label" for="libraryreacht3s6">Commit</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>git add plugin/src/main/code.ts server/src/schema.ts server/src/tools.ts
+git commit -m "feat: add whoami"</code></pre>
+                  <p>---</p>
+                </div>
+              </li>
+            </ol>
+          </article>
+
+          <article class="task" id="task-4" data-spy>
+            <div class="task__head">
+              <span class="task__no">Task 04</span>
+              <h2><code>get_libraries</code></h2>
+              <span class="chip chip--phase">R38</span>
+            </div>
+            <p>
+              The Plugin API exposes published <strong>variable collections</strong> per library,
+              not a general catalogue. That shape is what the tool returns, and the description says
+              so rather than implying more.
+            </p>
+
+            <div class="tension">
+              <span class="tension__count"></span><span class="tension__fill"></span>
+            </div>
+
+            <dl class="files">
+              <dt>Files</dt>
+              <dd>
+                <ul>
+                  <li>
+                    <span class="verb">Modify</span><code>plugin/src/main/code.ts</code> —
+                    <code>RequestType</code> union and a new case
+                  </li>
+                  <li>
+                    <span class="verb">Modify</span><code>server/src/schema.ts</code> — schema and
+                    <code>rpcToArgs</code> entry
+                  </li>
+                  <li>
+                    <span class="verb">Modify</span><code>server/src/tools.ts</code> — register the
+                    tool
+                  </li>
+                </ul>
+              </dd>
+              <dt>Interfaces</dt>
+              <dd>
+                <strong>Consumes</strong> — <code>withPermissionContext</code> from
+                <code>./permissions</code>.<br />
+                <strong>Produces</strong> — a bridge request <code>get_libraries</code> returning
+                <code
+                  >{ libraries: Array&lt;{ name, collections: Array&lt;{ key, name }&gt; }&gt;
+                  }</code
+                >. Tasks 5 and 6 rely on the collection <code>key</code> being present.
+              </dd>
+            </dl>
+
+            <ol class="steps">
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht4s1" />
+                  <label class="step__label" for="libraryreacht4s1">Add the plugin case</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>      case "get_libraries": {
+        const collections = await withPermissionContext("teamLibrary", () =&gt;
+          figma.teamLibrary.getAvailableLibraryVariableCollectionsAsync()
+        );
+
+        // The API returns a flat list tagged with its library; group it so the
+        // caller sees libraries rather than a wall of collections.
+        const byLibrary = new Map&lt;string, Array&lt;{ key: string; name: string }&gt;&gt;();
+        for (const collection of collections) {
+          const bucket = byLibrary.get(collection.libraryName) ?? [];
+          bucket.push({ key: collection.key, name: collection.name });
+          byLibrary.set(collection.libraryName, bucket);
+        }
+
+        return {
+          type: request.type,
+          requestId: request.requestId,
+          data: {
+            libraries: [...byLibrary.entries()].map(([name, collectionList]) =&gt; ({
+              name,
+              collections: collectionList,
+            })),
+            note:
+              "The Plugin API exposes published variable collections per library. " +
+              "It does not expose a full component catalogue; use search_design_system for components.",
+          },
+        };
+      }</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht4s2" />
+                  <label class="step__label" for="libraryreacht4s2"
+                    >Add the schema and mapper</label
+                  >
+                </div>
+                <div class="step__body">
+                  <pre><code>  get_libraries: z.object({
+    fileKey: fileKeyField,
+  }),</code></pre>
+                  <pre><code>  get_libraries: (_nodeIds, params) =&gt; ({ ...params }),</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht4s3" />
+                  <label class="step__label" for="libraryreacht4s3">Register the tool</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>server.tool(
+  "get_libraries",
+  "List the published team libraries reachable from the connected file, with their published variable collections. Note: the Figma Plugin API exposes variable collections per library, not a full component catalogue — this tool cannot enumerate every published component. Requires the teamlibrary permission and a Figma plan that allows team library APIs.",
+  toolInputSchemas.get_libraries.shape,
+  async ({ fileKey }): Promise&lt;ToolResult&gt; =&gt; {
+    return renderResponse(() =&gt; node.send("get_libraries", undefined, fileKey));
+  }
+);</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht4s4" />
+                  <label class="step__label" for="libraryreacht4s4">Verify the build</label>
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b>
+                    <code
+                      >cd server &amp;&amp; bun run build &amp;&amp; cd ../plugin &amp;&amp; bunx
+                      tsc --noEmit -p tsconfig.json</code
+                    ><br />
+                    <b>Expect</b> <span class="pass">PASS</span> — no errors
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht4s5" />
+                  <label class="step__label" for="libraryreacht4s5"
+                    >Prove both paths in Figma</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p>
+                    Call <code>get_libraries</code> from a file that has a published library
+                    enabled.
+                  </p>
+                  <p class="expect">
+                    <b>Expect</b> either the grouped list, or — on a plan without team library APIs
+                    — the plan message from task 2, naming the plan requirement. Both are correct
+                    outcomes; a raw Figma error is not.
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht4s6" />
+                  <label class="step__label" for="libraryreacht4s6">Commit</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>git add plugin/src/main/code.ts server/src/schema.ts server/src/tools.ts
+git commit -m "feat: add get_libraries"</code></pre>
+                  <p>---</p>
+                </div>
+              </li>
+            </ol>
+          </article>
+
+          <article class="task" id="task-5" data-spy>
+            <div class="task__head">
+              <span class="task__no">Task 05</span>
+              <h2>Import by key</h2>
+              <span class="chip chip--phase">R39</span>
+            </div>
+            <p>
+              Four importable kinds, one tool. Returning the imported object's id is the whole point
+              — without it the next call has nothing to place or bind.
+            </p>
+
+            <div class="tension">
+              <span class="tension__count"></span><span class="tension__fill"></span>
+            </div>
+
+            <dl class="files">
+              <dt>Files</dt>
+              <dd>
+                <ul>
+                  <li>
+                    <span class="verb">Modify</span><code>plugin/src/main/code.ts</code> —
+                    <code>RequestType</code> union, <code>ServerRequestParams</code>, and a new case
+                  </li>
+                  <li>
+                    <span class="verb">Modify</span><code>server/src/schema.ts</code> — schema and
+                    <code>rpcToArgs</code> entry
+                  </li>
+                  <li>
+                    <span class="verb">Modify</span><code>server/src/tools.ts</code> — register the
+                    tool
+                  </li>
+                </ul>
+              </dd>
+              <dt>Interfaces</dt>
+              <dd>
+                <strong>Consumes</strong> — <code>withPermissionContext</code> from
+                <code>./permissions</code>.<br />
+                <strong>Produces</strong> — a bridge request <code>import_library_asset</code> with
+                <code>params: { kind, key }</code> returning <code>{ kind, id, name, type }</code>.
+              </dd>
+            </dl>
+
+            <ol class="steps">
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht5s1" />
+                  <label class="step__label" for="libraryreacht5s1"
+                    >Add <code>kind</code> and <code>key</code> to the params type</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p>
+                    In <code>ServerRequestParams</code> in <code>plugin/src/main/code.ts</code>:
+                  </p>
+                  <pre><code>  kind?: "component" | "componentSet" | "style" | "variable";
+  key?: string;</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht5s2" />
+                  <label class="step__label" for="libraryreacht5s2">Add the plugin case</label>
+                </div>
+                <div class="step__body">
+                  <p>
+                    Import is a write — it brings an object into the document — so add
+                    <code>"import_library_asset"</code> to <code>EDIT_REQUEST_TYPES</code> as well
+                    as the <code>RequestType</code> union.
+                  </p>
+                  <pre><code>      case "import_library_asset": {
+        const kind = request.params?.kind;
+        const key = request.params?.key;
+        if (typeof key !== "string" || key === "") {
+          throw new Error("import_library_asset requires a `key` string parameter.");
+        }
+
+        const imported = await withPermissionContext("teamLibrary", async () =&gt; {
+          switch (kind) {
+            case "component":
+              return figma.importComponentByKeyAsync(key);
+            case "componentSet":
+              return figma.importComponentSetByKeyAsync(key);
+            case "style":
+              return figma.importStyleByKeyAsync(key);
+            case "variable":
+              return figma.variables.importVariableByKeyAsync(key);
+            default:
+              throw new Error(
+                `Unknown kind "${String(kind)}". Use one of: component, componentSet, style, variable.`
+              );
+          }
+        });
+
+        return {
+          type: request.type,
+          requestId: request.requestId,
+          data: {
+            kind,
+            id: imported.id,
+            name: imported.name,
+            type: (imported as { type?: string }).type,
+          },
+        };
+      }</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht5s3" />
+                  <label class="step__label" for="libraryreacht5s3"
+                    >Add the schema and mapper</label
+                  >
+                </div>
+                <div class="step__body">
+                  <pre><code>  import_library_asset: z.object({
+    kind: z
+      .enum(["component", "componentSet", "style", "variable"])
+      .describe("What to import. Use the kind that matches the key you have."),
+    key: z
+      .string()
+      .min(1)
+      .describe("The published key. Component keys come from get_code_connect_map or a serialized node's design.key; variable collection keys come from get_libraries."),
+    fileKey: fileKeyField,
+  }),</code></pre>
+                  <pre><code>  import_library_asset: (_nodeIds, params) =&gt; ({ ...params }),</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht5s4" />
+                  <label class="step__label" for="libraryreacht5s4">Register the tool</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>server.tool(
+  "import_library_asset",
+  "Import a published component, component set, style or variable into the connected file by its key, and return the imported object's id. Use the returned id to place an instance or bind a variable. Requires the teamlibrary permission; the file must be editable, so this is rejected in Dev Mode.",
+  toolInputSchemas.import_library_asset.shape,
+  async ({ kind, key, fileKey }): Promise&lt;ToolResult&gt; =&gt; {
+    return renderResponse(() =&gt;
+      node.sendWithParams("import_library_asset", undefined, { kind, key }, fileKey)
+    );
+  }
+);</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht5s5" />
+                  <label class="step__label" for="libraryreacht5s5">Verify the build</label>
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b>
+                    <code
+                      >cd server &amp;&amp; bun run build &amp;&amp; cd ../plugin &amp;&amp; bunx
+                      tsc --noEmit -p tsconfig.json &amp;&amp; bun run build</code
+                    ><br />
+                    <b>Expect</b> <span class="pass">PASS</span> — no errors
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht5s6" />
+                  <label class="step__label" for="libraryreacht5s6">Prove it in Figma</label>
+                </div>
+                <div class="step__body">
+                  <p>
+                    Get a published component's key from <code>get_libraries</code> or from a
+                    serialized instance's <code>design.mainComponent.key</code>, then call
+                    <code>import_library_asset</code> with <code>kind: "component"</code>.
+                  </p>
+                  <p class="expect">
+                    <b>Expect</b> an id back. Then use <code>run_script</code> from phase 1 to
+                    create an instance from it, confirming the id is usable:
+                  </p>
+                  <pre><code>const component = await figma.getNodeByIdAsync("&lt;returned id&gt;");
+const instance = component.createInstance();
+figma.currentPage.appendChild(instance);
+return { createdNodeIds: [instance.id] };</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht5s7" />
+                  <label class="step__label" for="libraryreacht5s7">Commit</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>git add plugin/src/main/code.ts server/src/schema.ts server/src/tools.ts
+git commit -m "feat: import published library assets by key"</code></pre>
+                  <p>---</p>
+                </div>
+              </li>
+            </ol>
+          </article>
+
+          <article class="task" id="task-6" data-spy>
+            <div class="task__head">
+              <span class="task__no">Task 06</span>
+              <h2><code>search_design_system</code></h2>
+              <span class="chip chip--phase">R40</span>
+            </div>
+            <p>
+              This is where honesty matters more than capability. The Plugin API has no full-text
+              search across an organisation's published libraries, so the bridge searches what it
+              can actually reach: published variable collections, and components present or
+              instantiated in the connected files. The description opens by saying so — otherwise an
+              agent reads an empty result as "your design system has no button".
+            </p>
+
+            <div class="tension">
+              <span class="tension__count"></span><span class="tension__fill"></span>
+            </div>
+
+            <dl class="files">
+              <dt>Files</dt>
+              <dd>
+                <ul>
+                  <li><span class="verb">Create</span><code>plugin/src/main/search.ts</code></li>
+                  <li>
+                    <span class="verb">Create</span><code>plugin/src/main/search.test.ts</code>
+                  </li>
+                  <li>
+                    <span class="verb">Modify</span><code>plugin/src/main/code.ts</code> —
+                    <code>RequestType</code> union, <code>ServerRequestParams</code>, and a new case
+                  </li>
+                  <li>
+                    <span class="verb">Modify</span><code>server/src/schema.ts</code> — schema and
+                    <code>rpcToArgs</code> entry
+                  </li>
+                  <li>
+                    <span class="verb">Modify</span><code>server/src/tools.ts</code> — register the
+                    tool
+                  </li>
+                </ul>
+              </dd>
+              <dt>Interfaces</dt>
+              <dd>
+                <strong>Consumes</strong> — nothing.<br />
+                <strong>Produces</strong> — <code>matchesQuery(query, name): boolean</code> and
+                <code>rankResults(query, candidates): SearchHit[]</code>, plus the
+                <code>SearchCandidate</code> and <code>SearchHit</code> types.
+              </dd>
+            </dl>
+
+            <ol class="steps">
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht6s1" />
+                  <label class="step__label" for="libraryreacht6s1">Write the failing test</label>
+                </div>
+                <div class="step__body">
+                  <p class="pre-label">plugin/src/main/search.test.ts — create</p>
+                  <pre><code>import { describe, expect, test } from "bun:test";
+import { matchesQuery, rankResults } from "./search";
+
+const candidates = [
+  { name: "Button/Primary", kind: "component" as const, id: "1:1" },
+  { name: "Button/Secondary", kind: "component" as const, id: "1:2" },
+  { name: "Card", kind: "component" as const, id: "1:3" },
+  { name: "color/button/bg", kind: "variableCollection" as const, id: "VC:1" },
+];
+
+describe("matchesQuery", () =&gt; {
+  test("matches case-insensitively", () =&gt; {
+    expect(matchesQuery("button", "Button/Primary")).toBe(true);
+  });
+
+  test("matches a path segment", () =&gt; {
+    expect(matchesQuery("primary", "Button/Primary")).toBe(true);
+  });
+
+  test("ignores separators in the query", () =&gt; {
+    expect(matchesQuery("button primary", "Button/Primary")).toBe(true);
+  });
+
+  test("does not match unrelated names", () =&gt; {
+    expect(matchesQuery("button", "Card")).toBe(false);
+  });
+});
+
+describe("rankResults", () =&gt; {
+  test("ranks an exact segment match above a substring match", () =&gt; {
+    const hits = rankResults("button", candidates);
+    expect(hits[0].name.startsWith("Button")).toBe(true);
+  });
+
+  test("returns every match, not just the first", () =&gt; {
+    expect(rankResults("button", candidates)).toHaveLength(3);
+  });
+
+  test("returns an empty list rather than a bad guess", () =&gt; {
+    expect(rankResults("zzz", candidates)).toEqual([]);
+  });
+
+  test("keeps the kind so the caller knows what it found", () =&gt; {
+    const hit = rankResults("color", candidates)[0];
+    expect(hit.kind).toBe("variableCollection");
+  });
+});</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht6s2" />
+                  <label class="step__label" for="libraryreacht6s2"
+                    >Run it to make sure it fails</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b> <code>cd plugin &amp;&amp; bun test src/main/search.test.ts</code
+                    ><br />
+                    <b>Expect</b> <span class="fail">FAIL</span> —
+                    <code>Cannot find module './search'</code>
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht6s3" />
+                  <label class="step__label" for="libraryreacht6s3">Write the implementation</label>
+                </div>
+                <div class="step__body">
+                  <p class="pre-label">plugin/src/main/search.ts — create</p>
+                  <pre><code>/**
+ * Ranking for `search_design_system`.
+ *
+ * Deliberately narrow: the Plugin API has no full-text search across published
+ * libraries, so this ranks whatever the caller could actually enumerate. Kept
+ * pure so it tests under Bun.
+ */
+
+export interface SearchCandidate {
+  id: string;
+  name: string;
+  kind: "component" | "componentSet" | "variableCollection";
+  libraryName?: string;
+}
+
+export interface SearchHit extends SearchCandidate {
+  /** 0-1; higher is a stronger match. */
+  score: number;
+}
+
+const normalise = (value: string): string =&gt; value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+
+const segments = (name: string): string[] =&gt; name.split("/").map(normalise).filter(Boolean);
+
+/**
+ * Reports whether a name matches a query, ignoring case and separators.
+ * @param query - The caller's search text.
+ * @param name - The candidate's name, possibly a `Group/Name` path.
+ */
+export const matchesQuery = (query: string, name: string): boolean =&gt; {
+  const needle = normalise(query);
+  if (needle === "") return false;
+  if (normalise(name).includes(needle)) return true;
+  return segments(name).some((segment) =&gt; segment.includes(needle) || needle.includes(segment));
+};
+
+/**
+ * Ranks candidates against a query.
+ * @param query - The caller's search text.
+ * @param candidates - Everything the caller could enumerate.
+ * @returns Matching candidates, strongest first. Empty when nothing matches.
+ */
+export const rankResults = (query: string, candidates: SearchCandidate[]): SearchHit[] =&gt; {
+  const needle = normalise(query);
+  if (needle === "") return [];
+
+  return candidates
+    .filter((candidate) =&gt; matchesQuery(query, candidate.name))
+    .map((candidate) =&gt; {
+      const parts = segments(candidate.name);
+      const exactSegment = parts.some((segment) =&gt; segment === needle);
+      const startsWith = normalise(candidate.name).startsWith(needle);
+      const score = exactSegment ? 1 : startsWith ? 0.8 : 0.5;
+      return { ...candidate, score };
+    })
+    .sort((a, b) =&gt; b.score - a.score || a.name.localeCompare(b.name));
+};</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht6s4" />
+                  <label class="step__label" for="libraryreacht6s4"
+                    >Run the tests and make sure they pass</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b> <code>cd plugin &amp;&amp; bun test src/main/search.test.ts</code
+                    ><br />
+                    <b>Expect</b> <span class="pass">PASS</span> — 8 pass, 0 fail
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht6s5" />
+                  <label class="step__label" for="libraryreacht6s5">Add the plugin case</label>
+                </div>
+                <div class="step__body">
+                  <p>
+                    Add <code>"search_design_system"</code> to the <code>RequestType</code> union
+                    and <code>query?: string;</code> to <code>ServerRequestParams</code>, then:
+                  </p>
+                  <pre><code>      case "search_design_system": {
+        const query = request.params?.query;
+        if (typeof query !== "string" || query.trim() === "") {
+          throw new Error("search_design_system requires a non-empty `query` string parameter.");
+        }
+
+        const candidates: SearchCandidate[] = [];
+
+        // Components reachable in the open file.
+        for (const node of figma.currentPage.findAllWithCriteria({
+          types: ["COMPONENT", "COMPONENT_SET"],
+        })) {
+          candidates.push({
+            id: node.id,
+            name: node.name,
+            kind: node.type === "COMPONENT_SET" ? "componentSet" : "component",
+          });
+        }
+
+        // Published variable collections, when the plan allows it.
+        try {
+          const collections = await withPermissionContext("teamLibrary", () =&gt;
+            figma.teamLibrary.getAvailableLibraryVariableCollectionsAsync()
+          );
+          for (const collection of collections) {
+            candidates.push({
+              id: collection.key,
+              name: collection.name,
+              kind: "variableCollection",
+              libraryName: collection.libraryName,
+            });
+          }
+        } catch {
+          // Team library reach is optional; local results are still useful.
+        }
+
+        return {
+          type: request.type,
+          requestId: request.requestId,
+          data: {
+            results: rankResults(query, candidates),
+            searched: ["components on the current page", "published variable collections"],
+            note:
+              "This search covers the connected file and published variable collections only. " +
+              "The Figma Plugin API cannot full-text search an organisation's published components, " +
+              "so an empty result does not mean the component does not exist.",
+          },
+        };
+      }</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht6s6" />
+                  <label class="step__label" for="libraryreacht6s6"
+                    >Add the schema, mapper and tool</label
+                  >
+                </div>
+                <div class="step__body">
+                  <pre><code>  search_design_system: z.object({
+    query: z.string().min(1).describe("Name or partial name to search for."),
+    fileKey: fileKeyField,
+  }),</code></pre>
+                  <pre><code>  search_design_system: (_nodeIds, params) =&gt; ({ ...params }),</code></pre>
+                  <p>The description must lead with the limitation:</p>
+                  <pre><code>server.tool(
+  "search_design_system",
+  "Search the design system reachable from the connected Figma file. IMPORTANT SCOPE: this covers components on the current page and published variable collections only — the Figma Plugin API cannot full-text search an organisation's published component libraries, so an empty result does NOT mean the component does not exist. Ask the user to open the library file with the plugin if you need to search it.",
+  toolInputSchemas.search_design_system.shape,
+  async ({ query, fileKey }): Promise&lt;ToolResult&gt; =&gt; {
+    return renderResponse(() =&gt;
+      node.sendWithParams("search_design_system", undefined, { query }, fileKey)
+    );
+  }
+);</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht6s7" />
+                  <label class="step__label" for="libraryreacht6s7"
+                    >Verify the build and prove the scope note</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b>
+                    <code
+                      >cd server &amp;&amp; bun run build &amp;&amp; cd ../plugin &amp;&amp; bun run
+                      test &amp;&amp; bunx tsc --noEmit -p tsconfig.json</code
+                    ><br />
+                    <b>Expect</b> <span class="pass">PASS</span> — no errors, all plugin tests green
+                  </p>
+                  <p>
+                    Then call <code>search_design_system</code> with a query that matches nothing.
+                  </p>
+                  <p class="expect">
+                    <b>Expect</b> an empty <code>results</code> array <strong>and</strong> the note
+                    explaining that an empty result is not proof of absence.
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht6s8" />
+                  <label class="step__label" for="libraryreacht6s8">Commit</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>git add plugin/src/main/search.ts plugin/src/main/search.test.ts plugin/src/main/code.ts server/src/schema.ts server/src/tools.ts
+git commit -m "feat: add a scoped search_design_system"</code></pre>
+                  <p>---</p>
+                </div>
+              </li>
+            </ol>
+          </article>
+
+          <article class="task" id="task-7" data-spy>
+            <div class="task__head">
+              <span class="task__no">Task 07</span>
+              <h2>Verify and document</h2>
+              <span class="chip chip--phase">R42</span>
+            </div>
+            <p>
+              Four tools, two of which depend on a plan the developer running this plan may not
+              have. The verification has to cover both outcomes, and the documentation has to set
+              expectations so nobody files the plan limit as a bug.
+            </p>
+
+            <div class="tension">
+              <span class="tension__count"></span><span class="tension__fill"></span>
+            </div>
+
+            <dl class="files">
+              <dt>Files</dt>
+              <dd>
+                <ul>
+                  <li>
+                    <span class="verb">Modify</span><code>README.md</code> — tool table and Editing
+                    Notes
+                  </li>
+                  <li><span class="verb">Create</span><code>docs/libraries.md</code></li>
+                </ul>
+              </dd>
+              <dt>Interfaces</dt>
+              <dd>
+                <strong>Consumes</strong> — the four shipped tools.<br />
+                <strong>Produces</strong> — documentation only.
+              </dd>
+            </dl>
+
+            <ol class="steps">
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht7s1" />
+                  <label class="step__label" for="libraryreacht7s1"
+                    >Confirm the whole suite is green</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b>
+                    <code
+                      >cd plugin &amp;&amp; bun run test &amp;&amp; cd ../server &amp;&amp; bun run
+                      test</code
+                    ><br />
+                    <b>Expect</b> <span class="pass">PASS</span> — plugin and server suites both
+                    green, including the permissions and search modules from this phase
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht7s2" />
+                  <label class="step__label" for="libraryreacht7s2"
+                    >Verify on a plan with team library APIs</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p>
+                    If you have an Organization or Enterprise account, run <code>whoami</code>,
+                    <code>get_libraries</code>, <code>import_library_asset</code> and
+                    <code>search_design_system</code> against a file with a published library
+                    enabled.
+                  </p>
+                  <p class="expect">
+                    <b>Expect</b> real data from each; the imported id creates a working instance.
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht7s3" />
+                  <label class="step__label" for="libraryreacht7s3">Verify the refusal path</label>
+                </div>
+                <div class="step__body">
+                  <p>
+                    On an account without team library APIs — or by temporarily removing
+                    <code>teamlibrary</code> from <code>plugin/manifest.json</code>, rebuilding and
+                    re-importing — call <code>get_libraries</code>.
+                  </p>
+                  <p class="expect">
+                    <b>Expect</b> the message from task 2 naming the permission or the plan and the
+                    next step, not a raw Figma error. Restore the manifest afterwards and rebuild.
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht7s4" />
+                  <label class="step__label" for="libraryreacht7s4"
+                    >Verify graceful degradation of search</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p>
+                    With <code>teamlibrary</code> unavailable, call
+                    <code>search_design_system</code> for a component that exists on the current
+                    page.
+                  </p>
+                  <p class="expect">
+                    <b>Expect</b> the local component is still found. Losing library reach must not
+                    break the tool.
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht7s5" />
+                  <label class="step__label" for="libraryreacht7s5">Write the guide</label>
+                </div>
+                <div class="step__body">
+                  <p>
+                    Create <code>docs/libraries.md</code> covering: the two manifest permissions and
+                    what each unlocks; that team library APIs are plan-gated and what happens when
+                    they are not available; what <code>get_libraries</code> returns and why it is
+                    collections rather than a catalogue; the four kinds
+                    <code>import_library_asset</code> accepts and where each key comes from; and —
+                    most importantly — <code>search_design_system</code>'s real scope, with the
+                    sentence an agent needs: an empty result is not proof of absence, and the fix is
+                    to ask the user to open the library file with the plugin.
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht7s6" />
+                  <label class="step__label" for="libraryreacht7s6">Update the README</label>
+                </div>
+                <div class="step__body">
+                  <p>Add four rows to the tool table:</p>
+                  <pre><code>| `whoami` | Report the Figma user signed in to the connected plugin |
+| `get_libraries` | List published team libraries and their variable collections ([guide](docs/libraries.md)) |
+| `import_library_asset` | Import a published component, component set, style or variable by key |
+| `search_design_system` | Search components on the current page and published variable collections — scoped, see the guide |</code></pre>
+                  <p>And append to Editing Notes:</p>
+                  <pre><code>- Team library tools (`get_libraries`, `import_library_asset`, `search_design_system`) need the `teamlibrary` permission and a Figma plan that allows team library APIs. Without them these three return an explicit error naming the requirement; every other tool is unaffected. `search_design_system` is narrower than Figma's own: the Plugin API cannot full-text search published component libraries, so an empty result is not proof a component does not exist.</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht7s7" />
+                  <label class="step__label" for="libraryreacht7s7"
+                    >Format and run everything</label
+                  >
+                </div>
+                <div class="step__body">
+                  <pre><code>bun run format
+cd server &amp;&amp; bun run test &amp;&amp; bun run build
+cd ../plugin &amp;&amp; bun run test &amp;&amp; bunx tsc --noEmit -p tsconfig.json &amp;&amp; bun run build</code></pre>
+                  <p class="expect">
+                    <b>Expect</b> <span class="pass">PASS</span> — Prettier reports no remaining
+                    changes on a second run, both suites green, both builds clean
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="libraryreacht7s8" />
+                  <label class="step__label" for="libraryreacht7s8">Commit</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>git add README.md docs/libraries.md
+git commit -m "docs: document library reach, its permissions and its limits"</code></pre>
+                  <p>---</p>
+                </div>
+              </li>
+            </ol>
+          </article>
+
+          <section class="done-when" id="done" data-spy>
+            <h2>Done when</h2>
+            <ul class="plain">
+              <li>
+                <code>bun test</code> is green in both packages, covering the permission mapper and
+                the search ranker.
+              </li>
+              <li>
+                <code>bun run build</code> succeeds in both packages and the plugin type-checks.
+              </li>
+              <li>
+                <code>whoami</code> returns the signed-in user, or <code>null</code> with an
+                explanation.
+              </li>
+              <li>
+                <code>get_libraries</code> returns grouped collections, or the plan message — never
+                a raw Figma error.
+              </li>
+              <li>
+                <code>import_library_asset</code> returns an id that <code>run_script</code> can
+                turn into a working instance.
+              </li>
+              <li>
+                <code>search_design_system</code> finds local components with team library reach
+                unavailable, and always returns the scope note.
+              </li>
+              <li>
+                <code>docs/libraries.md</code> states the plan gating and, in plain words, that an
+                empty search result is not proof of absence.
+              </li>
+            </ul>
+          </section>
+
+          <footer class="colophon">
+            <span>Figma Design Relay</span>
+            <span>Plan · Phase 5 · 2026-09-01</span>
+            <span>Source: <code>docs/superpowers/plans/2026-09-01-library-reach.md</code></span>
+            <span
+              ><a href="../specs/2026-09-01-official-figma-mcp-parity.html">← Parity spec</a></span
+            >
+          </footer>
+        </main>
+      </div>
+    </div>
+
+    <script src="../assets/doc.js"></script>
+  </body>
+</html>

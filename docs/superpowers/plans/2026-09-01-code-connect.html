@@ -1,0 +1,2329 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Code Connect · Figma Design Relay plan</title>
+    <meta
+      name="description"
+      content="Phase 4 implementation plan: parse local Code Connect files, map Figma component keys to real codebase components, and surface snippets in design context."
+    />
+    <link rel="stylesheet" href="../assets/doc.css" />
+  </head>
+  <body data-doc="code-connect-plan">
+    <a class="skip" href="#main">Skip to the plan</a>
+
+    <div class="shell">
+      <header class="masthead">
+        <p class="eyebrow">Implementation plan · Phase 4 · 2026-09-01</p>
+        <h1>Code Connect</h1>
+        <p class="standfirst">
+          Tie Figma nodes to the real components in the user's codebase, so an agent writing code
+          from a design reaches for _their_ <code>&lt;Button&gt;</code> instead of generating a
+          fresh div — using the <code>*.figma.ts</code> files already in the repository, with no
+          Figma cloud access at all.
+        </p>
+
+        <dl class="masthead__meta">
+          <div>
+            <b>Spec</b> —
+            <a href="../specs/2026-09-01-official-figma-mcp-parity.html">Parity analysis</a>, phase
+            4
+          </div>
+          <div><b>Tasks</b> — 8</div>
+          <div><b>Steps</b> — 52</div>
+          <div><b>Progress</b> — saved in this browser</div>
+        </dl>
+      </header>
+
+      <blockquote>
+        <p>
+          <strong>For agentic workers:</strong> REQUIRED SUB-SKILL: Use
+          superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to
+          implement this plan task-by-task. Steps use checkbox (<code>- [ ]</code>) syntax for
+          tracking.
+        </p>
+      </blockquote>
+
+      <section class="brief">
+        <h2 id="brief" data-spy>The shape of it</h2>
+        <p>
+          <strong>Architecture.</strong> Everything lives server-side. A discovery pass finds Code
+          Connect files inside the MCP working directory, a hand-written scanner extracts each
+          <code>figma.connect(...)</code> call without pulling in a TypeScript parser dependency,
+          and a small index answers lookups by node id. Four tools sit on top, and
+          <code>get_design_context</code> consults the index so mappings show up where an agent will
+          actually see them.
+        </p>
+        <p>
+          <strong>Tech stack.</strong> TypeScript, Bun (<code>bun test</code>), Zod,
+          <code>@modelcontextprotocol/sdk</code>, <code>node:fs/promises</code>.
+        </p>
+
+        <h3>Global constraints</h3>
+        <p>Every task's requirements implicitly include these.</p>
+        <ul class="plain">
+          <li>
+            Node <code>&gt;=20.0.0</code>; Bun is the package manager and script runner throughout.
+          </li>
+          <li>
+            The server is ESM with <code>"module": "Node16"</code>:
+            <strong
+              >relative imports inside <code>server/src</code> must carry a
+              <code>.js</code> extension</strong
+            >.
+          </li>
+          <li>
+            Prettier 3.9.6 formats everything; a Husky <code>pre-commit</code> hook runs
+            <code>lint-staged</code>.
+          </li>
+          <li>
+            <strong>Phase 2 must have landed</strong> for task 5 —
+            <code>get_context_for_code_connect</code> returns component property definitions, which
+            phase 2's R13 adds to the serializer.
+          </li>
+          <li>
+            <strong>No new runtime dependency.</strong> The server ships with
+            <code>@modelcontextprotocol/sdk</code>, <code>ws</code> and <code>zod</code>; do not add
+            a TypeScript parser. The scanner in task 3 handles the documented Code Connect shapes
+            and reports anything it cannot read, by path.
+          </li>
+          <li>
+            <strong>Containment is not optional.</strong> Every path this plan touches resolves with
+            <code>realpath</code> and must stay inside the MCP server's working directory, matching
+            what <code>import_html_layers</code> already enforces. A mapping file outside the
+            workspace is a refusal, not a warning.
+          </li>
+          <li>
+            <strong>A file that fails to parse is reported, never silently dropped.</strong> Silence
+            here means an agent believes a component is unmapped when it is mapped, and writes a
+            fresh div.
+          </li>
+          <li>
+            Every new tool registers a Zod schema in <code>toolInputSchemas</code>
+            <strong>and</strong> a mapper in <code>rpcToArgs</code>, in the same commit.
+          </li>
+          <li>Never reformat or restructure code outside the files each task lists.</li>
+        </ul>
+      </section>
+
+      <div class="layout">
+        <nav class="rail" aria-label="Tasks">
+          <p class="rail__title">Tasks</p>
+          <ol>
+            <li>
+              <a href="#task-1"
+                ><span>URL parsing <b class="rail__done"></b></span
+              ></a>
+            </li>
+            <li>
+              <a href="#task-2"
+                ><span>File discovery <b class="rail__done"></b></span
+              ></a>
+            </li>
+            <li>
+              <a href="#task-3"
+                ><span>Call parsing <b class="rail__done"></b></span
+              ></a>
+            </li>
+            <li>
+              <a href="#task-4"
+                ><span>get_code_connect_map <b class="rail__done"></b></span
+              ></a>
+            </li>
+            <li>
+              <a href="#task-5"
+                ><span>Component context <b class="rail__done"></b></span
+              ></a>
+            </li>
+            <li>
+              <a href="#task-6"
+                ><span>Suggestions <b class="rail__done"></b></span
+              ></a>
+            </li>
+            <li>
+              <a href="#task-7"
+                ><span>Writing mappings <b class="rail__done"></b></span
+              ></a>
+            </li>
+            <li>
+              <a href="#task-8"
+                ><span>Verify &amp; document <b class="rail__done"></b></span
+              ></a>
+            </li>
+          </ol>
+        </nav>
+
+        <main id="main">
+          <article class="task" id="task-1" data-spy>
+            <div class="task__head">
+              <span class="task__no">Task 01</span>
+              <h2>Figma URL parsing</h2>
+              <span class="chip chip--phase">R29</span>
+            </div>
+            <p>
+              Every Code Connect mapping addresses its node by URL. Figma writes node ids with a
+              hyphen in URLs (<code>node-id=1-2</code>) and a colon everywhere else
+              (<code>1:2</code>), which is exactly the sort of mismatch that produces a lookup that
+              silently never matches.
+            </p>
+
+            <div class="tension">
+              <span class="tension__count"></span><span class="tension__fill"></span>
+            </div>
+
+            <dl class="files">
+              <dt>Files</dt>
+              <dd>
+                <ul>
+                  <li>
+                    <span class="verb">Create</span><code>server/src/code-connect/url.ts</code>
+                  </li>
+                  <li>
+                    <span class="verb">Create</span><code>server/src/code-connect/url.test.ts</code>
+                  </li>
+                </ul>
+              </dd>
+              <dt>Interfaces</dt>
+              <dd>
+                <strong>Consumes</strong> — nothing.<br />
+                <strong>Produces</strong> — <code>parseFigmaUrl(url): FigmaTarget | null</code> and
+                the <code>FigmaTarget</code> type. Tasks 3 and 7 import them from
+                <code>./url.js</code>.
+              </dd>
+            </dl>
+
+            <ol class="steps">
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt1s1" />
+                  <label class="step__label" for="codeconnectt1s1">Write the failing test</label>
+                </div>
+                <div class="step__body">
+                  <p class="pre-label">server/src/code-connect/url.test.ts — create</p>
+                  <pre><code>import { describe, expect, test } from "bun:test";
+import { parseFigmaUrl } from "./url.js";
+
+describe("parseFigmaUrl", () =&gt; {
+  test("reads the file key and converts the hyphenated node id", () =&gt; {
+    expect(
+      parseFigmaUrl("https://www.figma.com/design/AbC123/Design-System?node-id=1-2&amp;t=xyz")
+    ).toEqual({ fileKey: "AbC123", nodeId: "1:2" });
+  });
+
+  test("accepts the legacy /file/ path", () =&gt; {
+    expect(parseFigmaUrl("https://figma.com/file/AbC123/DS?node-id=10-20")?.nodeId).toBe("10:20");
+  });
+
+  test("accepts a node id that already uses a colon", () =&gt; {
+    expect(parseFigmaUrl("https://figma.com/design/AbC123/DS?node-id=1:2")?.nodeId).toBe("1:2");
+  });
+
+  test("returns null without a node id, because a file-only URL maps nothing", () =&gt; {
+    expect(parseFigmaUrl("https://www.figma.com/design/AbC123/DS")).toBeNull();
+  });
+
+  test("returns null for a non-Figma URL", () =&gt; {
+    expect(parseFigmaUrl("https://example.com/design/AbC123?node-id=1-2")).toBeNull();
+  });
+
+  test("returns null for something that is not a URL at all", () =&gt; {
+    expect(parseFigmaUrl("Button")).toBeNull();
+  });
+});</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt1s2" />
+                  <label class="step__label" for="codeconnectt1s2"
+                    >Run it to make sure it fails</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b>
+                    <code>cd server &amp;&amp; bun test src/code-connect/url.test.ts</code><br />
+                    <b>Expect</b> <span class="fail">FAIL</span> —
+                    <code>Cannot find module './url.js'</code>
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt1s3" />
+                  <label class="step__label" for="codeconnectt1s3">Write the implementation</label>
+                </div>
+                <div class="step__body">
+                  <p class="pre-label">server/src/code-connect/url.ts — create</p>
+                  <pre><code>export interface FigmaTarget {
+  fileKey: string;
+  /** Colon form, e.g. `1:2` — the form every other tool in this server uses. */
+  nodeId: string;
+}
+
+/**
+ * Extracts the file key and node id from a Figma design URL.
+ *
+ * Figma writes node ids hyphenated in URLs (`node-id=1-2`) and colon-separated
+ * everywhere else (`1:2`). Normalising here is what stops a lookup from
+ * silently never matching.
+ * @param url - A Figma design or file URL.
+ * @returns The target, or null when the URL is not a Figma node URL.
+ */
+export const parseFigmaUrl = (url: string): FigmaTarget | null =&gt; {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null;
+  }
+
+  if (!/(^|\.)figma\.com$/.test(parsed.hostname)) return null;
+
+  const match = parsed.pathname.match(/^\/(?:design|file|board|slides)\/([A-Za-z0-9]+)/);
+  if (!match) return null;
+
+  const rawNodeId = parsed.searchParams.get("node-id");
+  if (!rawNodeId) return null;
+
+  const nodeId = rawNodeId.replace(/-/g, ":");
+  if (!/^\d+:\d+$/.test(nodeId)) return null;
+
+  return { fileKey: match[1], nodeId };
+};</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt1s4" />
+                  <label class="step__label" for="codeconnectt1s4"
+                    >Run the tests and make sure they pass</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b>
+                    <code>cd server &amp;&amp; bun test src/code-connect/url.test.ts</code><br />
+                    <b>Expect</b> <span class="pass">PASS</span> — 6 pass, 0 fail
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt1s5" />
+                  <label class="step__label" for="codeconnectt1s5">Commit</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>git add server/src/code-connect/url.ts server/src/code-connect/url.test.ts
+git commit -m "feat(server): parse Figma node URLs into file key and node id"</code></pre>
+                  <p>---</p>
+                </div>
+              </li>
+            </ol>
+          </article>
+
+          <article class="task" id="task-2" data-spy>
+            <div class="task__head">
+              <span class="task__no">Task 02</span>
+              <h2>Discover Code Connect files</h2>
+              <span class="chip chip--phase">R28</span>
+            </div>
+            <p>
+              Walking a workspace means walking into <code>node_modules</code> unless you say
+              otherwise, and following a symlink out of the workspace unless you check. Both are
+              handled here so no later task has to think about it.
+            </p>
+
+            <div class="tension">
+              <span class="tension__count"></span><span class="tension__fill"></span>
+            </div>
+
+            <dl class="files">
+              <dt>Files</dt>
+              <dd>
+                <ul>
+                  <li>
+                    <span class="verb">Create</span><code>server/src/code-connect/discover.ts</code>
+                  </li>
+                  <li>
+                    <span class="verb">Create</span
+                    ><code>server/src/code-connect/discover.test.ts</code>
+                  </li>
+                </ul>
+              </dd>
+              <dt>Interfaces</dt>
+              <dd>
+                <strong>Consumes</strong> — nothing.<br />
+                <strong>Produces</strong> —
+                <code>discoverCodeConnectFiles(root): Promise&lt;string[]&gt;</code> returning
+                workspace-relative POSIX paths, and <code>IGNORED_DIRECTORIES</code>. Tasks 4, 6 and
+                7 import them from <code>./discover.js</code>.
+              </dd>
+            </dl>
+
+            <ol class="steps">
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt2s1" />
+                  <label class="step__label" for="codeconnectt2s1">Write the failing test</label>
+                </div>
+                <div class="step__body">
+                  <p class="pre-label">server/src/code-connect/discover.test.ts — create</p>
+                  <pre><code>import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { discoverCodeConnectFiles } from "./discover.js";
+
+let root: string;
+
+beforeAll(async () =&gt; {
+  root = await mkdtemp(path.join(tmpdir(), "cc-"));
+  await mkdir(path.join(root, "src", "ui"), { recursive: true });
+  await mkdir(path.join(root, "node_modules", "pkg"), { recursive: true });
+  await mkdir(path.join(root, ".git"), { recursive: true });
+  await writeFile(path.join(root, "src", "ui", "Button.figma.tsx"), "");
+  await writeFile(path.join(root, "src", "ui", "Card.figma.ts"), "");
+  await writeFile(path.join(root, "src", "ui", "Button.tsx"), "");
+  await writeFile(path.join(root, "node_modules", "pkg", "Thing.figma.ts"), "");
+  await writeFile(path.join(root, ".git", "Hook.figma.ts"), "");
+});
+
+afterAll(async () =&gt; {
+  await rm(root, { recursive: true, force: true });
+});
+
+describe("discoverCodeConnectFiles", () =&gt; {
+  test("finds every Code Connect file under the root", async () =&gt; {
+    const found = await discoverCodeConnectFiles(root);
+    expect(found).toContain("src/ui/Button.figma.tsx");
+    expect(found).toContain("src/ui/Card.figma.ts");
+  });
+
+  test("ignores ordinary sources", async () =&gt; {
+    expect(await discoverCodeConnectFiles(root)).not.toContain("src/ui/Button.tsx");
+  });
+
+  test("does not descend into node_modules or .git", async () =&gt; {
+    const found = await discoverCodeConnectFiles(root);
+    expect(found.some((file) =&gt; file.includes("node_modules"))).toBe(false);
+    expect(found.some((file) =&gt; file.includes(".git"))).toBe(false);
+  });
+
+  test("returns POSIX paths on every platform", async () =&gt; {
+    const found = await discoverCodeConnectFiles(root);
+    expect(found.every((file) =&gt; !file.includes("\\"))).toBe(true);
+  });
+
+  test("returns an empty list for a directory with none", async () =&gt; {
+    const empty = await mkdtemp(path.join(tmpdir(), "cc-empty-"));
+    expect(await discoverCodeConnectFiles(empty)).toEqual([]);
+    await rm(empty, { recursive: true, force: true });
+  });
+});</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt2s2" />
+                  <label class="step__label" for="codeconnectt2s2"
+                    >Run it to make sure it fails</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b>
+                    <code>cd server &amp;&amp; bun test src/code-connect/discover.test.ts</code
+                    ><br />
+                    <b>Expect</b> <span class="fail">FAIL</span> —
+                    <code>Cannot find module './discover.js'</code>
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt2s3" />
+                  <label class="step__label" for="codeconnectt2s3">Write the implementation</label>
+                </div>
+                <div class="step__body">
+                  <p class="pre-label">server/src/code-connect/discover.ts — create</p>
+                  <pre><code>import { readdir, realpath } from "node:fs/promises";
+import path from "node:path";
+
+/**
+ * Directories never worth walking. `node_modules` alone can hold hundreds of
+ * thousands of files, and a package's own Code Connect fixtures are not the
+ * user's mappings.
+ */
+export const IGNORED_DIRECTORIES = new Set([
+  "node_modules",
+  ".git",
+  "dist",
+  "build",
+  "out",
+  ".next",
+  ".turbo",
+  "coverage",
+]);
+
+const CODE_CONNECT = /\.figma\.(ts|tsx|js|jsx)$/;
+
+/**
+ * Finds every Code Connect file under `root`.
+ *
+ * Symlinks that point outside `root` are skipped: discovery must not become a
+ * way to read files outside the workspace.
+ * @param root - Directory to search, normally the MCP server's working directory.
+ * @returns Workspace-relative POSIX paths, sorted.
+ */
+export const discoverCodeConnectFiles = async (root: string): Promise&lt;string[]&gt; =&gt; {
+  const base = await realpath(root);
+  const found: string[] = [];
+
+  const walk = async (dir: string): Promise&lt;void&gt; =&gt; {
+    let entries;
+    try {
+      entries = await readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+
+      if (entry.isDirectory()) {
+        if (IGNORED_DIRECTORIES.has(entry.name)) continue;
+        await walk(full);
+        continue;
+      }
+
+      if (!CODE_CONNECT.test(entry.name)) continue;
+
+      let resolved: string;
+      try {
+        resolved = await realpath(full);
+      } catch {
+        continue;
+      }
+      if (resolved !== base &amp;&amp; !resolved.startsWith(base + path.sep)) continue;
+
+      found.push(path.relative(base, full).split(path.sep).join("/"));
+    }
+  };
+
+  await walk(base);
+  return found.sort();
+};</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt2s4" />
+                  <label class="step__label" for="codeconnectt2s4"
+                    >Run the tests and make sure they pass</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b>
+                    <code>cd server &amp;&amp; bun test src/code-connect/discover.test.ts</code
+                    ><br />
+                    <b>Expect</b> <span class="pass">PASS</span> — 5 pass, 0 fail
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt2s5" />
+                  <label class="step__label" for="codeconnectt2s5">Commit</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>git add server/src/code-connect/discover.ts server/src/code-connect/discover.test.ts
+git commit -m "feat(server): discover Code Connect files inside the workspace"</code></pre>
+                  <p>---</p>
+                </div>
+              </li>
+            </ol>
+          </article>
+
+          <article class="task" id="task-3" data-spy>
+            <div class="task__head">
+              <span class="task__no">Task 03</span>
+              <h2>Parse <code>figma.connect(...)</code> calls</h2>
+              <span class="chip chip--phase">R29</span>
+            </div>
+            <p>
+              A TypeScript parser would be the obvious tool and is the wrong one here: it is a heavy
+              dependency for a job with three known shapes. This scanner walks the source respecting
+              strings and comments, takes the balanced argument list, and reports anything it cannot
+              read rather than guessing.
+            </p>
+
+            <div class="tension">
+              <span class="tension__count"></span><span class="tension__fill"></span>
+            </div>
+
+            <dl class="files">
+              <dt>Files</dt>
+              <dd>
+                <ul>
+                  <li>
+                    <span class="verb">Create</span><code>server/src/code-connect/parse.ts</code>
+                  </li>
+                  <li>
+                    <span class="verb">Create</span
+                    ><code>server/src/code-connect/parse.test.ts</code>
+                  </li>
+                </ul>
+              </dd>
+              <dt>Interfaces</dt>
+              <dd>
+                <strong>Consumes</strong> — <code>parseFigmaUrl</code>,
+                <code>FigmaTarget</code> from <code>./url.js</code>.<br />
+                <strong>Produces</strong> —
+                <code>parseCodeConnect(source, sourcePath): ParseResult</code>, plus the
+                <code>Mapping</code> and <code>ParseResult</code> types. Tasks 4, 6, 7 and 8 import
+                them from <code>./parse.js</code>.
+              </dd>
+            </dl>
+
+            <ol class="steps">
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt3s1" />
+                  <label class="step__label" for="codeconnectt3s1">Write the failing test</label>
+                </div>
+                <div class="step__body">
+                  <p class="pre-label">server/src/code-connect/parse.test.ts — create</p>
+                  <pre><code>import { describe, expect, test } from "bun:test";
+import { parseCodeConnect } from "./parse.js";
+
+const source = `
+import figma from "@figma/code-connect";
+import { Button } from "./Button";
+
+// figma.connect(Ignored, "https://figma.com/design/K/D?node-id=9-9")
+figma.connect(Button, "https://www.figma.com/design/AbC/DS?node-id=1-2", {
+  props: {
+    label: figma.string("Label"),
+    variant: figma.enum("Variant", { Primary: "primary" }),
+  },
+  example: (props) =&gt; &lt;Button {...props} /&gt;,
+});
+
+figma.connect(Icons.Search, "https://www.figma.com/design/AbC/DS?node-id=3-4");
+`;
+
+describe("parseCodeConnect", () =&gt; {
+  test("finds every call", () =&gt; {
+    expect(parseCodeConnect(source, "src/ui/Button.figma.tsx").mappings).toHaveLength(2);
+  });
+
+  test("records the component, the target and the source path", () =&gt; {
+    const [first] = parseCodeConnect(source, "src/ui/Button.figma.tsx").mappings;
+    expect(first).toMatchObject({
+      component: "Button",
+      fileKey: "AbC",
+      nodeId: "1:2",
+      source: "src/ui/Button.figma.tsx",
+    });
+  });
+
+  test("lists the declared props", () =&gt; {
+    const [first] = parseCodeConnect(source, "src/ui/Button.figma.tsx").mappings;
+    expect(first.props).toEqual(["label", "variant"]);
+  });
+
+  test("handles a dotted component name and a missing options object", () =&gt; {
+    const [, second] = parseCodeConnect(source, "src/ui/Button.figma.tsx").mappings;
+    expect(second.component).toBe("Icons.Search");
+    expect(second.props).toEqual([]);
+  });
+
+  test("ignores calls inside comments", () =&gt; {
+    const components = parseCodeConnect(source, "x.figma.ts").mappings.map((m) =&gt; m.component);
+    expect(components).not.toContain("Ignored");
+  });
+
+  test("reports a call it cannot read instead of dropping it", () =&gt; {
+    const result = parseCodeConnect("figma.connect(Button, someUrlVariable);", "bad.figma.ts");
+    expect(result.mappings).toHaveLength(0);
+    expect(result.errors[0]).toContain("bad.figma.ts");
+  });
+
+  test("reports an unterminated call", () =&gt; {
+    const result = parseCodeConnect(
+      'figma.connect(Button, "https://figma.com/design/K/D?node-id=1-2"',
+      "trunc.figma.ts"
+    );
+    expect(result.errors[0]).toContain("trunc.figma.ts");
+  });
+});</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt3s2" />
+                  <label class="step__label" for="codeconnectt3s2"
+                    >Run it to make sure it fails</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b>
+                    <code>cd server &amp;&amp; bun test src/code-connect/parse.test.ts</code><br />
+                    <b>Expect</b> <span class="fail">FAIL</span> —
+                    <code>Cannot find module './parse.js'</code>
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt3s3" />
+                  <label class="step__label" for="codeconnectt3s3">Write the implementation</label>
+                </div>
+                <div class="step__body">
+                  <p class="pre-label">server/src/code-connect/parse.ts — create</p>
+                  <pre><code>import { parseFigmaUrl } from "./url.js";
+
+export interface Mapping {
+  /** The code component's identifier as written, e.g. `Button` or `Icons.Search`. */
+  component: string;
+  fileKey: string;
+  nodeId: string;
+  /** Workspace-relative path of the file declaring the mapping. */
+  source: string;
+  /** Prop names declared in the options object, in source order. */
+  props: string[];
+}
+
+export interface ParseResult {
+  mappings: Mapping[];
+  /** One message per call this scanner could not read. Never silent. */
+  errors: string[];
+}
+
+const OPENERS = "([{";
+const CLOSERS = ")]}";
+
+/**
+ * Blanks out string and comment contents so a scan sees only code structure.
+ * Positions are preserved, so indices into the mask are valid in the original.
+ */
+const maskLiterals = (source: string): string =&gt; {
+  const out = source.split("");
+  let i = 0;
+  while (i &lt; source.length) {
+    const ch = source[i];
+    const next = source[i + 1];
+
+    if (ch === "/" &amp;&amp; next === "/") {
+      while (i &lt; source.length &amp;&amp; source[i] !== "\n") out[i++] = " ";
+      continue;
+    }
+    if (ch === "/" &amp;&amp; next === "*") {
+      const end = source.indexOf("*/", i + 2);
+      const stop = end === -1 ? source.length : end + 2;
+      while (i &lt; stop) ((out[i] = source[i] === "\n" ? "\n" : " "), i++);
+      continue;
+    }
+    if (ch === '"' || ch === "'" || ch === "`") {
+      const quote = ch;
+      i++;
+      while (i &lt; source.length) {
+        if (source[i] === "\\") {
+          out[i] = " ";
+          out[i + 1] = " ";
+          i += 2;
+          continue;
+        }
+        if (source[i] === quote) break;
+        out[i] = source[i] === "\n" ? "\n" : " ";
+        i++;
+      }
+      i++;
+      continue;
+    }
+    i++;
+  }
+  return out.join("");
+};
+
+/** Returns the index of the bracket matching the one at `open`, or -1. */
+const matchBracket = (mask: string, open: number): number =&gt; {
+  const stack: string[] = [];
+  for (let i = open; i &lt; mask.length; i++) {
+    const ch = mask[i];
+    if (OPENERS.includes(ch)) stack.push(ch);
+    else if (CLOSERS.includes(ch)) {
+      stack.pop();
+      if (stack.length === 0) return i;
+    }
+  }
+  return -1;
+};
+
+/** Splits an argument list on commas that sit at depth zero. */
+const splitArgs = (mask: string, from: number, to: number): Array&lt;[number, number]&gt; =&gt; {
+  const spans: Array&lt;[number, number]&gt; = [];
+  let depth = 0;
+  let start = from;
+  for (let i = from; i &lt; to; i++) {
+    const ch = mask[i];
+    if (OPENERS.includes(ch)) depth++;
+    else if (CLOSERS.includes(ch)) depth--;
+    else if (ch === "," &amp;&amp; depth === 0) {
+      spans.push([start, i]);
+      start = i + 1;
+    }
+  }
+  spans.push([start, to]);
+  return spans;
+};
+
+/** Reads the prop names declared in `props: { ... }` inside the options object. */
+const readProps = (source: string, mask: string, from: number, to: number): string[] =&gt; {
+  const key = mask.slice(from, to).search(/\bprops\s*:/);
+  if (key === -1) return [];
+  const brace = mask.indexOf("{", from + key);
+  if (brace === -1 || brace &gt;= to) return [];
+  const close = matchBracket(mask, brace);
+  if (close === -1) return [];
+
+  const names: string[] = [];
+  let depth = 0;
+  let atKey = true;
+  let buffer = "";
+  for (let i = brace + 1; i &lt; close; i++) {
+    const ch = mask[i];
+    if (OPENERS.includes(ch)) depth++;
+    else if (CLOSERS.includes(ch)) depth--;
+    else if (depth === 0 &amp;&amp; ch === ":") {
+      if (atKey) {
+        const name = buffer.trim();
+        if (/^[A-Za-z_$][\w$]*$/.test(name)) names.push(name);
+        atKey = false;
+      }
+      buffer = "";
+      continue;
+    } else if (depth === 0 &amp;&amp; ch === ",") {
+      atKey = true;
+      buffer = "";
+      continue;
+    }
+    if (depth === 0 &amp;&amp; atKey) buffer += source[i];
+  }
+  return names;
+};
+
+/**
+ * Extracts every `figma.connect(...)` mapping from one Code Connect file.
+ *
+ * A call the scanner cannot read is reported in `errors` with its file and
+ * line, never dropped — silence would make an agent believe a mapped component
+ * is unmapped and generate a fresh one.
+ * @param source - The file's contents.
+ * @param sourcePath - Workspace-relative path, used in results and errors.
+ */
+export const parseCodeConnect = (source: string, sourcePath: string): ParseResult =&gt; {
+  const mask = maskLiterals(source);
+  const mappings: Mapping[] = [];
+  const errors: string[] = [];
+
+  const CALL = /\bfigma\s*\.\s*connect\s*\(/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = CALL.exec(mask)) !== null) {
+    const open = match.index + match[0].length - 1;
+    const line = source.slice(0, match.index).split("\n").length;
+    const close = matchBracket(mask, open);
+    if (close === -1) {
+      errors.push(`${sourcePath}:${line} — unterminated figma.connect(...) call`);
+      continue;
+    }
+
+    const args = splitArgs(mask, open + 1, close);
+    const component = source.slice(args[0]?.[0] ?? 0, args[0]?.[1] ?? 0).trim();
+    const urlSpan = args[1];
+    const urlMatch = urlSpan
+      ? source.slice(urlSpan[0], urlSpan[1]).match(/["'`]([^"'`]+)["'`]/)
+      : null;
+
+    if (!component || !urlMatch) {
+      errors.push(
+        `${sourcePath}:${line} — could not read the component and URL arguments; ` +
+          `expected figma.connect(Component, "https://figma.com/design/...?node-id=1-2", { ... })`
+      );
+      continue;
+    }
+
+    const target = parseFigmaUrl(urlMatch[1]);
+    if (!target) {
+      errors.push(`${sourcePath}:${line} — "${urlMatch[1]}" is not a Figma node URL`);
+      continue;
+    }
+
+    mappings.push({
+      component,
+      fileKey: target.fileKey,
+      nodeId: target.nodeId,
+      source: sourcePath,
+      props: args[2] ? readProps(source, mask, args[2][0], args[2][1]) : [],
+    });
+
+    CALL.lastIndex = close;
+  }
+
+  return { mappings, errors };
+};</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt3s4" />
+                  <label class="step__label" for="codeconnectt3s4"
+                    >Run the tests and make sure they pass</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b>
+                    <code>cd server &amp;&amp; bun test src/code-connect/parse.test.ts</code><br />
+                    <b>Expect</b> <span class="pass">PASS</span> — 7 pass, 0 fail
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt3s5" />
+                  <label class="step__label" for="codeconnectt3s5">Commit</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>git add server/src/code-connect/parse.ts server/src/code-connect/parse.test.ts
+git commit -m "feat(server): parse figma.connect calls without a TypeScript dependency"</code></pre>
+                  <p>---</p>
+                </div>
+              </li>
+            </ol>
+          </article>
+
+          <article class="task" id="task-4" data-spy>
+            <div class="task__head">
+              <span class="task__no">Task 04</span>
+              <h2>The index and <code>get_code_connect_map</code></h2>
+              <span class="chip chip--phase">R30</span>
+            </div>
+            <p>
+              Discovery plus parsing plus a lookup. The index is rebuilt per call rather than cached
+              — mappings are files an agent may have just written, and a stale cache here is worse
+              than a few milliseconds of directory walking.
+            </p>
+
+            <div class="tension">
+              <span class="tension__count"></span><span class="tension__fill"></span>
+            </div>
+
+            <dl class="files">
+              <dt>Files</dt>
+              <dd>
+                <ul>
+                  <li>
+                    <span class="verb">Create</span><code>server/src/code-connect/index.ts</code>
+                  </li>
+                  <li>
+                    <span class="verb">Create</span
+                    ><code>server/src/code-connect/index.test.ts</code>
+                  </li>
+                  <li>
+                    <span class="verb">Modify</span><code>server/src/schema.ts</code> — add
+                    <code>get_code_connect_map</code> to <code>toolInputSchemas</code> and
+                    <code>rpcToArgs</code>
+                  </li>
+                  <li>
+                    <span class="verb">Modify</span><code>server/src/tools.ts</code> — register the
+                    tool
+                  </li>
+                </ul>
+              </dd>
+              <dt>Interfaces</dt>
+              <dd>
+                <strong>Consumes</strong> — <code>discoverCodeConnectFiles</code> from
+                <code>./discover.js</code>; <code>parseCodeConnect</code>, <code>Mapping</code> from
+                <code>./parse.js</code>.<br />
+                <strong>Produces</strong> —
+                <code>buildCodeConnectIndex(root): Promise&lt;CodeConnectIndex&gt;</code> and the
+                <code>CodeConnectIndex</code> type, whose
+                <code>lookup(nodeId, fileKey?)</code> returns <code>Mapping | undefined</code>.
+                Tasks 6, 7 and 8 import them from <code>./index.js</code>.
+              </dd>
+            </dl>
+
+            <ol class="steps">
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt4s1" />
+                  <label class="step__label" for="codeconnectt4s1">Write the failing test</label>
+                </div>
+                <div class="step__body">
+                  <p class="pre-label">server/src/code-connect/index.test.ts — create</p>
+                  <pre><code>import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { buildCodeConnectIndex } from "./index.js";
+
+let root: string;
+
+beforeAll(async () =&gt; {
+  root = await mkdtemp(path.join(tmpdir(), "cc-index-"));
+  await mkdir(path.join(root, "ui"), { recursive: true });
+  await writeFile(
+    path.join(root, "ui", "Button.figma.tsx"),
+    'figma.connect(Button, "https://figma.com/design/AbC/DS?node-id=1-2", { props: { label: figma.string("Label") } });'
+  );
+  await writeFile(
+    path.join(root, "ui", "Card.figma.tsx"),
+    'figma.connect(Card, "https://figma.com/design/Zed/Other?node-id=1-2");'
+  );
+  await writeFile(path.join(root, "ui", "Broken.figma.ts"), "figma.connect(Broken, notAUrl);");
+});
+
+afterAll(async () =&gt; {
+  await rm(root, { recursive: true, force: true });
+});
+
+describe("buildCodeConnectIndex", () =&gt; {
+  test("collects every mapping it could read", async () =&gt; {
+    const index = await buildCodeConnectIndex(root);
+    expect(index.mappings).toHaveLength(2);
+  });
+
+  test("reports the file it could not read", async () =&gt; {
+    const index = await buildCodeConnectIndex(root);
+    expect(index.errors[0]).toContain("Broken.figma.ts");
+  });
+
+  test("disambiguates the same node id across files by file key", async () =&gt; {
+    const index = await buildCodeConnectIndex(root);
+    expect(index.lookup("1:2", "AbC")?.component).toBe("Button");
+    expect(index.lookup("1:2", "Zed")?.component).toBe("Card");
+  });
+
+  test("falls back to a unique node-id match when no file key is given", async () =&gt; {
+    const index = await buildCodeConnectIndex(root);
+    expect(index.lookup("9:9")).toBeUndefined();
+  });
+
+  test("counts the files it scanned", async () =&gt; {
+    const index = await buildCodeConnectIndex(root);
+    expect(index.filesScanned).toBe(3);
+  });
+});</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt4s2" />
+                  <label class="step__label" for="codeconnectt4s2"
+                    >Run it to make sure it fails</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b>
+                    <code>cd server &amp;&amp; bun test src/code-connect/index.test.ts</code><br />
+                    <b>Expect</b> <span class="fail">FAIL</span> —
+                    <code>Cannot find module './index.js'</code>
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt4s3" />
+                  <label class="step__label" for="codeconnectt4s3">Write the index</label>
+                </div>
+                <div class="step__body">
+                  <p class="pre-label">server/src/code-connect/index.ts — create</p>
+                  <pre><code>import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { discoverCodeConnectFiles } from "./discover.js";
+import { parseCodeConnect, type Mapping } from "./parse.js";
+
+export interface CodeConnectIndex {
+  mappings: Mapping[];
+  errors: string[];
+  filesScanned: number;
+  /**
+   * Finds the mapping for a node.
+   * @param nodeId - Colon-form node id.
+   * @param fileKey - Preferred when several files map the same node id.
+   */
+  lookup: (nodeId: string, fileKey?: string) =&gt; Mapping | undefined;
+}
+
+/**
+ * Builds the Code Connect index for a workspace.
+ *
+ * Rebuilt on every call rather than cached: an agent may have written a mapping
+ * seconds ago, and a stale index is worse than a directory walk.
+ * @param root - The MCP server's working directory.
+ */
+export const buildCodeConnectIndex = async (root: string): Promise&lt;CodeConnectIndex&gt; =&gt; {
+  const files = await discoverCodeConnectFiles(root);
+  const mappings: Mapping[] = [];
+  const errors: string[] = [];
+
+  for (const file of files) {
+    let source: string;
+    try {
+      source = await readFile(path.join(root, file), "utf8");
+    } catch (err) {
+      errors.push(
+        `${file} — could not be read: ${err instanceof Error ? err.message : String(err)}`
+      );
+      continue;
+    }
+    const result = parseCodeConnect(source, file);
+    mappings.push(...result.mappings);
+    errors.push(...result.errors);
+  }
+
+  const lookup = (nodeId: string, fileKey?: string): Mapping | undefined =&gt; {
+    const candidates = mappings.filter((mapping) =&gt; mapping.nodeId === nodeId);
+    if (candidates.length === 0) return undefined;
+    if (fileKey) {
+      const exact = candidates.find((mapping) =&gt; mapping.fileKey === fileKey);
+      if (exact) return exact;
+    }
+    return candidates.length === 1 ? candidates[0] : undefined;
+  };
+
+  return { mappings, errors, filesScanned: files.length, lookup };
+};</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt4s4" />
+                  <label class="step__label" for="codeconnectt4s4"
+                    >Run the tests and make sure they pass</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b>
+                    <code>cd server &amp;&amp; bun test src/code-connect/index.test.ts</code><br />
+                    <b>Expect</b> <span class="pass">PASS</span> — 5 pass, 0 fail
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt4s5" />
+                  <label class="step__label" for="codeconnectt4s5"
+                    >Add the tool schema and RPC mapper</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p>In <code>server/src/schema.ts</code>, add to <code>toolInputSchemas</code>:</p>
+                  <pre><code>  get_code_connect_map: z.object({
+    nodeIds: z
+      .array(createFigmaNodeIdSchema())
+      .optional()
+      .describe("Restrict the result to these nodes. Omit to return every mapping."),
+    fileKey: fileKeyField,
+  }),</code></pre>
+                  <p>And to <code>rpcToArgs</code>:</p>
+                  <pre><code>  get_code_connect_map: (nodeIds, params) =&gt; ({ nodeIds, ...params }),</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt4s6" />
+                  <label class="step__label" for="codeconnectt4s6">Register the tool</label>
+                </div>
+                <div class="step__body">
+                  <p>In <code>server/src/tools.ts</code>, inside <code>registerTools</code>:</p>
+                  <pre><code>server.tool(
+  "get_code_connect_map",
+  "Map Figma nodes to the components that implement them, read from the *.figma.ts files in this workspace. Call it before writing code from a design: a mapped node should be implemented with the mapped component, not a new one. Mappings are local files under version control, not Figma cloud records.",
+  toolInputSchemas.get_code_connect_map.shape,
+  async ({ nodeIds, fileKey }): Promise&lt;ToolResult&gt; =&gt; {
+    try {
+      const index = await buildCodeConnectIndex(process.cwd());
+      const mappings = nodeIds?.length
+        ? nodeIds
+            .map((id) =&gt; index.lookup(id, fileKey))
+            .filter((m): m is Mapping =&gt; m !== undefined)
+        : index.mappings;
+      return {
+        content: [
+          textBlock(
+            JSON.stringify(
+              { mappings, filesScanned: index.filesScanned, errors: index.errors },
+              null,
+              2
+            )
+          ),
+        ],
+      };
+    } catch (err) {
+      return {
+        content: [textBlock(err instanceof Error ? err.message : String(err))],
+        isError: true,
+      };
+    }
+  }
+);</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt4s7" />
+                  <label class="step__label" for="codeconnectt4s7"
+                    >Verify the build and the suite</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b>
+                    <code>cd server &amp;&amp; bun run build &amp;&amp; bun run test</code><br />
+                    <b>Expect</b> <span class="pass">PASS</span> — no <code>tsc</code> errors, every
+                    test green
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt4s8" />
+                  <label class="step__label" for="codeconnectt4s8">Commit</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>git add server/src/code-connect/index.ts server/src/code-connect/index.test.ts server/src/schema.ts server/src/tools.ts
+git commit -m "feat(server): add get_code_connect_map backed by workspace files"</code></pre>
+                  <p>---</p>
+                </div>
+              </li>
+            </ol>
+          </article>
+
+          <article class="task" id="task-5" data-spy>
+            <div class="task__head">
+              <span class="task__no">Task 05</span>
+              <h2><code>get_context_for_code_connect</code></h2>
+              <span class="chip chip--phase">R33</span>
+            </div>
+            <p>
+              To author a mapping you need the component's props and variant axes. Phase 2 already
+              put <code>componentPropertyDefinitions</code> on serialized components; this exposes
+              them under a name that says what they are for.
+            </p>
+
+            <div class="tension">
+              <span class="tension__count"></span><span class="tension__fill"></span>
+            </div>
+
+            <dl class="files">
+              <dt>Files</dt>
+              <dd>
+                <ul>
+                  <li>
+                    <span class="verb">Modify</span><code>plugin/src/main/code.ts</code> — new
+                    <code>get_component_context</code> request type and case
+                  </li>
+                  <li>
+                    <span class="verb">Modify</span><code>server/src/schema.ts</code> —
+                    <code>get_context_for_code_connect</code> schema and
+                    <code>rpcToArgs</code> entry
+                  </li>
+                  <li>
+                    <span class="verb">Modify</span><code>server/src/tools.ts</code> — register the
+                    tool
+                  </li>
+                </ul>
+              </dd>
+              <dt>Interfaces</dt>
+              <dd>
+                <strong>Consumes</strong> — phase 2's <code>serializeComponentIdentity</code> output
+                via the serializer; <code>buildCodeConnectIndex</code> from
+                <code>./code-connect/index.js</code>.<br />
+                <strong>Produces</strong> — a bridge request <code>get_component_context</code> with
+                <code>params: { nodeId }</code> returning
+                <code>{ id, name, key, type, propertyDefinitions, variantAxes, description }</code>,
+                and the MCP tool that wraps it.
+              </dd>
+            </dl>
+
+            <ol class="steps">
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt5s1" />
+                  <label class="step__label" for="codeconnectt5s1"
+                    >Add the plugin request type and case</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p>
+                    Add <code>"get_component_context"</code> to the <code>RequestType</code> union
+                    in <code>plugin/src/main/code.ts</code>, then add the case before
+                    <code>default:</code>. The owner narrowing from phase 2 is reused rather than
+                    re-derived — reading <code>componentPropertyDefinitions</code> off a variant
+                    throws.
+                  </p>
+                  <pre><code>      case "get_component_context": {
+        const nodeId = request.params?.nodeId;
+        if (typeof nodeId !== "string") {
+          throw new Error("get_component_context requires a `nodeId` string parameter.");
+        }
+        const node = await figma.getNodeByIdAsync(nodeId);
+        if (!node) throw new Error(`Node ${nodeId} not found in this file.`);
+
+        const owner = componentPropertyOwner(node as never);
+        if (!owner) {
+          throw new Error(
+            `Node ${nodeId} is a ${node.type}, not a COMPONENT or COMPONENT_SET. ` +
+              `Code Connect maps components; select the main component, not an instance.`
+          );
+        }
+
+        const definitions =
+          (owner as { componentPropertyDefinitions?: Record&lt;string, unknown&gt; })
+            .componentPropertyDefinitions ?? {};
+        const variantAxes = Object.entries(definitions)
+          .filter(([, definition]) =&gt; (definition as { type?: string }).type === "VARIANT")
+          .map(([name, definition]) =&gt; ({
+            name,
+            options: (definition as { variantOptions?: string[] }).variantOptions ?? [],
+          }));
+
+        return {
+          type: request.type,
+          requestId: request.requestId,
+          data: {
+            id: node.id,
+            name: node.name,
+            key: (node as { key?: string }).key,
+            type: node.type,
+            description: (node as { description?: string }).description || undefined,
+            propertyDefinitions: definitions,
+            variantAxes,
+          },
+        };
+      }</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt5s2" />
+                  <label class="step__label" for="codeconnectt5s2">Add the schema and mapper</label>
+                </div>
+                <div class="step__body">
+                  <p>In <code>server/src/schema.ts</code>:</p>
+                  <pre><code>  get_context_for_code_connect: z.object({
+    nodeId: createFigmaNodeIdSchema().describe(
+      "The COMPONENT or COMPONENT_SET to describe. Pass the main component, not an instance."
+    ),
+    fileKey: fileKeyField,
+  }),</code></pre>
+                  <pre><code>  get_context_for_code_connect: (nodeIds, params) =&gt; ({ ...params, nodeId: nodeIds?.[0] }),</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt5s3" />
+                  <label class="step__label" for="codeconnectt5s3">Register the tool</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>server.tool(
+  "get_context_for_code_connect",
+  "Describe a Figma component's properties and variant axes so a Code Connect mapping can be authored accurately. Returns the property definitions, the variant options per axis, the component key, and any description the designer wrote.",
+  toolInputSchemas.get_context_for_code_connect.shape,
+  async ({ nodeId, fileKey }): Promise&lt;ToolResult&gt; =&gt; {
+    return renderResponse(() =&gt;
+      node.sendWithParams("get_component_context", [nodeId], undefined, fileKey)
+    );
+  }
+);</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt5s4" />
+                  <label class="step__label" for="codeconnectt5s4">Verify both halves build</label>
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b>
+                    <code
+                      >cd server &amp;&amp; bun run build &amp;&amp; cd ../plugin &amp;&amp; bunx
+                      tsc --noEmit -p tsconfig.json</code
+                    ><br />
+                    <b>Expect</b> <span class="pass">PASS</span> — no errors from either
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt5s5" />
+                  <label class="step__label" for="codeconnectt5s5"
+                    >Prove the error path by hand</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p>
+                    With the plugin running in a design file, call
+                    <code>get_context_for_code_connect</code> on an <strong>instance</strong> rather
+                    than its main component.
+                  </p>
+                  <p class="expect">
+                    <b>Expect</b> an error explaining that Code Connect maps components and telling
+                    you to select the main component — not a raw type error.
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt5s6" />
+                  <label class="step__label" for="codeconnectt5s6">Commit</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>git add plugin/src/main/code.ts server/src/schema.ts server/src/tools.ts
+git commit -m "feat: add get_context_for_code_connect"</code></pre>
+                  <p>---</p>
+                </div>
+              </li>
+            </ol>
+          </article>
+
+          <article class="task" id="task-6" data-spy>
+            <div class="task__head">
+              <span class="task__no">Task 06</span>
+              <h2><code>get_code_connect_suggestions</code></h2>
+              <span class="chip chip--phase">R32</span>
+            </div>
+            <p>
+              Suggestions are a ranking problem, and the ranking has to be legible: an agent should
+              be able to see _why_ a candidate was proposed and reject it. This tool never writes.
+            </p>
+
+            <div class="tension">
+              <span class="tension__count"></span><span class="tension__fill"></span>
+            </div>
+
+            <dl class="files">
+              <dt>Files</dt>
+              <dd>
+                <ul>
+                  <li>
+                    <span class="verb">Create</span><code>server/src/code-connect/suggest.ts</code>
+                  </li>
+                  <li>
+                    <span class="verb">Create</span
+                    ><code>server/src/code-connect/suggest.test.ts</code>
+                  </li>
+                  <li>
+                    <span class="verb">Modify</span><code>server/src/schema.ts</code> — schema and
+                    <code>rpcToArgs</code> entry
+                  </li>
+                  <li>
+                    <span class="verb">Modify</span><code>server/src/tools.ts</code> — register the
+                    tool
+                  </li>
+                </ul>
+              </dd>
+              <dt>Interfaces</dt>
+              <dd>
+                <strong>Consumes</strong> — <code>Mapping</code> from <code>./parse.js</code>;
+                <code>discoverCodeConnectFiles</code>, <code>IGNORED_DIRECTORIES</code> from
+                <code>./discover.js</code>.<br />
+                <strong>Produces</strong> —
+                <code>scoreCandidates(figmaName, exports): Suggestion[]</code> and
+                <code>findExportedComponents(root): Promise&lt;ExportedComponent[]&gt;</code>. Task
+                8 does not use them; only the tool does.
+              </dd>
+            </dl>
+
+            <ol class="steps">
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt6s1" />
+                  <label class="step__label" for="codeconnectt6s1">Write the failing test</label>
+                </div>
+                <div class="step__body">
+                  <p>
+                    Only the scorer is unit-tested — it holds the judgement. The export scan is
+                    directory I/O, proven in step 6.
+                  </p>
+                  <p class="pre-label">server/src/code-connect/suggest.test.ts — create</p>
+                  <pre><code>import { describe, expect, test } from "bun:test";
+import { scoreCandidates } from "./suggest.js";
+
+const exports = [
+  { name: "Button", source: "src/ui/Button.tsx" },
+  { name: "ButtonGroup", source: "src/ui/ButtonGroup.tsx" },
+  { name: "Card", source: "src/ui/Card.tsx" },
+  { name: "IconButton", source: "src/ui/IconButton.tsx" },
+];
+
+describe("scoreCandidates", () =&gt; {
+  test("ranks an exact name match first", () =&gt; {
+    expect(scoreCandidates("Button", exports)[0].component).toBe("Button");
+  });
+
+  test("matches a Figma variant path against its component name", () =&gt; {
+    expect(scoreCandidates("Button/Primary", exports)[0].component).toBe("Button");
+  });
+
+  test("is case and separator insensitive", () =&gt; {
+    expect(scoreCandidates("icon button", exports)[0].component).toBe("IconButton");
+  });
+
+  test("explains why each candidate was proposed", () =&gt; {
+    expect(scoreCandidates("Button", exports)[0].evidence).toMatch(/exact/i);
+  });
+
+  test("returns nothing rather than a bad guess", () =&gt; {
+    expect(scoreCandidates("Zzzz Widget", exports)).toEqual([]);
+  });
+});</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt6s2" />
+                  <label class="step__label" for="codeconnectt6s2"
+                    >Run it to make sure it fails</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b>
+                    <code>cd server &amp;&amp; bun test src/code-connect/suggest.test.ts</code
+                    ><br />
+                    <b>Expect</b> <span class="fail">FAIL</span> —
+                    <code>Cannot find module './suggest.js'</code>
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt6s3" />
+                  <label class="step__label" for="codeconnectt6s3">Write the implementation</label>
+                </div>
+                <div class="step__body">
+                  <p class="pre-label">server/src/code-connect/suggest.ts — create</p>
+                  <pre><code>import { readdir, readFile, realpath } from "node:fs/promises";
+import path from "node:path";
+import { IGNORED_DIRECTORIES } from "./discover.js";
+
+export interface ExportedComponent {
+  name: string;
+  /** Workspace-relative POSIX path. */
+  source: string;
+}
+
+export interface Suggestion {
+  component: string;
+  source: string;
+  /** 0-1; higher is a stronger match. */
+  score: number;
+  /** Why this candidate was proposed, so it can be rejected on sight. */
+  evidence: string;
+}
+
+/** Normalises `Button/Primary`, `icon button` and `IconButton` to one form. */
+const normalise = (name: string): string =&gt;
+  name
+    .split("/")[0]
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+
+/**
+ * Ranks exported components against a Figma component name.
+ * @param figmaName - The Figma component or component-set name.
+ * @param exports - Components exported anywhere in the workspace.
+ * @returns Candidates above the confidence floor, strongest first. Possibly empty.
+ */
+export const scoreCandidates = (figmaName: string, exports: ExportedComponent[]): Suggestion[] =&gt; {
+  const target = normalise(figmaName);
+  if (target === "") return [];
+
+  const scored = exports.flatMap((exported): Suggestion[] =&gt; {
+    const candidate = normalise(exported.name);
+    if (candidate === target) {
+      return [
+        {
+          component: exported.name,
+          source: exported.source,
+          score: 1,
+          evidence: `exact name match for "${figmaName}"`,
+        },
+      ];
+    }
+    if (candidate.startsWith(target) || target.startsWith(candidate)) {
+      const ratio =
+        Math.min(candidate.length, target.length) / Math.max(candidate.length, target.length);
+      return [
+        {
+          component: exported.name,
+          source: exported.source,
+          score: 0.5 + ratio * 0.4,
+          evidence: `name prefix overlap with "${figmaName}"`,
+        },
+      ];
+    }
+    return [];
+  });
+
+  return scored.sort((a, b) =&gt; b.score - a.score).slice(0, 5);
+};
+
+const SOURCE_FILE = /\.(ts|tsx|js|jsx)$/;
+const EXPORTED = /export\s+(?:default\s+)?(?:const|function|class)\s+([A-Z][\w$]*)/g;
+
+/**
+ * Scans the workspace for exported identifiers that look like components —
+ * capitalised, exported, in a source file.
+ * @param root - The MCP server's working directory.
+ */
+export const findExportedComponents = async (root: string): Promise&lt;ExportedComponent[]&gt; =&gt; {
+  const base = await realpath(root);
+  const found: ExportedComponent[] = [];
+
+  const walk = async (dir: string): Promise&lt;void&gt; =&gt; {
+    let entries;
+    try {
+      entries = await readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (IGNORED_DIRECTORIES.has(entry.name)) continue;
+        await walk(full);
+        continue;
+      }
+      if (!SOURCE_FILE.test(entry.name) || /\.figma\.|\.test\./.test(entry.name)) continue;
+
+      let source: string;
+      try {
+        source = await readFile(full, "utf8");
+      } catch {
+        continue;
+      }
+      const relative = path.relative(base, full).split(path.sep).join("/");
+      for (const match of source.matchAll(EXPORTED)) {
+        found.push({ name: match[1], source: relative });
+      }
+    }
+  };
+
+  await walk(base);
+  return found;
+};</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt6s4" />
+                  <label class="step__label" for="codeconnectt6s4"
+                    >Run the tests and make sure they pass</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b>
+                    <code>cd server &amp;&amp; bun test src/code-connect/suggest.test.ts</code
+                    ><br />
+                    <b>Expect</b> <span class="pass">PASS</span> — 5 pass, 0 fail
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt6s5" />
+                  <label class="step__label" for="codeconnectt6s5"
+                    >Add the schema, mapper and tool</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p>In <code>server/src/schema.ts</code>:</p>
+                  <pre><code>  get_code_connect_suggestions: z.object({
+    nodeIds: z
+      .array(createFigmaNodeIdSchema())
+      .min(1)
+      .describe("Component or component-set nodes to propose mappings for."),
+    fileKey: fileKeyField,
+  }),</code></pre>
+                  <pre><code>  get_code_connect_suggestions: (nodeIds, params) =&gt; ({ nodeIds, ...params }),</code></pre>
+                  <p>
+                    In <code>server/src/tools.ts</code>, register a handler that, for each node id,
+                    fetches the node's name via <code>get_node</code>, skips ids the index already
+                    maps, and returns
+                    <code>scoreCandidates(name, await findExportedComponents(process.cwd()))</code>.
+                    Scan the workspace once, outside the loop.
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt6s6" />
+                  <label class="step__label" for="codeconnectt6s6">Prove it end to end</label>
+                </div>
+                <div class="step__body">
+                  <p>
+                    With the plugin open in a design file that has a component matching one of your
+                    codebase components, call <code>get_code_connect_suggestions</code> on that
+                    component's node id.
+                  </p>
+                  <p class="expect">
+                    <b>Expect</b> the matching component ranked first with
+                    <code>evidence</code> reading <code>exact name match</code>, and no file written
+                    anywhere.
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt6s7" />
+                  <label class="step__label" for="codeconnectt6s7">Commit</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>git add server/src/code-connect/suggest.ts server/src/code-connect/suggest.test.ts server/src/schema.ts server/src/tools.ts
+git commit -m "feat(server): suggest Code Connect mappings from workspace exports"</code></pre>
+                  <p>---</p>
+                </div>
+              </li>
+            </ol>
+          </article>
+
+          <article class="task" id="task-7" data-spy>
+            <div class="task__head">
+              <span class="task__no">Task 07</span>
+              <h2><code>add_code_connect_map</code></h2>
+              <span class="chip chip--phase">R31</span>
+            </div>
+            <p>
+              This is the only tool in the phase that writes. It writes a <strong>file</strong>, not
+              a cloud record, and the tool description has to say so — an agent that thinks it
+              published to Figma will not commit the file.
+            </p>
+
+            <div class="tension">
+              <span class="tension__count"></span><span class="tension__fill"></span>
+            </div>
+
+            <dl class="files">
+              <dt>Files</dt>
+              <dd>
+                <ul>
+                  <li>
+                    <span class="verb">Create</span><code>server/src/code-connect/write.ts</code>
+                  </li>
+                  <li>
+                    <span class="verb">Create</span
+                    ><code>server/src/code-connect/write.test.ts</code>
+                  </li>
+                  <li>
+                    <span class="verb">Modify</span><code>server/src/schema.ts</code> — schema and
+                    <code>rpcToArgs</code> entry
+                  </li>
+                  <li>
+                    <span class="verb">Modify</span><code>server/src/tools.ts</code> — register the
+                    tool
+                  </li>
+                </ul>
+              </dd>
+              <dt>Interfaces</dt>
+              <dd>
+                <strong>Consumes</strong> — <code>Mapping</code> from <code>./parse.js</code>;
+                <code>buildCodeConnectIndex</code> from <code>./index.js</code>.<br />
+                <strong>Produces</strong> — <code>renderMappingFile(input): string</code> and
+                <code
+                  >writeMapping(root, input): Promise&lt;{ file: string; created: boolean
+                  }&gt;</code
+                >.
+              </dd>
+            </dl>
+
+            <ol class="steps">
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt7s1" />
+                  <label class="step__label" for="codeconnectt7s1">Write the failing test</label>
+                </div>
+                <div class="step__body">
+                  <p class="pre-label">server/src/code-connect/write.test.ts — create</p>
+                  <pre><code>import { describe, expect, test } from "bun:test";
+import { renderMappingFile } from "./write.js";
+
+const rendered = renderMappingFile({
+  component: "Button",
+  importPath: "../ui/Button",
+  url: "https://www.figma.com/design/AbC/DS?node-id=1-2",
+  props: ["label", "variant"],
+});
+
+describe("renderMappingFile", () =&gt; {
+  test("imports the Code Connect helper and the component", () =&gt; {
+    expect(rendered).toContain('import figma from "@figma/code-connect";');
+    expect(rendered).toContain('import { Button } from "../ui/Button";');
+  });
+
+  test("connects the component to the node URL", () =&gt; {
+    expect(rendered).toContain(
+      'figma.connect(Button, "https://www.figma.com/design/AbC/DS?node-id=1-2"'
+    );
+  });
+
+  test("stubs each declared prop so the author fills it in", () =&gt; {
+    expect(rendered).toContain('label: figma.string("label")');
+    expect(rendered).toContain('variant: figma.string("variant")');
+  });
+
+  test("omits the props block entirely when there are none", () =&gt; {
+    const bare = renderMappingFile({
+      component: "Divider",
+      importPath: "./Divider",
+      url: "https://www.figma.com/design/AbC/DS?node-id=3-4",
+      props: [],
+    });
+    expect(bare).not.toContain("props:");
+  });
+
+  test("is valid to re-parse", async () =&gt; {
+    const { parseCodeConnect } = await import("./parse.js");
+    expect(parseCodeConnect(rendered, "Button.figma.tsx").mappings[0]).toMatchObject({
+      component: "Button",
+      nodeId: "1:2",
+      props: ["label", "variant"],
+    });
+  });
+});</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt7s2" />
+                  <label class="step__label" for="codeconnectt7s2"
+                    >Run it to make sure it fails</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b>
+                    <code>cd server &amp;&amp; bun test src/code-connect/write.test.ts</code><br />
+                    <b>Expect</b> <span class="fail">FAIL</span> —
+                    <code>Cannot find module './write.js'</code>
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt7s3" />
+                  <label class="step__label" for="codeconnectt7s3">Write the implementation</label>
+                </div>
+                <div class="step__body">
+                  <p class="pre-label">server/src/code-connect/write.ts — create</p>
+                  <pre><code>import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";
+import path from "node:path";
+
+export interface MappingInput {
+  component: string;
+  /** Import specifier for the component, relative to the mapping file. */
+  importPath: string;
+  url: string;
+  props: string[];
+}
+
+/**
+ * Renders a Code Connect file for one mapping.
+ *
+ * Props are stubbed as `figma.string(...)` rather than guessed: the author
+ * knows whether a prop is a boolean, an enum or a nested instance, and a wrong
+ * guess is harder to spot than an obvious placeholder.
+ */
+export const renderMappingFile = (input: MappingInput): string =&gt; {
+  const props =
+    input.props.length &gt; 0
+      ? `  props: {\n${input.props.map((prop) =&gt; `    ${prop}: figma.string("${prop}"),`).join("\n")}\n  },\n`
+      : "";
+
+  return `import figma from "@figma/code-connect";
+import { ${input.component} } from "${input.importPath}";
+
+figma.connect(${input.component}, "${input.url}", {
+${props}  example: (props) =&gt; &lt;${input.component} {...props} /&gt;,
+});
+`;
+};
+
+/**
+ * Writes a mapping file inside the workspace.
+ *
+ * @param root - The MCP server's working directory.
+ * @param input - The mapping, plus the target path relative to `root`.
+ * @returns The workspace-relative path written, and whether the file is new.
+ * @throws When the target resolves outside the working directory, or when the
+ * file already maps this component (appending a duplicate would create two
+ * mappings for one node).
+ */
+export const writeMapping = async (
+  root: string,
+  input: MappingInput &amp; { file: string }
+): Promise&lt;{ file: string; created: boolean }&gt; =&gt; {
+  const base = await realpath(root);
+  const target = path.resolve(base, input.file);
+  if (target !== base &amp;&amp; !target.startsWith(base + path.sep)) {
+    throw new Error(
+      `file "${input.file}" resolves outside the MCP server working directory (${base}). ` +
+        `Code Connect mappings must live in the workspace so they can be committed.`
+    );
+  }
+
+  await mkdir(path.dirname(target), { recursive: true });
+
+  let existing: string | null = null;
+  try {
+    existing = await readFile(target, "utf8");
+  } catch {
+    existing = null;
+  }
+
+  if (existing !== null) {
+    if (existing.includes(input.url)) {
+      throw new Error(
+        `${input.file} already maps ${input.url}. Edit the existing figma.connect call rather than adding a second one.`
+      );
+    }
+    const block = renderMappingFile(input)
+      .split("\n")
+      .filter((line) =&gt; !line.startsWith("import "))
+      .join("\n")
+      .trim();
+    await writeFile(target, `${existing.trimEnd()}\n\n${block}\n`);
+    return { file: input.file, created: false };
+  }
+
+  await writeFile(target, renderMappingFile(input));
+  return { file: input.file, created: true };
+};</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt7s4" />
+                  <label class="step__label" for="codeconnectt7s4"
+                    >Run the tests and make sure they pass</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b>
+                    <code>cd server &amp;&amp; bun test src/code-connect/write.test.ts</code><br />
+                    <b>Expect</b> <span class="pass">PASS</span> — 5 pass, 0 fail
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt7s5" />
+                  <label class="step__label" for="codeconnectt7s5"
+                    >Add the schema, mapper and tool</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p>In <code>server/src/schema.ts</code>:</p>
+                  <pre><code>  add_code_connect_map: z.object({
+    nodeId: createFigmaNodeIdSchema().describe("The Figma component node to map."),
+    component: z.string().min(1).describe("The code component's exported name, e.g. `Button`."),
+    importPath: z
+      .string()
+      .min(1)
+      .describe("Import specifier for the component, relative to the mapping file."),
+    file: z
+      .string()
+      .min(1)
+      .describe(
+        "Mapping file path relative to the MCP server working directory, e.g. `src/ui/Button.figma.tsx`."
+      ),
+    props: z.array(z.string()).optional().describe("Prop names to stub in the mapping."),
+    fileKey: fileKeyField,
+  }),</code></pre>
+                  <pre><code>  add_code_connect_map: (nodeIds, params) =&gt; ({ ...params, nodeId: nodeIds?.[0] }),</code></pre>
+                  <p>Register the tool with a description that leads with the divergence:</p>
+                  <pre><code>server.tool(
+  "add_code_connect_map",
+  "Write a Code Connect mapping between a Figma node and a component in this workspace. This writes a local *.figma.tsx FILE — it does not publish anything to Figma. Commit the file to share the mapping. Props are stubbed as figma.string(...) for you to refine; the file must live inside the MCP server working directory.",
+  toolInputSchemas.add_code_connect_map.shape,
+  async ({ nodeId, component, importPath, file, props, fileKey }): Promise&lt;ToolResult&gt; =&gt; {
+    try {
+      const url = `https://www.figma.com/design/${fileKey ?? "FILE_KEY"}/?node-id=${nodeId.replace(":", "-")}`;
+      const result = await writeMapping(process.cwd(), {
+        component,
+        importPath,
+        url,
+        props: props ?? [],
+        file,
+      });
+      return { content: [textBlock(JSON.stringify(result))] };
+    } catch (err) {
+      return {
+        content: [textBlock(err instanceof Error ? err.message : String(err))],
+        isError: true,
+      };
+    }
+  }
+);</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt7s6" />
+                  <label class="step__label" for="codeconnectt7s6"
+                    >Prove containment and duplicate refusal by hand</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p>
+                    Call <code>add_code_connect_map</code> twice with the same
+                    <code>nodeId</code> and <code>file</code>, then once with
+                    <code>file: "../escape.figma.ts"</code>.
+                  </p>
+                  <p class="expect">
+                    <b>Expect</b> the first writes; the second refuses, naming the existing mapping;
+                    the third refuses, naming the working directory. No file appears outside the
+                    workspace.
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt7s7" />
+                  <label class="step__label" for="codeconnectt7s7">Commit</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>git add server/src/code-connect/write.ts server/src/code-connect/write.test.ts server/src/schema.ts server/src/tools.ts
+git commit -m "feat(server): write Code Connect mappings as workspace files"</code></pre>
+                  <p>---</p>
+                </div>
+              </li>
+            </ol>
+          </article>
+
+          <article class="task" id="task-8" data-spy>
+            <div class="task__head">
+              <span class="task__no">Task 08</span>
+              <h2>Surface mappings in design context, and document</h2>
+              <span class="chip chip--phase">R34</span>
+              <span class="chip chip--phase">R35</span>
+            </div>
+            <p>
+              A mapping nobody reads changes nothing. This wires the index into
+              <code>get_design_context</code> so the snippet appears exactly where an agent is
+              deciding what to write — and documents the one place we deliberately diverge from the
+              official server.
+            </p>
+
+            <div class="tension">
+              <span class="tension__count"></span><span class="tension__fill"></span>
+            </div>
+
+            <dl class="files">
+              <dt>Files</dt>
+              <dd>
+                <ul>
+                  <li>
+                    <span class="verb">Modify</span><code>server/src/tools.ts</code> —
+                    <code>composeDesignContext</code> and the
+                    <code>get_design_context</code> handler
+                  </li>
+                  <li>
+                    <span class="verb">Modify</span><code>README.md</code> — tool table and Editing
+                    Notes
+                  </li>
+                  <li><span class="verb">Create</span><code>docs/code-connect.md</code></li>
+                </ul>
+              </dd>
+              <dt>Interfaces</dt>
+              <dd>
+                <strong>Consumes</strong> — <code>buildCodeConnectIndex</code> from
+                <code>./code-connect/index.js</code>; <code>composeDesignContext</code> from phase
+                3.<br />
+                <strong>Produces</strong> — documentation only.
+              </dd>
+            </dl>
+
+            <ol class="steps">
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt8s1" />
+                  <label class="step__label" for="codeconnectt8s1">Extend the composer</label>
+                </div>
+                <div class="step__body">
+                  <p>
+                    Phase 3's <code>composeDesignContext</code> takes a
+                    <code>DesignContextInput</code>. Add <code>mappings: Mapping[]</code> to it and
+                    emit a section <strong>before</strong> the reference code, because it changes
+                    what the agent should write:
+                  </p>
+                  <pre><code>if (input.mappings.length &gt; 0) {
+  const rows = input.mappings
+    .map(
+      (mapping) =&gt;
+        `- node \`${mapping.nodeId}\` → \`${mapping.component}\` from \`${mapping.source}\``
+    )
+    .join("\n");
+  sections.unshift(
+    `## Code Connect mappings\n\nThese nodes already have components. Use them — do not generate equivalents.\n\n${rows}`
+  );
+}</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt8s2" />
+                  <label class="step__label" for="codeconnectt8s2">Feed the index in</label>
+                </div>
+                <div class="step__body">
+                  <p>
+                    In the <code>get_design_context</code> handler, build the index and collect the
+                    mappings for every node id in the serialized tree:
+                  </p>
+                  <pre><code>const index = await buildCodeConnectIndex(process.cwd());
+const mapped: Mapping[] = [];
+const collect = (current: SerializedNode): void =&gt; {
+  const mapping = index.lookup(current.id, fileKey);
+  if (mapping) mapped.push(mapping);
+  for (const child of current.children ?? []) collect(child);
+};
+collect(tree);</code></pre>
+                  <p>Pass <code>mappings: mapped</code> into <code>composeDesignContext</code>.</p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt8s3" />
+                  <label class="step__label" for="codeconnectt8s3"
+                    >Update the phase 3 composer test</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p>
+                    Phase 3's <code>design-context.test.ts</code> constructs
+                    <code>DesignContextInput</code> without <code>mappings</code>. Add
+                    <code>mappings: []</code> to each case, and add one asserting the new section
+                    leads:
+                  </p>
+                  <pre><code>test("puts Code Connect mappings ahead of the reference code", () =&gt; {
+  const [first] = composeDesignContext({
+    tree,
+    format: "react",
+    assets: [],
+    mappings: [
+      {
+        component: "Card",
+        fileKey: "AbC",
+        nodeId: "1:1",
+        source: "src/ui/Card.figma.tsx",
+        props: [],
+      },
+    ],
+  });
+  const text = (first as { text: string }).text;
+  expect(text.indexOf("Code Connect mappings")).toBeLessThan(text.indexOf("Reference code"));
+});</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt8s4" />
+                  <label class="step__label" for="codeconnectt8s4"
+                    >Run the whole suite and build</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b>
+                    <code>cd server &amp;&amp; bun run test &amp;&amp; bun run build</code><br />
+                    <b>Expect</b> <span class="pass">PASS</span> — every test green, no
+                    <code>tsc</code> errors
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt8s5" />
+                  <label class="step__label" for="codeconnectt8s5">Prove it end to end</label>
+                </div>
+                <div class="step__body">
+                  <p>
+                    Map a component with <code>add_code_connect_map</code>, then call
+                    <code>get_design_context</code> on a frame containing an instance of it.
+                  </p>
+                  <p class="expect">
+                    <b>Expect</b> the response opens with a Code Connect mappings section naming
+                    your component and its source file, above the reference code.
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt8s6" />
+                  <label class="step__label" for="codeconnectt8s6">Write the guide</label>
+                </div>
+                <div class="step__body">
+                  <p>
+                    Create <code>docs/code-connect.md</code> covering: where mappings live and that
+                    they are committed files; the four tools and what each does; the discovery rules
+                    (<code>**/*.figma.{ts,tsx,js,jsx}</code>, ignored directories, containment); the
+                    parser's supported shapes and what it reports as unreadable; why there is no
+                    <code>send_code_connect_mappings</code> — the bridge's equivalent is
+                    <code>git commit</code>, which makes the mapping reviewable in a way a cloud
+                    record is not; and the hint priority from the spec's R25.
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt8s7" />
+                  <label class="step__label" for="codeconnectt8s7">Update the README</label>
+                </div>
+                <div class="step__body">
+                  <p>Add four rows to the tool table:</p>
+                  <pre><code>| `get_code_connect_map` | Map Figma nodes to workspace components, read from local `*.figma.ts` files ([guide](docs/code-connect.md)) |
+| `get_context_for_code_connect` | A component's properties and variant axes, for authoring a mapping |
+| `get_code_connect_suggestions` | Propose mappings by matching Figma component names against workspace exports |
+| `add_code_connect_map` | Write a Code Connect mapping file into the workspace |</code></pre>
+                  <p>And append to Editing Notes:</p>
+                  <pre><code>- Code Connect on the bridge is entirely local: mappings are read from and written to `*.figma.ts` files in your repository, never Figma's cloud. There is no `send_code_connect_mappings` equivalent — committing the file is the publish step, which also makes the mapping reviewable.</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt8s8" />
+                  <label class="step__label" for="codeconnectt8s8">Format and run everything</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>bun run format
+cd server &amp;&amp; bun run test &amp;&amp; bun run build
+cd ../plugin &amp;&amp; bun run test &amp;&amp; bunx tsc --noEmit -p tsconfig.json &amp;&amp; bun run build</code></pre>
+                  <p class="expect">
+                    <b>Expect</b> <span class="pass">PASS</span> — Prettier reports no remaining
+                    changes on a second run, both suites green, both builds clean
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="codeconnectt8s9" />
+                  <label class="step__label" for="codeconnectt8s9">Commit</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>git add server/src/tools.ts server/src/design-context.test.ts README.md docs/code-connect.md
+git commit -m "feat: surface Code Connect mappings in design context"</code></pre>
+                  <p>---</p>
+                </div>
+              </li>
+            </ol>
+          </article>
+
+          <section class="done-when" id="done" data-spy>
+            <h2>Done when</h2>
+            <ul class="plain">
+              <li>
+                <code>bun test</code> is green in <code>server/</code>, covering URL parsing,
+                discovery, the <code>figma.connect</code> scanner, the index, the suggestion scorer
+                and the writer.
+              </li>
+              <li><code>bun run build</code> succeeds in both packages.</li>
+              <li>
+                <code>get_code_connect_map</code> returns real mappings from
+                <code>*.figma.ts</code> files in the workspace and reports unparseable files by path
+                rather than dropping them.
+              </li>
+              <li>
+                <code>get_context_for_code_connect</code> refuses an instance with a message that
+                says to select the main component.
+              </li>
+              <li>
+                <code>get_code_connect_suggestions</code> ranks an exact name match first, with
+                legible evidence, and writes nothing.
+              </li>
+              <li>
+                <code>add_code_connect_map</code> writes a file that the parser can read back,
+                refuses a duplicate mapping, and refuses a path outside the workspace.
+              </li>
+              <li>
+                <code>get_design_context</code> opens with a Code Connect section when the node is
+                mapped.
+              </li>
+              <li>
+                <code>docs/code-connect.md</code> explains the local-file model and why there is no
+                publish step.
+              </li>
+            </ul>
+          </section>
+
+          <footer class="colophon">
+            <span>Figma Design Relay</span>
+            <span>Plan · Phase 4 · 2026-09-01</span>
+            <span>Source: <code>docs/superpowers/plans/2026-09-01-code-connect.md</code></span>
+            <span
+              ><a href="../specs/2026-09-01-official-figma-mcp-parity.html">← Parity spec</a></span
+            >
+          </footer>
+        </main>
+      </div>
+    </div>
+
+    <script src="../assets/doc.js"></script>
+  </body>
+</html>

@@ -1,0 +1,1790 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>run_script — Plugin API escape hatch · Figma Design Relay plan</title>
+    <meta
+      name="description"
+      content="Phase 1 implementation plan: a test harness, then run_script — arbitrary Figma Plugin API execution through the bridge, the equivalent of the official server's use_figma."
+    />
+    <link rel="stylesheet" href="../assets/doc.css" />
+  </head>
+  <body data-doc="run-script-plan">
+    <a class="skip" href="#main">Skip to the plan</a>
+
+    <div class="shell">
+      <header class="masthead">
+        <p class="eyebrow">Implementation plan · Phase 1 · 2026-09-01</p>
+        <h1>One tool that carries everything else</h1>
+        <p class="standfirst">
+          The bridge exposes forty hand-written RPCs, and anything off that menu is impossible. This
+          plan builds <strong>one more</strong> — <code>run_script</code> — that reaches the whole
+          Figma Plugin API, plus the test harness the repository has never had.
+        </p>
+
+        <dl class="masthead__meta">
+          <div>
+            <b>Spec</b> —
+            <a href="../specs/2026-09-01-official-figma-mcp-parity.html">Parity analysis</a>, phase
+            1, R1–R10
+          </div>
+          <div><b>Tasks</b> — 7</div>
+          <div><b>Steps</b> — 53</div>
+          <div><b>Progress</b> — saved in this browser</div>
+        </dl>
+      </header>
+
+      <blockquote>
+        <p>
+          <strong>For agentic workers:</strong> required sub-skill —
+          <code>superpowers:subagent-driven-development</code> (recommended) or
+          <code>superpowers:executing-plans</code>. Work the plan task by task. The markdown source
+          at <code>docs/superpowers/plans/2026-09-01-run-script-plugin-api-escape-hatch.md</code> is
+          the machine-readable copy; this page is the same plan with the step checklist made live.
+        </p>
+      </blockquote>
+
+      <section class="brief">
+        <h2 id="brief" data-spy>The shape of it</h2>
+        <p>
+          <strong>Goal.</strong> Give the bridge a <code>run_script</code> MCP tool that executes
+          arbitrary JavaScript against the Figma Plugin API inside the connected file and returns
+          the script's value — the equivalent of the official server's <code>use_figma</code>.
+        </p>
+        <p>
+          <strong>Architecture.</strong> The MCP server gains one more pass-through tool that ships
+          a <code>code</code> string over the existing WebSocket bridge. The plugin's request
+          dispatcher hands that string to a new script runner, which evaluates
+          <code>(async () =&gt; { … })</code> with <strong>direct</strong> <code>eval</code> — so
+          the sandbox's scope proxy resolves <code>figma</code> — awaits the result, and returns a
+          bounded, JSON-safe serialization of it. All the interesting logic lives in two small,
+          dependency-free plugin modules that are unit-testable without a Figma runtime.
+        </p>
+        <p>
+          <strong>Tech stack.</strong> TypeScript, Bun (package manager and <code>bun test</code>),
+          Zod, <code>@modelcontextprotocol/sdk</code>, <code>ws</code>, Vite,
+          <code>@figma/plugin-typings</code>.
+        </p>
+
+        <h3>Global constraints</h3>
+        <p>Every task's requirements implicitly include these.</p>
+        <ul class="plain">
+          <li>
+            Node <code>&gt;=20.0.0</code> (<code>server/package.json</code> engines);
+            <code>.nvmrc</code> pins the CI version.
+          </li>
+          <li>
+            Bun is the package manager and script runner throughout — never <code>npm</code> or
+            <code>yarn</code>.
+          </li>
+          <li>
+            The server is ESM with <code>"module": "Node16"</code>:
+            <strong
+              >relative imports inside <code>server/src</code> must carry a
+              <code>.js</code> extension</strong
+            >
+            (e.g. <code>./schema.js</code>). Plugin sources use extensionless relative imports (e.g.
+            <code>./serializer</code>).
+          </li>
+          <li>
+            Prettier 3.9.6 formats everything and a Husky <code>pre-commit</code> hook runs
+            <code>lint-staged</code>. Do not fight the formatter — run <code>bun run format</code>
+            from the repo root if a commit reformats your file.
+          </li>
+          <li>
+            Script character cap <strong>100000</strong>; result JSON cap <strong>200000</strong>;
+            result depth cap <strong>12</strong>; array item cap <strong>500</strong>. These exact
+            numbers appear in both the plugin runner and the server schema.
+          </li>
+          <li>
+            The tool is named exactly <code>run_script</code> on every layer: MCP tool name,
+            <code>toolInputSchemas</code> key, <code>rpcToArgs</code> key, plugin
+            <code>RequestType</code> member, and <code>switch</code> case.
+          </li>
+          <li>
+            <code>server/src/schema.ts</code> types <code>rpcToArgs</code> as
+            <code>Record&lt;ToolName, …&gt;</code>, so adding a key to
+            <code>toolInputSchemas</code> without the matching <code>rpcToArgs</code> entry is a
+            <strong>compile error</strong>. Both land in the same task.
+          </li>
+          <li>Never reformat or restructure code outside the files each task lists.</li>
+        </ul>
+      </section>
+
+      <div class="layout">
+        <nav class="rail" aria-label="Tasks">
+          <p class="rail__title">Tasks</p>
+          <ol>
+            <li>
+              <a href="#task-1"
+                ><span>Test harness <b class="rail__done"></b></span
+              ></a>
+            </li>
+            <li>
+              <a href="#task-2"
+                ><span>Result serialization <b class="rail__done"></b></span
+              ></a>
+            </li>
+            <li>
+              <a href="#task-3"
+                ><span>Script runner <b class="rail__done"></b></span
+              ></a>
+            </li>
+            <li>
+              <a href="#task-4"
+                ><span>Plugin dispatch <b class="rail__done"></b></span
+              ></a>
+            </li>
+            <li>
+              <a href="#task-5"
+                ><span>Server schema <b class="rail__done"></b></span
+              ></a>
+            </li>
+            <li>
+              <a href="#task-6"
+                ><span>MCP registration <b class="rail__done"></b></span
+              ></a>
+            </li>
+            <li>
+              <a href="#task-7"
+                ><span>Verify &amp; document <b class="rail__done"></b></span
+              ></a>
+            </li>
+          </ol>
+        </nav>
+
+        <main id="main">
+          <!-- ================================ TASK 1 ================================ -->
+          <article class="task" id="task-1" data-spy>
+            <div class="task__head">
+              <span class="task__no">Task 01</span>
+              <h2>Test harness</h2>
+              <span class="chip chip--phase">R10</span>
+            </div>
+            <p>
+              The repository has no test runner and no tests. Everything downstream is test-driven,
+              so this comes first. The task is done only when <code>bun test</code> runs real
+              assertions in both packages and <code>bun run build</code> still emits a clean
+              <code>dist/</code>.
+            </p>
+
+            <div class="tension">
+              <span class="tension__count"></span><span class="tension__fill"></span>
+            </div>
+
+            <dl class="files">
+              <dt>Files</dt>
+              <dd>
+                <ul>
+                  <li>
+                    <span class="verb">Modify</span><code>server/package.json</code> — add a
+                    <code>test</code> script
+                  </li>
+                  <li>
+                    <span class="verb">Modify</span><code>server/tsconfig.json</code> — exclude
+                    tests from the published build
+                  </li>
+                  <li>
+                    <span class="verb">Modify</span><code>plugin/package.json</code> — add a
+                    <code>test</code> script
+                  </li>
+                  <li>
+                    <span class="verb">Modify</span><code>plugin/tsconfig.json</code> — exclude
+                    tests from <code>tsc --noEmit</code>
+                  </li>
+                  <li><span class="verb">Create</span><code>server/src/schema.test.ts</code></li>
+                </ul>
+              </dd>
+              <dt>Interfaces</dt>
+              <dd>
+                <strong>Consumes</strong> — <code>validateRpc(tool, nodeIds?, params?)</code> from
+                <code>server/src/schema.ts</code>, already exported, returning
+                <code>{ error: string | null; params?: Record&lt;string, unknown&gt; }</code>.<br />
+                <strong>Produces</strong> — a working <code>bun test</code> in
+                <code>server/</code> and <code>plugin/</code>. Every later task writes its tests
+                against this harness.
+              </dd>
+            </dl>
+
+            <ol class="steps">
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t1s1" />
+                  <label class="step__label" for="t1s1">Write the failing test</label>
+                </div>
+                <div class="step__body">
+                  <p class="pre-label">server/src/schema.test.ts — create</p>
+                  <pre><code>import { describe, expect, test } from "bun:test";
+import { validateRpc } from "./schema.js";
+
+describe("validateRpc", () =&gt; {
+  test("accepts a well-formed get_node request", () =&gt; {
+    const result = validateRpc("get_node", ["4029:12345"]);
+    expect(result.error).toBeNull();
+  });
+
+  test("rejects a hyphenated node id", () =&gt; {
+    const result = validateRpc("get_node", ["4029-12345"]);
+    expect(result.error).toContain("colon format");
+  });
+
+  test("passes through tools that have no schema", () =&gt; {
+    const result = validateRpc("not_a_real_tool");
+    expect(result.error).toBeNull();
+  });
+});</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t1s2" />
+                  <label class="step__label" for="t1s2"
+                    >Run it to confirm the harness is not wired up yet</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b> <code>cd server &amp;&amp; bun run test</code><br />
+                    <b>Expect</b> <span class="fail">FAIL</span> —
+                    <code>error: Script not found "test"</code>
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t1s3" />
+                  <label class="step__label" for="t1s3"
+                    >Add the test script to server/package.json</label
+                  >
+                </div>
+                <div class="step__body">
+                  <pre><code>"scripts": {
+  "build": "tsc",
+  "test": "bun test",
+  "prepublishOnly": "bun run build"
+},</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t1s4" />
+                  <label class="step__label" for="t1s4"
+                    >Run the tests and make sure they pass</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b> <code>cd server &amp;&amp; bun run test</code><br />
+                    <b>Expect</b> <span class="pass">PASS</span> — 3 pass, 0 fail
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t1s5" />
+                  <label class="step__label" for="t1s5"
+                    >Keep test files out of the published build</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p>
+                    <code>server/tsconfig.json</code> has <code>"include": ["src/**/*"]</code>, so
+                    <code>tsc</code> would compile <code>schema.test.ts</code> into
+                    <code>dist/</code> and ship it on npm. Add an <code>exclude</code> alongside it.
+                  </p>
+                  <pre><code>{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "outDir": "dist",
+    "rootDir": "src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "sourceMap": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["src/**/*.test.ts"]
+}</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t1s6" />
+                  <label class="step__label" for="t1s6"
+                    >Verify the build is clean and test-free</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b> <code>cd server &amp;&amp; bun run build &amp;&amp; ls dist</code
+                    ><br />
+                    <b>Expect</b> <span class="pass">PASS</span> — <code>dist/</code> holds
+                    <code>index.js</code>, <code>schema.js</code>, <code>tools.js</code> … and
+                    <strong>no</strong> <code>schema.test.js</code>
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t1s7" />
+                  <label class="step__label" for="t1s7"
+                    >Add the test script to plugin/package.json</label
+                  >
+                </div>
+                <div class="step__body">
+                  <pre><code>"scripts": {
+  "dev": "concurrently \"vite build --watch\" \"vite build --watch -c vite.config.main.ts\"",
+  "build": "vite build &amp;&amp; vite build -c vite.config.main.ts",
+  "test": "bun test"
+},</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t1s8" />
+                  <label class="step__label" for="t1s8"
+                    >Keep test files out of the plugin's type-check</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p>
+                    <code>plugin/tsconfig.json</code> sets
+                    <code>"types": ["@figma/plugin-typings"]</code>, which loads <em>only</em> those
+                    ambient types — so <code>import … from "bun:test"</code> in a file under
+                    <code>src</code> makes <code>tsc --noEmit</code> fail with
+                    <code>Cannot find module 'bun:test'</code>. Bun type-checks nothing at test
+                    time, so exclude test files from <code>tsc</code>.
+                  </p>
+                  <pre><code>{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": ["@figma/plugin-typings"]
+  },
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts"]
+}</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t1s9" />
+                  <label class="step__label" for="t1s9"
+                    >Confirm the plugin harness runs and still type-checks</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b>
+                    <code
+                      >cd plugin &amp;&amp; bun run test &amp;&amp; bunx tsc --noEmit -p
+                      tsconfig.json</code
+                    ><br />
+                    <b>Expect</b> <span class="pass">PASS</span> — <code>0 pass, 0 fail</code> with
+                    no missing-script error, and no <code>tsc</code> output. Bun exits 0 when it
+                    finds no test files.
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t1s10" />
+                  <label class="step__label" for="t1s10">Commit</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>git add server/package.json server/tsconfig.json server/src/schema.test.ts \
+        plugin/package.json plugin/tsconfig.json
+git commit -m "test: add bun test harness for server and plugin"</code></pre>
+                </div>
+              </li>
+            </ol>
+          </article>
+
+          <!-- ================================ TASK 2 ================================ -->
+          <article class="task" id="task-2" data-spy>
+            <div class="task__head">
+              <span class="task__no">Task 02</span>
+              <h2>JSON-safe result serialization</h2>
+              <span class="chip chip--phase">R3 · R4</span>
+            </div>
+            <p>
+              A script can return anything — a Figma node, <code>figma.mixed</code>, a cyclic
+              object, a 40 MB tree. This module turns any value into something
+              <code>JSON.stringify</code>
+              handles and an agent can read, with hard bounds. It is pure and has no
+              <code>figma</code> dependency, so it is fully unit-testable under Bun.
+            </p>
+
+            <div class="tension">
+              <span class="tension__count"></span><span class="tension__fill"></span>
+            </div>
+
+            <dl class="files">
+              <dt>Files</dt>
+              <dd>
+                <ul>
+                  <li>
+                    <span class="verb">Create</span><code>plugin/src/main/script-result.ts</code>
+                  </li>
+                  <li>
+                    <span class="verb">Create</span
+                    ><code>plugin/src/main/script-result.test.ts</code>
+                  </li>
+                </ul>
+              </dd>
+              <dt>Interfaces</dt>
+              <dd>
+                <strong>Consumes</strong> — nothing.<br />
+                <strong>Produces</strong> — <code>toJsonSafe(value: unknown): unknown</code>,
+                <code>MAX_RESULT_DEPTH = 12</code>, <code>MAX_ARRAY_ITEMS = 500</code>. Task 3
+                imports <code>toJsonSafe</code> from <code>./script-result</code>.
+              </dd>
+            </dl>
+
+            <ol class="steps">
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t2s1" />
+                  <label class="step__label" for="t2s1">Write the failing test</label>
+                </div>
+                <div class="step__body">
+                  <p class="pre-label">plugin/src/main/script-result.test.ts — create</p>
+                  <pre><code>import { describe, expect, test } from "bun:test";
+import { MAX_ARRAY_ITEMS, MAX_RESULT_DEPTH, toJsonSafe } from "./script-result";
+
+/** Minimal stand-in for a Figma SceneNode: id + type + setPluginData. */
+const fakeNode = (id: string, name: string, type: string) =&gt; ({
+  id,
+  name,
+  type,
+  width: 100,
+  setPluginData() {},
+  getPluginData() {
+    return "";
+  },
+});
+
+describe("toJsonSafe", () =&gt; {
+  test("passes primitives through untouched", () =&gt; {
+    expect(toJsonSafe("hi")).toBe("hi");
+    expect(toJsonSafe(42)).toBe(42);
+    expect(toJsonSafe(true)).toBe(true);
+    expect(toJsonSafe(null)).toBeNull();
+    expect(toJsonSafe(undefined)).toBeUndefined();
+  });
+
+  test("collapses a Figma node to id, name and type", () =&gt; {
+    expect(toJsonSafe(fakeNode("1:2", "Card", "FRAME"))).toEqual({
+      id: "1:2",
+      name: "Card",
+      type: "FRAME",
+    });
+  });
+
+  test("collapses nodes nested inside plain objects and arrays", () =&gt; {
+    const value = { created: [fakeNode("1:2", "Card", "FRAME")], count: 1 };
+    expect(toJsonSafe(value)).toEqual({
+      created: [{ id: "1:2", name: "Card", type: "FRAME" }],
+      count: 1,
+    });
+  });
+
+  test("renders symbols as \"mixed\" (figma.mixed is a symbol)", () =&gt; {
+    expect(toJsonSafe({ strokeWeight: Symbol("figma.mixed") })).toEqual({
+      strokeWeight: "mixed",
+    });
+  });
+
+  test("replaces circular references instead of throwing", () =&gt; {
+    const a: Record&lt;string, unknown&gt; = { name: "a" };
+    a.self = a;
+    expect(toJsonSafe(a)).toEqual({ name: "a", self: "[circular]" });
+  });
+
+  test("does not treat a repeated sibling reference as circular", () =&gt; {
+    const shared = { k: 1 };
+    expect(toJsonSafe({ x: shared, y: shared })).toEqual({ x: { k: 1 }, y: { k: 1 } });
+  });
+
+  test("stops at the depth cap", () =&gt; {
+    let deep: Record&lt;string, unknown&gt; = { leaf: true };
+    for (let i = 0; i &lt; MAX_RESULT_DEPTH + 2; i++) deep = { next: deep };
+    expect(JSON.stringify(toJsonSafe(deep))).toContain("[max depth]");
+  });
+
+  test("caps long arrays and reports how many were dropped", () =&gt; {
+    const long = Array.from({ length: MAX_ARRAY_ITEMS + 5 }, (_, i) =&gt; i);
+    const out = toJsonSafe(long) as unknown[];
+    expect(out).toHaveLength(MAX_ARRAY_ITEMS + 1);
+    expect(out[MAX_ARRAY_ITEMS]).toBe("[+5 more]");
+  });
+
+  test("stringifies values JSON cannot represent", () =&gt; {
+    expect(toJsonSafe({ fn: () =&gt; 1 })).toEqual({ fn: "[function]" });
+    expect(toJsonSafe({ big: 10n })).toEqual({ big: "10" });
+    expect(toJsonSafe({ n: Number.NaN })).toEqual({ n: "NaN" });
+    expect(toJsonSafe({ n: Number.POSITIVE_INFINITY })).toEqual({ n: "Infinity" });
+  });
+});</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t2s2" />
+                  <label class="step__label" for="t2s2">Run it to make sure it fails</label>
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b>
+                    <code>cd plugin &amp;&amp; bun test src/main/script-result.test.ts</code><br />
+                    <b>Expect</b> <span class="fail">FAIL</span> —
+                    <code>Cannot find module './script-result'</code>
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t2s3" />
+                  <label class="step__label" for="t2s3">Write the implementation</label>
+                </div>
+                <div class="step__body">
+                  <p class="pre-label">plugin/src/main/script-result.ts — create</p>
+                  <pre><code>/**
+ * Converts the value a `run_script` script returned into something
+ * `JSON.stringify` can handle and an agent can read.
+ *
+ * Kept free of any `figma` reference so it can be unit-tested outside the
+ * plugin sandbox — Figma nodes are recognised structurally instead.
+ */
+
+/** Deepest object nesting reproduced before bailing out. */
+export const MAX_RESULT_DEPTH = 12;
+
+/** Most array entries reproduced per array before bailing out. */
+export const MAX_ARRAY_ITEMS = 500;
+
+/**
+ * Structural test for a Figma node. Every `SceneNode`, `PageNode` and
+ * `DocumentNode` carries a string `id`, a string `type`, and the plugin-data
+ * methods; no plain object returned by a script realistically has all three.
+ */
+const isFigmaNode = (value: object): boolean =&gt;
+  typeof (value as { id?: unknown }).id === "string" &amp;&amp;
+  typeof (value as { type?: unknown }).type === "string" &amp;&amp;
+  typeof (value as { setPluginData?: unknown }).setPluginData === "function";
+
+const toJsonSafeInner = (value: unknown, depth: number, seen: WeakSet&lt;object&gt;): unknown =&gt; {
+  // `figma.mixed` is a symbol, and so is every other "mixed" sentinel.
+  if (typeof value === "symbol") return "mixed";
+  if (typeof value === "function") return "[function]";
+  if (typeof value === "bigint") return value.toString();
+  if (typeof value === "number") return Number.isFinite(value) ? value : String(value);
+  if (value === null || typeof value !== "object") return value;
+
+  if (isFigmaNode(value)) {
+    const node = value as { id: string; name?: unknown; type: string };
+    return {
+      id: node.id,
+      name: typeof node.name === "string" ? node.name : undefined,
+      type: node.type,
+    };
+  }
+
+  // Only ancestors count as circular; two siblings pointing at one object are
+  // fine and should both be expanded.
+  if (seen.has(value)) return "[circular]";
+  if (depth &gt;= MAX_RESULT_DEPTH) return "[max depth]";
+
+  seen.add(value);
+  try {
+    if (Array.isArray(value)) {
+      const items = value
+        .slice(0, MAX_ARRAY_ITEMS)
+        .map((item) =&gt; toJsonSafeInner(item, depth + 1, seen));
+      if (value.length &gt; MAX_ARRAY_ITEMS) {
+        items.push(`[+${value.length - MAX_ARRAY_ITEMS} more]`);
+      }
+      return items;
+    }
+
+    const out: Record&lt;string, unknown&gt; = {};
+    for (const key of Object.keys(value)) {
+      out[key] = toJsonSafeInner((value as Record&lt;string, unknown&gt;)[key], depth + 1, seen);
+    }
+    return out;
+  } finally {
+    seen.delete(value);
+  }
+};
+
+/**
+ * Sanitises an arbitrary script return value for the wire.
+ * @param value - Whatever the script returned.
+ * @returns A structurally equivalent, JSON-serialisable value.
+ */
+export const toJsonSafe = (value: unknown): unknown =&gt;
+  toJsonSafeInner(value, 0, new WeakSet&lt;object&gt;());</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t2s4" />
+                  <label class="step__label" for="t2s4"
+                    >Run the tests and make sure they pass</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b>
+                    <code>cd plugin &amp;&amp; bun test src/main/script-result.test.ts</code><br />
+                    <b>Expect</b> <span class="pass">PASS</span> — 9 pass, 0 fail
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t2s5" />
+                  <label class="step__label" for="t2s5">Commit</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>git add plugin/src/main/script-result.ts plugin/src/main/script-result.test.ts
+git commit -m "feat(plugin): add JSON-safe serializer for script results"</code></pre>
+                </div>
+              </li>
+            </ol>
+          </article>
+
+          <!-- ================================ TASK 3 ================================ -->
+          <article class="task" id="task-3" data-spy>
+            <div class="task__head">
+              <span class="task__no">Task 03</span>
+              <h2>The script runner</h2>
+              <span class="chip chip--phase">R2 · R4 · R5 · R6</span>
+            </div>
+            <p>This is the piece that actually evaluates user code. Two decisions matter.</p>
+            <ol class="plain">
+              <li>
+                <strong>Direct <code>eval</code>, not <code>(0, eval)</code>.</strong> Figma's
+                sandbox wraps plugin code in <code>with (scopeProxy) { … }</code>, so a
+                <em>direct</em> eval inherits the scope chain that makes <code>figma</code> resolve.
+                Indirect eval runs in the realm's global scope, where it may not. The direct call is
+                isolated in its own tiny module so the bundler's “direct eval defeats scope
+                optimisation” warning is confined to one file.
+              </li>
+              <li>
+                <strong>Evaluate <code>(async () =&gt; { … })</code>, then call it.</strong>
+                Wrapping the user's source in an async arrow gives it both top-level
+                <code>await</code> and top-level <code>return</code>, matching
+                <code>use_figma</code>'s contract, without the runner having to parse anything.
+              </li>
+            </ol>
+
+            <div class="tension">
+              <span class="tension__count"></span><span class="tension__fill"></span>
+            </div>
+
+            <dl class="files">
+              <dt>Files</dt>
+              <dd>
+                <ul>
+                  <li>
+                    <span class="verb">Create</span><code>plugin/src/main/eval-direct.ts</code>
+                  </li>
+                  <li>
+                    <span class="verb">Create</span><code>plugin/src/main/script-runner.ts</code>
+                  </li>
+                  <li>
+                    <span class="verb">Create</span
+                    ><code>plugin/src/main/script-runner.test.ts</code>
+                  </li>
+                </ul>
+              </dd>
+              <dt>Interfaces</dt>
+              <dd>
+                <strong>Consumes</strong> — <code>toJsonSafe</code> from
+                <code>./script-result</code>.<br />
+                <strong>Produces</strong> — <code>evalDirect(source: string): unknown</code>;
+                <code>runScript(code, evaluate?): Promise&lt;ScriptOutcome&gt;</code>;
+                <code>MAX_SCRIPT_CHARS = 100000</code>; <code>MAX_RESULT_CHARS = 200000</code>; and
+                the outcome union below. The optional <code>evaluate</code> parameter exists so
+                tests can inject an evaluator; production callers pass nothing and get
+                <code>evalDirect</code>.
+              </dd>
+            </dl>
+            <pre><code>export type ScriptOutcome =
+  | { ok: true; value?: unknown }
+  | { ok: true; truncated: true; valuePreview: string }
+  | { ok: false; error: string };</code></pre>
+
+            <ol class="steps">
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t3s1" />
+                  <label class="step__label" for="t3s1">Write the failing test</label>
+                </div>
+                <div class="step__body">
+                  <p class="pre-label">plugin/src/main/script-runner.test.ts — create</p>
+                  <pre><code>import { describe, expect, test } from "bun:test";
+import { MAX_RESULT_CHARS, MAX_SCRIPT_CHARS, runScript } from "./script-runner";
+
+/**
+ * Test evaluator. `runScript`'s production default uses *direct* eval so the
+ * Figma sandbox's scope proxy is in scope; under Bun there is no sandbox, so
+ * indirect eval is both sufficient and safer to reason about.
+ */
+const evaluate = (source: string): unknown =&gt; (0, eval)(source);
+
+describe("runScript", () =&gt; {
+  test("returns the script's value", async () =&gt; {
+    expect(await runScript("return 1 + 1", evaluate)).toEqual({ ok: true, value: 2 });
+  });
+
+  test("supports top-level await", async () =&gt; {
+    const outcome = await runScript("const v = await Promise.resolve('done'); return v", evaluate);
+    expect(outcome).toEqual({ ok: true, value: "done" });
+  });
+
+  test("returns ok with no value when the script returns nothing", async () =&gt; {
+    expect(await runScript("const unused = 1;", evaluate)).toEqual({ ok: true });
+  });
+
+  test("sanitises the returned value", async () =&gt; {
+    const outcome = await runScript(
+      "const o = { name: 'a' }; o.self = o; return o",
+      evaluate
+    );
+    expect(outcome).toEqual({ ok: true, value: { name: "a", self: "[circular]" } });
+  });
+
+  test("reports a thrown error as name: message", async () =&gt; {
+    const outcome = await runScript("throw new TypeError('nope')", evaluate);
+    expect(outcome).toEqual({ ok: false, error: "TypeError: nope" });
+  });
+
+  test("reports a syntax error rather than throwing", async () =&gt; {
+    const outcome = await runScript("return (", evaluate);
+    expect(outcome.ok).toBe(false);
+    expect((outcome as { error: string }).error).toContain("SyntaxError");
+  });
+
+  test("reports a rejected promise", async () =&gt; {
+    const outcome = await runScript("await Promise.reject(new Error('async boom'))", evaluate);
+    expect(outcome).toEqual({ ok: false, error: "Error: async boom" });
+  });
+
+  test("rejects empty code without evaluating anything", async () =&gt; {
+    const outcome = await runScript("   ", evaluate);
+    expect(outcome).toEqual({ ok: false, error: "run_script requires a non-empty `code` string." });
+  });
+
+  test("rejects code over the character cap", async () =&gt; {
+    const outcome = await runScript("//".padEnd(MAX_SCRIPT_CHARS + 1, "x"), evaluate);
+    expect(outcome.ok).toBe(false);
+    expect((outcome as { error: string }).error).toContain("Split it into smaller run_script calls");
+  });
+
+  test("truncates an oversized result instead of returning it whole", async () =&gt; {
+    const outcome = await runScript(
+      `return "x".repeat(${MAX_RESULT_CHARS + 100})`,
+      evaluate
+    );
+    expect(outcome).toMatchObject({ ok: true, truncated: true });
+    expect((outcome as { valuePreview: string }).valuePreview).toHaveLength(MAX_RESULT_CHARS);
+  });
+});</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t3s2" />
+                  <label class="step__label" for="t3s2">Run it to make sure it fails</label>
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b>
+                    <code>cd plugin &amp;&amp; bun test src/main/script-runner.test.ts</code><br />
+                    <b>Expect</b> <span class="fail">FAIL</span> —
+                    <code>Cannot find module './script-runner'</code>
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t3s3" />
+                  <label class="step__label" for="t3s3">Write the direct-eval shim</label>
+                </div>
+                <div class="step__body">
+                  <p class="pre-label">plugin/src/main/eval-direct.ts — create</p>
+                  <pre><code>/**
+ * The one place in the codebase that calls `eval`.
+ *
+ * This MUST stay a *direct* eval (`eval(source)`), never an indirect one
+ * (`(0, eval)(source)`). Figma's plugin sandbox is a Realm that wraps plugin
+ * code in `with (scopeProxy) { ... }`; a direct eval inherits that scope chain,
+ * which is what makes the `figma` global resolve inside evaluated source.
+ * An indirect eval runs in the realm's global scope, where it does not.
+ *
+ * Bundlers warn that direct eval defeats scope minification. That warning is
+ * expected and is why this call lives alone in a module with no imports.
+ */
+export const evalDirect = (source: string): unknown =&gt; eval(source);</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t3s4" />
+                  <label class="step__label" for="t3s4">Write the runner</label>
+                </div>
+                <div class="step__body">
+                  <p class="pre-label">plugin/src/main/script-runner.ts — create</p>
+                  <pre><code>import { evalDirect } from "./eval-direct";
+import { toJsonSafe } from "./script-result";
+
+/** Largest script accepted, in characters. Mirrored by the server's Zod schema. */
+export const MAX_SCRIPT_CHARS = 100_000;
+
+/** Largest serialised result returned in full, in characters. */
+export const MAX_RESULT_CHARS = 200_000;
+
+export type ScriptOutcome =
+  | { ok: true; value?: unknown }
+  | { ok: true; truncated: true; valuePreview: string }
+  | { ok: false; error: string };
+
+/**
+ * Executes agent-authored JavaScript against the Figma Plugin API.
+ *
+ * The source is wrapped in an async arrow function before evaluation, so the
+ * script gets both top-level `await` and top-level `return`.
+ *
+ * @param code - The script source.
+ * @param evaluate - Evaluator, injectable for tests. Defaults to direct eval.
+ * @returns The sanitised script value, or a structured failure.
+ */
+export const runScript = async (
+  code: string,
+  evaluate: (source: string) =&gt; unknown = evalDirect
+): Promise&lt;ScriptOutcome&gt; =&gt; {
+  if (typeof code !== "string" || code.trim() === "") {
+    return { ok: false, error: "run_script requires a non-empty `code` string." };
+  }
+  if (code.length &gt; MAX_SCRIPT_CHARS) {
+    return {
+      ok: false,
+      error:
+        `Script is ${code.length} characters; the limit is ${MAX_SCRIPT_CHARS}. ` +
+        `Split it into smaller run_script calls.`,
+    };
+  }
+
+  let value: unknown;
+  try {
+    const factory = evaluate(`(async () =&gt; {\n${code}\n})`);
+    if (typeof factory !== "function") {
+      return { ok: false, error: "Script did not compile to a callable function." };
+    }
+    value = await (factory as () =&gt; Promise&lt;unknown&gt;)();
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+    };
+  }
+
+  // Round-trip through JSON so the caller can never post a value the
+  // WebSocket layer would choke on, and so the cap is measured on the exact
+  // bytes that go on the wire.
+  const json = JSON.stringify(toJsonSafe(value));
+  if (json === undefined) {
+    return { ok: true };
+  }
+  if (json.length &gt; MAX_RESULT_CHARS) {
+    return { ok: true, truncated: true, valuePreview: json.slice(0, MAX_RESULT_CHARS) };
+  }
+  return { ok: true, value: JSON.parse(json) };
+};</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t3s5" />
+                  <label class="step__label" for="t3s5"
+                    >Run the tests and make sure they pass</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b>
+                    <code>cd plugin &amp;&amp; bun test src/main/script-runner.test.ts</code><br />
+                    <b>Expect</b> <span class="pass">PASS</span> — 10 pass, 0 fail
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t3s6" />
+                  <label class="step__label" for="t3s6">Confirm the plugin still bundles</label>
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b> <code>cd plugin &amp;&amp; bun run build</code><br />
+                    <b>Expect</b> <span class="pass">PASS</span>. A build <b>warning</b> mentioning
+                    direct <code>eval</code> is expected and acceptable — it is why
+                    <code>eval-direct.ts</code> is isolated. A build <em>error</em> is not; stop and
+                    read it.
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t3s7" />
+                  <label class="step__label" for="t3s7">Commit</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>git add plugin/src/main/eval-direct.ts plugin/src/main/script-runner.ts \
+        plugin/src/main/script-runner.test.ts
+git commit -m "feat(plugin): add Plugin API script runner"</code></pre>
+                </div>
+              </li>
+            </ol>
+          </article>
+
+          <!-- ================================ TASK 4 ================================ -->
+          <article class="task" id="task-4" data-spy>
+            <div class="task__head">
+              <span class="task__no">Task 04</span>
+              <h2>Wire run_script into the plugin dispatcher</h2>
+              <span class="chip chip--phase">R6 · R7</span>
+            </div>
+            <p>
+              <code>plugin/src/main/code.ts</code> routes every bridge request through a
+              <code>RequestType</code> union and a <code>switch</code>. Add the new type, gate it
+              behind the design-editor check, and hand off to <code>runScript</code>.
+            </p>
+
+            <div class="tension">
+              <span class="tension__count"></span><span class="tension__fill"></span>
+            </div>
+
+            <dl class="files">
+              <dt>Files</dt>
+              <dd>
+                <ul>
+                  <li>
+                    <span class="verb">Modify</span><code>plugin/src/main/code.ts</code> — imports
+                    (lines 1–2), <code>RequestType</code> union (4–39),
+                    <code>ServerRequestParams</code> (41–58),
+                    <code>EDIT_REQUEST_TYPES</code> (331–357), and a new case before the
+                    <code>default</code> at line 1838
+                  </li>
+                </ul>
+              </dd>
+              <dt>Interfaces</dt>
+              <dd>
+                <strong>Consumes</strong> — <code>runScript</code> from
+                <code>./script-runner</code>.<br />
+                <strong>Produces</strong> — the plugin answers a bridge request of
+                <code>type: "run_script"</code> with <code>params: { code: string }</code>, replying
+                with <code>data: ScriptOutcome</code> on success and the standard <code>error</code>
+                field on failure. Task 6's server tool relies on exactly this shape.
+              </dd>
+            </dl>
+
+            <ol class="steps">
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t4s1" />
+                  <label class="step__label" for="t4s1">Add the import</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>import { serializeNode } from "./serializer";
+import { addLayersToFrame } from "../html-figma/figma";
+import { runScript } from "./script-runner";</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t4s2" />
+                  <label class="step__label" for="t4s2"
+                    >Add run_script to the RequestType union</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p>
+                    Append a member to the union that currently ends at
+                    <code>| "set_timeline_duration";</code>
+                  </p>
+                  <pre><code>  | "set_timeline_duration"
+  | "run_script";</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t4s3" />
+                  <label class="step__label" for="t4s3">Declare the code param</label>
+                </div>
+                <div class="step__body">
+                  <p>In <code>ServerRequestParams</code>, beside the existing optional fields:</p>
+                  <pre><code>  timelineId?: string;
+  duration?: number;
+  code?: string;
+};</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t4s4" />
+                  <label class="step__label" for="t4s4"
+                    >Gate it behind the design-editor check</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p>
+                    Scripts can mutate and Dev Mode is read-only, so <code>run_script</code> gets
+                    the same up-front rejection as every other write tool rather than a confusing
+                    runtime failure from inside the evaluated code.
+                  </p>
+                  <pre><code>  "set_timeline_duration",
+  "run_script",
+]);</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t4s5" />
+                  <label class="step__label" for="t4s5">Add the switch case</label>
+                </div>
+                <div class="step__body">
+                  <p>
+                    In <code>handleRequest</code>, immediately before the
+                    <code>default:</code> branch:
+                  </p>
+                  <pre><code>      case "run_script": {
+        const code = request.params?.code;
+        if (typeof code !== "string") {
+          throw new Error("run_script requires a `code` string parameter.");
+        }
+        const outcome = await runScript(code);
+        // Surface failures on the response's `error` channel so the MCP layer
+        // marks the tool result as an error instead of a successful payload
+        // that happens to contain a failure.
+        if (!outcome.ok) {
+          throw new Error(outcome.error);
+        }
+        return {
+          type: request.type,
+          requestId: request.requestId,
+          data: outcome,
+        };
+      }</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t4s6" />
+                  <label class="step__label" for="t4s6"
+                    >Verify the plugin type-checks and builds</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b>
+                    <code
+                      >cd plugin &amp;&amp; bunx tsc --noEmit -p tsconfig.json &amp;&amp; bun run
+                      build</code
+                    ><br />
+                    <b>Expect</b> <span class="pass">PASS</span> — the direct-<code>eval</code>
+                    bundler warning from task 3 is still fine
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t4s7" />
+                  <label class="step__label" for="t4s7">Verify the existing tests still pass</label>
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b> <code>cd plugin &amp;&amp; bun run test</code><br />
+                    <b>Expect</b> <span class="pass">PASS</span> — 19 pass, 0 fail (9 from task 2,
+                    10 from task 3)
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t4s8" />
+                  <label class="step__label" for="t4s8">Commit</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>git add plugin/src/main/code.ts
+git commit -m "feat(plugin): dispatch run_script requests to the script runner"</code></pre>
+                </div>
+              </li>
+            </ol>
+          </article>
+
+          <!-- ================================ TASK 5 ================================ -->
+          <article class="task" id="task-5" data-spy>
+            <div class="task__head">
+              <span class="task__no">Task 05</span>
+              <h2>Server schema and RPC validation</h2>
+              <span class="chip chip--phase">R1 · R5 · R9</span>
+            </div>
+            <p>
+              Followers forward tool calls to the leader over HTTP <code>/rpc</code>, and
+              <code>validateRpc</code> re-validates them there. <code>rpcToArgs</code> is typed
+              <code>Record&lt;ToolName, …&gt;</code>, so the schema and the mapper must land
+              together or the server will not compile.
+            </p>
+
+            <div class="tension">
+              <span class="tension__count"></span><span class="tension__fill"></span>
+            </div>
+
+            <dl class="files">
+              <dt>Files</dt>
+              <dd>
+                <ul>
+                  <li>
+                    <span class="verb">Modify</span><code>server/src/schema.ts</code> — add
+                    <code>run_script</code> to <code>toolInputSchemas</code> (object starting line
+                    593) and to <code>rpcToArgs</code> (map ending line 960)
+                  </li>
+                  <li>
+                    <span class="verb">Extend</span><code>server/src/schema.test.ts</code> (created
+                    in task 1)
+                  </li>
+                </ul>
+              </dd>
+              <dt>Interfaces</dt>
+              <dd>
+                <strong>Consumes</strong> — <code>fileKeyField</code>, already defined in
+                <code>schema.ts</code>; <code>validateRpc</code>.<br />
+                <strong>Produces</strong> — <code>toolInputSchemas.run_script</code>, a Zod object
+                whose <code>.shape</code> is <code>{ code, fileKey }</code>. Task 6 registers the
+                MCP tool with that shape and destructures <code>{ code, fileKey }</code>.
+              </dd>
+            </dl>
+
+            <ol class="steps">
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t5s1" />
+                  <label class="step__label" for="t5s1">Write the failing test</label>
+                </div>
+                <div class="step__body">
+                  <p class="pre-label">server/src/schema.test.ts — append</p>
+                  <pre><code>describe("validateRpc run_script", () =&gt; {
+  test("accepts a script", () =&gt; {
+    const result = validateRpc("run_script", undefined, { code: "return figma.root.name" });
+    expect(result.error).toBeNull();
+    expect(result.params).toEqual({ code: "return figma.root.name" });
+  });
+
+  test("rejects a missing script", () =&gt; {
+    expect(validateRpc("run_script", undefined, {}).error).not.toBeNull();
+  });
+
+  test("rejects an empty script", () =&gt; {
+    expect(validateRpc("run_script", undefined, { code: "" }).error).not.toBeNull();
+  });
+
+  test("rejects a script over the character cap", () =&gt; {
+    const result = validateRpc("run_script", undefined, { code: "x".repeat(100_001) });
+    expect(result.error).toContain("100000");
+  });
+
+  test("drops fileKey from the forwarded params", () =&gt; {
+    const result = validateRpc("run_script", undefined, { code: "return 1", fileKey: "abc" });
+    expect(result.error).toBeNull();
+    expect(result.params).toEqual({ code: "return 1" });
+  });
+});</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t5s2" />
+                  <label class="step__label" for="t5s2">Run it to make sure it fails</label>
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b> <code>cd server &amp;&amp; bun run test</code><br />
+                    <b>Expect</b> <span class="fail">FAIL</span> — <code>run_script</code> is not in
+                    <code>rpcInputSchemas</code>, so <code>validateRpc</code> returns
+                    <code>{ error: null }</code> for every case and the three “rejects” tests fail
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t5s3" />
+                  <label class="step__label" for="t5s3">Add the input schema</label>
+                </div>
+                <div class="step__body">
+                  <p>
+                    Inside <code>toolInputSchemas</code>, after the last existing entry and before
+                    the closing <code>} as const;</code>:
+                  </p>
+                  <pre><code>  run_script: z.object({
+    code: z
+      .string()
+      .min(1, "code must not be empty")
+      .max(100_000, "code must be at most 100000 characters — split it into smaller run_script calls")
+      .describe(
+        "JavaScript executed inside the Figma plugin sandbox with the full Plugin API in scope as `figma`. Top-level `await` and top-level `return` are supported."
+      ),
+    fileKey: fileKeyField,
+  }),</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t5s4" />
+                  <label class="step__label" for="t5s4">Add the RPC argument mapper</label>
+                </div>
+                <div class="step__body">
+                  <p>
+                    <code>run_script</code> carries no node IDs, so the mapper just forwards
+                    <code>params</code>.
+                  </p>
+                  <pre><code>  set_timeline_duration: (nodeIds, params) =&gt; ({ ...params, nodeId: nodeIds?.[0] }),
+  run_script: (_nodeIds, params) =&gt; ({ ...params }),
+};</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t5s5" />
+                  <label class="step__label" for="t5s5"
+                    >Run the tests and make sure they pass</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b> <code>cd server &amp;&amp; bun run test</code><br />
+                    <b>Expect</b> <span class="pass">PASS</span> — 8 pass, 0 fail
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t5s6" />
+                  <label class="step__label" for="t5s6">Verify the server type-checks</label>
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b> <code>cd server &amp;&amp; bun run build</code><br />
+                    <b>Expect</b> <span class="pass">PASS</span> — no <code>tsc</code> errors
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t5s7" />
+                  <label class="step__label" for="t5s7">Commit</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>git add server/src/schema.ts server/src/schema.test.ts
+git commit -m "feat(server): validate run_script on the MCP and RPC paths"</code></pre>
+                </div>
+              </li>
+            </ol>
+          </article>
+
+          <!-- ================================ TASK 6 ================================ -->
+          <article class="task" id="task-6" data-spy>
+            <div class="task__head">
+              <span class="task__no">Task 06</span>
+              <h2>Register the run_script MCP tool</h2>
+              <span class="chip chip--phase">R1 · R8</span>
+            </div>
+            <p>
+              The handler is a thin pass-through. The substance is the <strong>description</strong>:
+              the agent has no <code>figma-use</code>-style skill on this server, so every
+              non-obvious sandbox rule has to reach it through the tool description itself.
+            </p>
+
+            <div class="tension">
+              <span class="tension__count"></span><span class="tension__fill"></span>
+            </div>
+
+            <dl class="files">
+              <dt>Files</dt>
+              <dd>
+                <ul>
+                  <li>
+                    <span class="verb">Modify</span><code>server/src/tools.ts</code> — a
+                    <code>RUN_SCRIPT_DESCRIPTION</code> constant beside
+                    <code>MAX_IMAGE_BYTES</code> (around line 36), and a
+                    <code>server.tool("run_script", …)</code> registration inside
+                    <code>registerTools</code>
+                  </li>
+                </ul>
+              </dd>
+              <dt>Interfaces</dt>
+              <dd>
+                <strong>Consumes</strong> — <code>toolInputSchemas.run_script</code>;
+                <code>node.sendWithParams(requestType, nodeIds?, params?, fileKey?)</code>; the
+                module-private <code>renderResponse(fn)</code> helper.<br />
+                <strong>Produces</strong> — the <code>run_script</code> MCP tool. Nothing later in
+                this plan consumes it.
+              </dd>
+            </dl>
+
+            <ol class="steps">
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t6s1" />
+                  <label class="step__label" for="t6s1">Add the description constant</label>
+                </div>
+                <div class="step__body">
+                  <p class="pre-label">server/src/tools.ts — after the existing module constants</p>
+                  <pre><code>const RUN_SCRIPT_DESCRIPTION = `Execute JavaScript against the Figma Plugin API inside the connected file. This is the escape hatch: anything the Plugin API can do — components, variants, instances, variables and modes, styles, boolean operations, vector edits, prototyping, per-segment text styling, arbitrary reads — is reachable here, and nowhere else in this server.
+
+Prefer a dedicated tool when one exists (create_frame, set_auto_layout, get_screenshot, ...); reach for run_script when none does.
+
+RULES — violating these is the usual cause of confusing failures:
+- \`return\` is your only output channel. console.log is discarded. Always return the ids of every node you create or mutate, e.g. \`return { createdNodeIds: [...], mutatedNodeIds: [...] }\`.
+- Top-level \`await\` and \`return\` are supported. Do NOT wrap your code in an async IIFE, and do NOT call figma.closePlugin().
+- Colors are 0-1, not 0-255: \`{ r: 1, g: 0, b: 0 }\` is red.
+- \`fills\`/\`strokes\` are read-only arrays — clone, modify, then reassign the whole array.
+- Before touching a text node (characters, appendChild, setBoundVariable), load its fonts: read \`node.getStyledTextSegments(['fontName'])\` and \`await figma.loadFontAsync(...)\` each one. Skipping this throws "Cannot write to node with unloaded font".
+- Switch pages with \`await figma.setCurrentPageAsync(page)\`. The sync setter throws. Page context resets to the first page on every call.
+- \`await\` every promise. An unawaited \`loadFontAsync\` or \`setCurrentPageAsync\` fails silently.
+- Work incrementally: several small scripts that you validate between beat one large one.
+- SCRIPTS ARE NOT ATOMIC. The Plugin API has no rollback, so a script that throws halfway leaves its earlier mutations in the file. On an error, read the message, inspect the current state, and clean up before retrying — do not blindly re-run.
+
+RESULT SHAPE: \`{ ok: true, value }\` on success, or \`{ ok: true, truncated: true, valuePreview }\` when the serialised value exceeds 200000 characters. Figma nodes in the returned value collapse to \`{ id, name, type }\`; \`figma.mixed\` serialises as "mixed"; cycles become "[circular]". Return ids and read them back rather than returning whole node objects.
+
+LIMITS: 100000 characters of source; results capped at depth 12 and 500 items per array; the bridge times out after 3 minutes. Requires the plugin to be open in Figma's design editor — Dev Mode is read-only and will reject this tool.`;</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t6s2" />
+                  <label class="step__label" for="t6s2">Register the tool</label>
+                </div>
+                <div class="step__body">
+                  <p>
+                    Inside <code>registerTools</code>, after the last existing
+                    <code>server.tool(...)</code> call:
+                  </p>
+                  <pre><code>  server.tool(
+    "run_script",
+    RUN_SCRIPT_DESCRIPTION,
+    toolInputSchemas.run_script.shape,
+    async ({ code, fileKey }): Promise&lt;ToolResult&gt; =&gt; {
+      return renderResponse(() =&gt; node.sendWithParams("run_script", undefined, { code }, fileKey));
+    }
+  );</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t6s3" />
+                  <label class="step__label" for="t6s3">Verify the server builds</label>
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b> <code>cd server &amp;&amp; bun run build</code><br />
+                    <b>Expect</b> <span class="pass">PASS</span> — no <code>tsc</code> errors
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t6s4" />
+                  <label class="step__label" for="t6s4"
+                    >Verify the tool is advertised over MCP</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p>Start the built server and ask it for its tool list over stdio.</p>
+                  <pre><code>cd server
+printf '%s\n%s\n' \
+  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"probe","version":"0"}}}' \
+  '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+  | node dist/index.js 2&gt;/dev/null | grep -o '"name":"run_script"'</code></pre>
+                  <p class="expect">
+                    <b>Expect</b> <span class="pass">prints</span> <code>"name":"run_script"</code>.
+                    If it prints nothing the registration did not take — do not proceed.
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t6s5" />
+                  <label class="step__label" for="t6s5">Commit</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>git add server/src/tools.ts
+git commit -m "feat(server): register the run_script MCP tool"</code></pre>
+                </div>
+              </li>
+            </ol>
+          </article>
+
+          <!-- ================================ TASK 7 ================================ -->
+          <article class="task" id="task-7" data-spy>
+            <div class="task__head">
+              <span class="task__no">Task 07</span>
+              <h2>End-to-end verification in Figma, and documentation</h2>
+              <span class="chip chip--blocking">Proves the core assumption</span>
+            </div>
+            <p>
+              Everything so far is verified by unit tests and a stdio probe. Nothing has yet proven
+              that <code>eval</code> actually resolves <code>figma</code> inside the real sandbox —
+              the one assumption this whole feature rests on. This task proves it by hand, then
+              writes down what the feature does.
+            </p>
+
+            <div class="tension">
+              <span class="tension__count"></span><span class="tension__fill"></span>
+            </div>
+
+            <dl class="files">
+              <dt>Files</dt>
+              <dd>
+                <ul>
+                  <li>
+                    <span class="verb">Modify</span><code>README.md</code> — tool table row and an
+                    Editing Notes bullet
+                  </li>
+                  <li>
+                    <span class="verb">Create</span><code>docs/run-script.md</code> — the long-form
+                    guide the README links to
+                  </li>
+                </ul>
+              </dd>
+              <dt>Interfaces</dt>
+              <dd>
+                <strong>Consumes</strong> — the shipped <code>run_script</code> tool.<br />
+                <strong>Produces</strong> — documentation only.
+              </dd>
+            </dl>
+
+            <ol class="steps">
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t7s1" />
+                  <label class="step__label" for="t7s1"
+                    >Build both halves and load the plugin</label
+                  >
+                </div>
+                <div class="step__body">
+                  <pre><code>cd server &amp;&amp; bun run build
+cd ../plugin &amp;&amp; bun run build</code></pre>
+                  <p>
+                    Then in Figma: <em>Plugins → Development → Import plugin from manifest</em>,
+                    select <code>plugin/manifest.json</code>, open a <strong>design</strong> file
+                    (<code>figma.com/design/…</code>), and run the plugin. Point your MCP client at
+                    <code>node /path/to/figma-design-relay/server/dist/index.js</code>.
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t7s2" />
+                  <label class="step__label" for="t7s2"
+                    >Prove figma resolves inside evaluated code</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p>Call <code>run_script</code> with:</p>
+                  <pre><code>return { file: figma.root.name, page: figma.currentPage.name, editor: figma.editorType };</code></pre>
+                  <p class="expect">
+                    <b>Expect</b>
+                    <code
+                      >{ ok: true, value: { file: "&lt;your file name&gt;", page: "Page 1", editor:
+                      "figma" } }</code
+                    >
+                  </p>
+                  <blockquote>
+                    <p>
+                      If this returns <code>ReferenceError: figma is not defined</code>, the sandbox
+                      is not resolving the global through the direct eval.
+                      <strong>Stop.</strong> The fallback is to move evaluation into a
+                      <code>new Function("figma", …)</code> call that passes <code>figma</code> in
+                      explicitly; if <code>new Function</code> is also blocked, the feature is not
+                      deliverable as designed and the spec needs revisiting.
+                    </p>
+                  </blockquote>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t7s3" />
+                  <label class="step__label" for="t7s3"
+                    >Prove a write works and ids come back</label
+                  >
+                </div>
+                <div class="step__body">
+                  <pre><code>const frame = figma.createFrame();
+frame.name = "run_script smoke test";
+frame.resize(200, 120);
+frame.x = 0;
+frame.y = 0;
+figma.currentPage.appendChild(frame);
+return { createdNodeIds: [frame.id] };</code></pre>
+                  <p class="expect">
+                    <b>Expect</b> a 200×120 frame on the canvas, and
+                    <code>{ ok: true, value: { createdNodeIds: ["&lt;id&gt;"] } }</code>
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t7s4" />
+                  <label class="step__label" for="t7s4">Prove the error path</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>return figma.getNodeById("definitely-not-a-node").name;</code></pre>
+                  <p class="expect">
+                    <b>Expect</b> an MCP <b>error</b> result whose text is a
+                    <code>TypeError</code>/<code>Error</code> message — not a successful result
+                    containing a failure
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t7s5" />
+                  <label class="step__label" for="t7s5">Prove the Dev Mode gate</label>
+                </div>
+                <div class="step__body">
+                  <p>
+                    Switch the same file to Dev Mode, re-run the plugin, and call
+                    <code>run_script</code> with <code>return 1</code>.
+                  </p>
+                  <p class="expect">
+                    <b>Expect</b>
+                    <code
+                      >run_script requires the plugin to be opened in Figma's design editor (Dev
+                      Mode is read-only). Switch to the design editor and re-run.</code
+                    >
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t7s6" />
+                  <label class="step__label" for="t7s6">Clean up the smoke-test frame</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>const node = await figma.getNodeByIdAsync("&lt;id from step 3&gt;");
+if (node) node.remove();
+return { removed: "&lt;id from step 3&gt;" };</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t7s7" />
+                  <label class="step__label" for="t7s7">Write the long-form guide</label>
+                </div>
+                <div class="step__body">
+                  <p>
+                    Create <code>docs/run-script.md</code>. It covers the contract, the result shape
+                    table, the limits, the gotchas, and the non-atomicity section — the full text is
+                    in the markdown source of this plan, task 7 step 7.
+                  </p>
+                  <p class="pre-label">docs/run-script.md — contract section</p>
+                  <pre><code>Your source is wrapped in an async function and called, so you get top-level
+`await` and top-level `return`:
+
+    const page = figma.currentPage;
+    const frames = page.findAll((n) =&gt; n.type === "FRAME");
+    return { count: frames.length, ids: frames.map((f) =&gt; f.id) };
+
+`return` is the only output channel — `console.log` is discarded.
+
+**Always return the ids of nodes you create or mutate.** Returned Figma nodes
+collapse to `{ id, name, type }`, so a whole node object tells you almost
+nothing; ids let the next call address the same nodes.</code></pre>
+                  <p class="pre-label">docs/run-script.md — the gotchas to cover</p>
+                  <ul class="plain">
+                    <li>Colors are 0–1, not 0–255.</li>
+                    <li>
+                      <code>fills</code> and <code>strokes</code> are read-only arrays: clone,
+                      modify, reassign.
+                    </li>
+                    <li>
+                      Load fonts before touching text — read
+                      <code>getStyledTextSegments(["fontName"])</code> and
+                      <code>await figma.loadFontAsync()</code> each one.
+                    </li>
+                    <li>
+                      Switch pages with <code>await figma.setCurrentPageAsync(page)</code>; the sync
+                      setter throws.
+                    </li>
+                    <li><code>await</code> every promise, or changes land half-applied.</li>
+                    <li>
+                      Position new top-level nodes away from (0, 0) — they default there and stack.
+                    </li>
+                    <li>Work incrementally; validate between small scripts.</li>
+                    <li>
+                      <strong>Scripts are not atomic.</strong> On an error: read the message,
+                      inspect the state with a read-only script, clean up what was half-created, and
+                      only then retry. Blind re-runs create duplicates.
+                    </li>
+                  </ul>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t7s8" />
+                  <label class="step__label" for="t7s8">Add run_script to the README table</label>
+                </div>
+                <div class="step__body">
+                  <p>Immediately after the <code>delete_nodes</code> row:</p>
+                  <pre><code>| `run_script` | Execute JavaScript against the Figma Plugin API — the escape hatch for anything the other tools do not cover ([guide](docs/run-script.md)) |</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t7s9" />
+                  <label class="step__label" for="t7s9"
+                    >Document the caveats under Editing Notes</label
+                  >
+                </div>
+                <div class="step__body">
+                  <pre><code>- `run_script` executes agent-authored JavaScript with the full Plugin API in
+  scope. It is the escape hatch for components, variables, styles, boolean
+  operations, prototyping, and any other API the dedicated tools do not cover.
+  Unlike the dedicated tools it is **not atomic** — a script that throws
+  part-way leaves its earlier mutations in the file, because the Plugin API has
+  no rollback. See [docs/run-script.md](docs/run-script.md) for the full
+  contract, limits, and gotchas.</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t7s10" />
+                  <label class="step__label" for="t7s10"
+                    >Format, and run everything one more time</label
+                  >
+                </div>
+                <div class="step__body">
+                  <pre><code>bun run format
+cd server &amp;&amp; bun run test &amp;&amp; bun run build
+cd ../plugin &amp;&amp; bun run test &amp;&amp; bun run build</code></pre>
+                  <p class="expect">
+                    <b>Expect</b> <span class="pass">PASS</span> — Prettier reports no remaining
+                    changes on a second run; server 8 pass; plugin 19 pass; both builds succeed
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="t7s11" />
+                  <label class="step__label" for="t7s11">Commit</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>git add README.md docs/run-script.md
+git commit -m "docs: document run_script"</code></pre>
+                </div>
+              </li>
+            </ol>
+          </article>
+
+          <section class="done-when" id="done" data-spy>
+            <h2>Done when</h2>
+            <ul class="plain">
+              <li>
+                <code>bun test</code> is green in <code>server/</code> and <code>plugin/</code> — 27
+                tests total.
+              </li>
+              <li>
+                <code>bun run build</code> succeeds in both packages, and
+                <code>server/dist</code> contains no test files.
+              </li>
+              <li><code>tools/list</code> over stdio advertises <code>run_script</code>.</li>
+              <li>
+                In a real Figma design file, <code>run_script</code> reads
+                <code>figma.root.name</code>, creates and removes a frame, surfaces a thrown error
+                as an MCP error, and is rejected in Dev Mode.
+              </li>
+              <li>
+                <code>README.md</code> and <code>docs/run-script.md</code> describe the tool, its
+                limits, and its non-atomicity.
+              </li>
+            </ul>
+          </section>
+
+          <footer class="colophon">
+            <span>Figma Design Relay</span>
+            <span>Plan · Phase 1 · 2026-09-01</span>
+            <span
+              >Source:
+              <code
+                >docs/superpowers/plans/2026-09-01-run-script-plugin-api-escape-hatch.md</code
+              ></span
+            >
+            <span
+              ><a href="../specs/2026-09-01-official-figma-mcp-parity.html">← Parity spec</a></span
+            >
+          </footer>
+        </main>
+      </div>
+    </div>
+
+    <script src="../assets/doc.js"></script>
+  </body>
+</html>

@@ -1,0 +1,2008 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Serializer Enrichment · Figma Design Relay plan</title>
+    <meta
+      name="description"
+      content="Phase 2 implementation plan: teach the serializer to carry component identity, bound variables, style names, layout intent and annotations."
+    />
+    <link rel="stylesheet" href="../assets/doc.css" />
+  </head>
+  <body data-doc="serializer-plan">
+    <a class="skip" href="#main">Skip to the plan</a>
+
+    <div class="shell">
+      <header class="masthead">
+        <p class="eyebrow">Implementation plan · Phase 2 · 2026-09-01</p>
+        <h1>Serializer Enrichment</h1>
+        <p class="standfirst">
+          Teach the node serializer to carry the design-system identity an agent needs to write
+          correct code — component and instance identity, resolved variable and style names, layout
+          intent, prototyping and Dev Mode annotations — instead of geometry alone.
+        </p>
+
+        <dl class="masthead__meta">
+          <div>
+            <b>Spec</b> —
+            <a href="../specs/2026-09-01-official-figma-mcp-parity.html">Parity analysis</a>, phase
+            2
+          </div>
+          <div><b>Tasks</b> — 6</div>
+          <div><b>Steps</b> — 41</div>
+          <div><b>Progress</b> — saved in this browser</div>
+        </dl>
+      </header>
+
+      <blockquote>
+        <p>
+          <strong>For agentic workers:</strong> REQUIRED SUB-SKILL: Use
+          superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to
+          implement this plan task-by-task. Steps use checkbox (<code>- [ ]</code>) syntax for
+          tracking.
+        </p>
+      </blockquote>
+
+      <section class="brief">
+        <h2 id="brief" data-spy>The shape of it</h2>
+        <p>
+          <strong>Architecture.</strong> Three new dependency-free plugin modules do the resolution
+          work behind injected async lookups, so each unit-tests without a Figma runtime.
+          <code>serializer.ts</code> then becomes asynchronous and composes them, and
+          <code>code.ts</code> awaits it at four call sites. Every new field is omitted when absent,
+          so an unremarkable rectangle serializes exactly as it does today.
+        </p>
+        <p>
+          <strong>Tech stack.</strong> TypeScript, Bun (<code>bun test</code>), Vite,
+          <code>@figma/plugin-typings</code>, and the Figma Plugin API under
+          <code>documentAccess: "dynamic-page"</code>.
+        </p>
+
+        <h3>Global constraints</h3>
+        <p>Every task's requirements implicitly include these.</p>
+        <ul class="plain">
+          <li>
+            Node <code>&gt;=20.0.0</code>; Bun is the package manager and script runner throughout —
+            never <code>npm</code>/<code>yarn</code>.
+          </li>
+          <li>
+            Plugin sources use extensionless relative imports (e.g. <code>./serializer</code>).
+            Server sources under <code>server/src</code> need the <code>.js</code> extension; this
+            plan does not touch them.
+          </li>
+          <li>
+            Prettier 3.9.6 formats everything; a Husky <code>pre-commit</code> hook runs
+            <code>lint-staged</code>. Run <code>bun run format</code> from the repo root if a commit
+            reformats your file.
+          </li>
+          <li>
+            <strong>Phase 1's test harness must already be in place.</strong> This plan writes
+            <code>bun test</code> files in <code>plugin/</code>, so
+            <code>plugin/package.json</code> needs its <code>test</code> script and
+            <code>plugin/tsconfig.json</code> needs test files excluded. If
+            <code>cd plugin &amp;&amp; bun run test</code> errors with a missing script, stop and
+            finish phase 1 task 1 first.
+          </li>
+          <li>
+            <code>plugin/manifest.json</code> declares
+            <code>"documentAccess": "dynamic-page"</code>. The synchronous accessors this phase
+            would otherwise use are unavailable: read component identity through
+            <code>instance.getMainComponentAsync()</code>, styles through
+            <code>figma.getStyleByIdAsync()</code>, variables through
+            <code>figma.variables.getVariableByIdAsync()</code>, and collections through
+            <code>figma.variables.getVariableCollectionByIdAsync()</code>.
+          </li>
+          <li>
+            <strong>New modules must never reference the <code>figma</code> global.</strong> They
+            take their lookups as parameters. That is what lets them run under Bun, and it is not
+            negotiable — a module that reaches for <code>figma</code> cannot be tested.
+          </li>
+          <li>
+            <strong
+              >Every field this plan adds is omitted when absent, empty, or at its default.</strong
+            >
+            Enrichment must not make <code>get_document</code> unusable on a large page.
+          </li>
+          <li>Never reformat or restructure code outside the files each task lists.</li>
+        </ul>
+      </section>
+
+      <div class="layout">
+        <nav class="rail" aria-label="Tasks">
+          <p class="rail__title">Tasks</p>
+          <ol>
+            <li>
+              <a href="#task-1"
+                ><span>Reference resolution <b class="rail__done"></b></span
+              ></a>
+            </li>
+            <li>
+              <a href="#task-2"
+                ><span>Component identity <b class="rail__done"></b></span
+              ></a>
+            </li>
+            <li>
+              <a href="#task-3"
+                ><span>Layout &amp; intent <b class="rail__done"></b></span
+              ></a>
+            </li>
+            <li>
+              <a href="#task-4"
+                ><span>Async serializer <b class="rail__done"></b></span
+              ></a>
+            </li>
+            <li>
+              <a href="#task-5"
+                ><span>Call sites <b class="rail__done"></b></span
+              ></a>
+            </li>
+            <li>
+              <a href="#task-6"
+                ><span>Verify &amp; document <b class="rail__done"></b></span
+              ></a>
+            </li>
+          </ol>
+        </nav>
+
+        <main id="main">
+          <article class="task" id="task-1" data-spy>
+            <div class="task__head">
+              <span class="task__no">Task 01</span>
+              <h2>Design-system reference resolution</h2>
+              <span class="chip chip--phase">R14</span>
+              <span class="chip chip--phase">R15</span>
+            </div>
+            <p>
+              A node points at design-system objects by id — a fill bound to a variable, a paint set
+              from a named style. Those ids are useless to an agent on their own;
+              <code>color/brand/primary</code> is what it needs to see. This module turns ids into
+              names, behind injected lookups so it tests without Figma.
+            </p>
+
+            <div class="tension">
+              <span class="tension__count"></span><span class="tension__fill"></span>
+            </div>
+
+            <dl class="files">
+              <dt>Files</dt>
+              <dd>
+                <ul>
+                  <li>
+                    <span class="verb">Create</span><code>plugin/src/main/references.ts</code>
+                  </li>
+                  <li>
+                    <span class="verb">Create</span><code>plugin/src/main/references.test.ts</code>
+                  </li>
+                </ul>
+              </dd>
+              <dt>Interfaces</dt>
+              <dd>
+                <strong>Consumes</strong> — nothing.<br />
+                <strong>Produces</strong> —
+                <code
+                  >resolveBoundVariables(boundVariables, lookupVariable, lookupCollection):
+                  Promise&lt;VariableRef[] | undefined&gt;</code
+                >
+                and
+                <code
+                  >resolveStyleRef(styleId, lookupStyle): Promise&lt;StyleRef | "mixed" |
+                  undefined&gt;</code
+                >, plus the <code>VariableRef</code>, <code>StyleRef</code>,
+                <code>VariableLookup</code>, <code>CollectionLookup</code> and
+                <code>StyleLookup</code> types. Task 4 imports all of them from
+                <code>./references</code>.
+              </dd>
+            </dl>
+
+            <ol class="steps">
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert1s1" />
+                  <label class="step__label" for="serializert1s1">Write the failing test</label>
+                </div>
+                <div class="step__body">
+                  <p class="pre-label">plugin/src/main/references.test.ts — create</p>
+                  <pre><code>import { describe, expect, test } from "bun:test";
+import { resolveBoundVariables, resolveStyleRef } from "./references";
+
+const alias = (id: string) =&gt; ({ type: "VARIABLE_ALIAS", id });
+
+const lookupVariable = async (id: string) =&gt;
+  id === "VariableID:1:2"
+    ? { name: "color/brand/primary", variableCollectionId: "VariableCollectionId:1:1" }
+    : null;
+
+const lookupCollection = async (id: string) =&gt;
+  id === "VariableCollectionId:1:1" ? { name: "Brand" } : null;
+
+const lookupStyle = async (id: string) =&gt; (id === "S:abc" ? { name: "Body/Regular" } : null);
+
+describe("resolveBoundVariables", () =&gt; {
+  test("returns undefined when there is nothing bound", async () =&gt; {
+    expect(
+      await resolveBoundVariables(undefined, lookupVariable, lookupCollection)
+    ).toBeUndefined();
+    expect(await resolveBoundVariables({}, lookupVariable, lookupCollection)).toBeUndefined();
+  });
+
+  test("resolves a scalar binding to its variable and collection name", async () =&gt; {
+    const out = await resolveBoundVariables(
+      { cornerRadius: alias("VariableID:1:2") },
+      lookupVariable,
+      lookupCollection
+    );
+    expect(out).toEqual([
+      {
+        property: "cornerRadius",
+        variableId: "VariableID:1:2",
+        variableName: "color/brand/primary",
+        collectionName: "Brand",
+      },
+    ]);
+  });
+
+  test("indexes array bindings by position", async () =&gt; {
+    const out = await resolveBoundVariables(
+      { fills: [alias("VariableID:1:2")] },
+      lookupVariable,
+      lookupCollection
+    );
+    expect(out?.[0].property).toBe("fills[0]");
+  });
+
+  test("keeps the id when the variable cannot be found", async () =&gt; {
+    const out = await resolveBoundVariables(
+      { opacity: alias("VariableID:9:9") },
+      lookupVariable,
+      lookupCollection
+    );
+    expect(out).toEqual([{ property: "opacity", variableId: "VariableID:9:9" }]);
+  });
+
+  test("ignores entries that are not variable aliases", async () =&gt; {
+    const out = await resolveBoundVariables(
+      { fills: ["not an alias"], name: null },
+      lookupVariable,
+      lookupCollection
+    );
+    expect(out).toBeUndefined();
+  });
+});
+
+describe("resolveStyleRef", () =&gt; {
+  test('renders a mixed style id as "mixed"', async () =&gt; {
+    expect(await resolveStyleRef(Symbol("figma.mixed"), lookupStyle)).toBe("mixed");
+  });
+
+  test("returns undefined for an unset style", async () =&gt; {
+    expect(await resolveStyleRef("", lookupStyle)).toBeUndefined();
+    expect(await resolveStyleRef(undefined, lookupStyle)).toBeUndefined();
+  });
+
+  test("resolves a known style to its name", async () =&gt; {
+    expect(await resolveStyleRef("S:abc", lookupStyle)).toEqual({
+      id: "S:abc",
+      name: "Body/Regular",
+    });
+  });
+
+  test("keeps the id when the style cannot be found", async () =&gt; {
+    expect(await resolveStyleRef("S:gone", lookupStyle)).toEqual({ id: "S:gone" });
+  });
+});</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert1s2" />
+                  <label class="step__label" for="serializert1s2"
+                    >Run it to make sure it fails</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b> <code>cd plugin &amp;&amp; bun test src/main/references.test.ts</code
+                    ><br />
+                    <b>Expect</b> <span class="fail">FAIL</span> —
+                    <code>Cannot find module './references'</code>
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert1s3" />
+                  <label class="step__label" for="serializert1s3">Write the implementation</label>
+                </div>
+                <div class="step__body">
+                  <p class="pre-label">plugin/src/main/references.ts — create</p>
+                  <pre><code>/**
+ * Resolves the design-system references a node points at — bound variables and
+ * named styles — into shapes an agent can act on.
+ *
+ * Under `documentAccess: "dynamic-page"` the Plugin API only exposes async
+ * lookups, so every resolver takes its lookup as a parameter. That also keeps
+ * this module free of the `figma` global, so it unit-tests under Bun.
+ */
+
+export interface VariableRef {
+  property: string;
+  variableId: string;
+  variableName?: string;
+  collectionName?: string;
+}
+
+export interface StyleRef {
+  id: string;
+  name?: string;
+}
+
+export type VariableLookup = (
+  id: string
+) =&gt; Promise&lt;{ name: string; variableCollectionId: string } | null&gt;;
+
+export type CollectionLookup = (id: string) =&gt; Promise&lt;{ name: string } | null&gt;;
+
+export type StyleLookup = (id: string) =&gt; Promise&lt;{ name: string } | null&gt;;
+
+interface VariableAlias {
+  type: "VARIABLE_ALIAS";
+  id: string;
+}
+
+const isAlias = (value: unknown): value is VariableAlias =&gt;
+  typeof value === "object" &amp;&amp;
+  value !== null &amp;&amp;
+  (value as VariableAlias).type === "VARIABLE_ALIAS" &amp;&amp;
+  typeof (value as VariableAlias).id === "string";
+
+/**
+ * Flattens `{ fills: [alias, alias], cornerRadius: alias }` into one list,
+ * naming array entries by position so `fills[0]` is addressable.
+ */
+const flattenAliases = (
+  boundVariables: Record&lt;string, unknown&gt;
+): Array&lt;{ property: string; id: string }&gt; =&gt; {
+  const out: Array&lt;{ property: string; id: string }&gt; = [];
+  for (const [field, value] of Object.entries(boundVariables)) {
+    if (Array.isArray(value)) {
+      value.forEach((entry, index) =&gt; {
+        if (isAlias(entry)) out.push({ property: `${field}[${index}]`, id: entry.id });
+      });
+    } else if (isAlias(value)) {
+      out.push({ property: field, id: value.id });
+    }
+  }
+  return out;
+};
+
+/**
+ * Resolves a node's `boundVariables` map into named references.
+ * @param boundVariables - The raw map off the node, or undefined.
+ * @param lookupVariable - Async variable lookup by id.
+ * @param lookupCollection - Async collection lookup by id.
+ * @returns One entry per binding, or undefined when nothing is bound.
+ */
+export const resolveBoundVariables = async (
+  boundVariables: Record&lt;string, unknown&gt; | undefined,
+  lookupVariable: VariableLookup,
+  lookupCollection: CollectionLookup
+): Promise&lt;VariableRef[] | undefined&gt; =&gt; {
+  if (!boundVariables) return undefined;
+
+  const aliases = flattenAliases(boundVariables);
+  if (aliases.length === 0) return undefined;
+
+  return Promise.all(
+    aliases.map(async ({ property, id }): Promise&lt;VariableRef&gt; =&gt; {
+      const variable = await lookupVariable(id);
+      if (!variable) return { property, variableId: id };
+      const collection = await lookupCollection(variable.variableCollectionId);
+      const ref: VariableRef = { property, variableId: id, variableName: variable.name };
+      if (collection) ref.collectionName = collection.name;
+      return ref;
+    })
+  );
+};
+
+/**
+ * Resolves one `*StyleId` property to its style name.
+ * @param styleId - The raw property value; `figma.mixed` is a symbol.
+ * @param lookupStyle - Async style lookup by id.
+ * @returns The named reference, the string "mixed", or undefined when unset.
+ */
+export const resolveStyleRef = async (
+  styleId: unknown,
+  lookupStyle: StyleLookup
+): Promise&lt;StyleRef | "mixed" | undefined&gt; =&gt; {
+  if (typeof styleId === "symbol") return "mixed";
+  if (typeof styleId !== "string" || styleId === "") return undefined;
+  const style = await lookupStyle(styleId);
+  return style ? { id: styleId, name: style.name } : { id: styleId };
+};</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert1s4" />
+                  <label class="step__label" for="serializert1s4"
+                    >Run the tests and make sure they pass</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b> <code>cd plugin &amp;&amp; bun test src/main/references.test.ts</code
+                    ><br />
+                    <b>Expect</b> <span class="pass">PASS</span> — 9 pass, 0 fail
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert1s5" />
+                  <label class="step__label" for="serializert1s5">Commit</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>git add plugin/src/main/references.ts plugin/src/main/references.test.ts
+git commit -m "feat(plugin): resolve bound variables and style ids to names"</code></pre>
+                  <p>---</p>
+                </div>
+              </li>
+            </ol>
+          </article>
+
+          <article class="task" id="task-2" data-spy>
+            <div class="task__head">
+              <span class="task__no">Task 02</span>
+              <h2>Component and instance identity</h2>
+              <span class="chip chip--phase">R12</span>
+              <span class="chip chip--phase">R13</span>
+            </div>
+            <p>
+              Without this an instance of <code>Button/Primary</code> serializes as an anonymous
+              frame. The subtlety is <code>componentPropertyDefinitions</code>: it is readable only
+              from the node that owns the definitions, and reading it off a variant
+              <code>COMPONENT</code> throws. Optional chaining does not make that safe, so narrow
+              the owner first.
+            </p>
+
+            <div class="tension">
+              <span class="tension__count"></span><span class="tension__fill"></span>
+            </div>
+
+            <dl class="files">
+              <dt>Files</dt>
+              <dd>
+                <ul>
+                  <li>
+                    <span class="verb">Create</span
+                    ><code>plugin/src/main/component-identity.ts</code>
+                  </li>
+                  <li>
+                    <span class="verb">Create</span
+                    ><code>plugin/src/main/component-identity.test.ts</code>
+                  </li>
+                </ul>
+              </dd>
+              <dt>Interfaces</dt>
+              <dd>
+                <strong>Consumes</strong> — nothing.<br />
+                <strong>Produces</strong> —
+                <code>componentPropertyOwner(node): NodeLike | null</code>,
+                <code
+                  >serializeInstanceIdentity(instance): Promise&lt;InstanceIdentity |
+                  undefined&gt;</code
+                >
+                and <code>serializeComponentIdentity(node): ComponentIdentity | undefined</code>,
+                plus the <code>NodeLike</code>, <code>InstanceLike</code>,
+                <code>InstanceIdentity</code> and <code>ComponentIdentity</code> types. Task 4
+                imports them from <code>./component-identity</code>.
+              </dd>
+            </dl>
+
+            <ol class="steps">
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert2s1" />
+                  <label class="step__label" for="serializert2s1">Write the failing test</label>
+                </div>
+                <div class="step__body">
+                  <p class="pre-label">plugin/src/main/component-identity.test.ts — create</p>
+                  <pre><code>import { describe, expect, test } from "bun:test";
+import {
+  componentPropertyOwner,
+  serializeComponentIdentity,
+  serializeInstanceIdentity,
+} from "./component-identity";
+
+const set = {
+  id: "1:1",
+  type: "COMPONENT_SET",
+  name: "Button",
+  key: "setkey",
+  componentPropertyDefinitions: { Size: { type: "VARIANT", defaultValue: "M" } },
+};
+
+const variant = {
+  id: "1:2",
+  type: "COMPONENT",
+  name: "Size=M",
+  key: "variantkey",
+  parent: set,
+};
+
+const standalone = {
+  id: "2:1",
+  type: "COMPONENT",
+  name: "Divider",
+  key: "dividerkey",
+  parent: { id: "0:1", type: "FRAME" },
+  componentPropertyDefinitions: {},
+};
+
+describe("componentPropertyOwner", () =&gt; {
+  test("a component set owns its own definitions", () =&gt; {
+    expect(componentPropertyOwner(set)?.id).toBe("1:1");
+  });
+
+  test("a variant promotes to its parent set", () =&gt; {
+    expect(componentPropertyOwner(variant)?.id).toBe("1:1");
+  });
+
+  test("a standalone component owns its own definitions", () =&gt; {
+    expect(componentPropertyOwner(standalone)?.id).toBe("2:1");
+  });
+
+  test("a non-component has no owner", () =&gt; {
+    expect(componentPropertyOwner({ id: "3:1", type: "FRAME" })).toBeNull();
+  });
+});
+
+describe("serializeComponentIdentity", () =&gt; {
+  test("emits the key and the definitions for a set", () =&gt; {
+    expect(serializeComponentIdentity(set)).toEqual({
+      key: "setkey",
+      propertyDefinitions: { Size: { type: "VARIANT", defaultValue: "M" } },
+    });
+  });
+
+  test("names the owner when a variant borrows its parent's definitions", () =&gt; {
+    expect(serializeComponentIdentity(variant)).toEqual({
+      key: "variantkey",
+      propertyDefinitions: { Size: { type: "VARIANT", defaultValue: "M" } },
+      propertyOwnerId: "1:1",
+    });
+  });
+
+  test("omits empty definitions", () =&gt; {
+    expect(serializeComponentIdentity(standalone)).toEqual({ key: "dividerkey" });
+  });
+
+  test("returns undefined for a non-component", () =&gt; {
+    expect(serializeComponentIdentity({ id: "3:1", type: "FRAME" })).toBeUndefined();
+  });
+});
+
+describe("serializeInstanceIdentity", () =&gt; {
+  test("resolves the main component asynchronously", async () =&gt; {
+    const out = await serializeInstanceIdentity({
+      getMainComponentAsync: async () =&gt; ({ id: "1:2", key: "variantkey", name: "Size=M" }),
+      componentProperties: { Label: { type: "TEXT", value: "Save" } },
+    });
+    expect(out).toEqual({
+      mainComponent: { id: "1:2", key: "variantkey", name: "Size=M" },
+      componentProperties: { Label: { type: "TEXT", value: "Save" } },
+    });
+  });
+
+  test("returns undefined for a detached instance with no properties", async () =&gt; {
+    const out = await serializeInstanceIdentity({ getMainComponentAsync: async () =&gt; null });
+    expect(out).toBeUndefined();
+  });
+});</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert2s2" />
+                  <label class="step__label" for="serializert2s2"
+                    >Run it to make sure it fails</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b>
+                    <code>cd plugin &amp;&amp; bun test src/main/component-identity.test.ts</code
+                    ><br />
+                    <b>Expect</b> <span class="fail">FAIL</span> —
+                    <code>Cannot find module './component-identity'</code>
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert2s3" />
+                  <label class="step__label" for="serializert2s3">Write the implementation</label>
+                </div>
+                <div class="step__body">
+                  <p class="pre-label">plugin/src/main/component-identity.ts — create</p>
+                  <pre><code>/**
+ * Component and instance identity.
+ *
+ * `componentPropertyDefinitions` is readable only from the node that owns the
+ * definitions. Reading it from a variant `COMPONENT` — one whose parent is a
+ * `COMPONENT_SET` — throws, and optional chaining does not make the getter
+ * safe. So narrow the owner first, always.
+ */
+
+export interface NodeLike {
+  id: string;
+  type: string;
+  name?: string;
+  key?: string;
+  parent?: NodeLike | null;
+  componentPropertyDefinitions?: Record&lt;string, unknown&gt;;
+}
+
+export interface ComponentRef {
+  id: string;
+  key?: string;
+  name?: string;
+}
+
+export interface ComponentIdentity {
+  key?: string;
+  propertyDefinitions?: Record&lt;string, unknown&gt;;
+  /** Set only when the definitions came from a parent set rather than the node. */
+  propertyOwnerId?: string;
+}
+
+export interface InstanceLike {
+  getMainComponentAsync: () =&gt; Promise&lt;ComponentRef | null&gt;;
+  componentProperties?: Record&lt;string, { type: string; value: unknown }&gt;;
+}
+
+export interface InstanceIdentity {
+  mainComponent?: ComponentRef;
+  componentProperties?: Record&lt;string, { type: string; value: unknown }&gt;;
+}
+
+/**
+ * Returns the node that owns `componentPropertyDefinitions`.
+ * @param node - Any scene node.
+ * @returns The owning node, or null when the node is not a component at all.
+ */
+export const componentPropertyOwner = (node: NodeLike): NodeLike | null =&gt; {
+  if (node.type === "COMPONENT_SET") return node;
+  if (node.type !== "COMPONENT") return null;
+  return node.parent &amp;&amp; node.parent.type === "COMPONENT_SET" ? node.parent : node;
+};
+
+/**
+ * Serializes a `COMPONENT` or `COMPONENT_SET`'s published identity.
+ * @param node - The component or component set.
+ * @returns Its key and property definitions, or undefined when it has neither.
+ */
+export const serializeComponentIdentity = (node: NodeLike): ComponentIdentity | undefined =&gt; {
+  const owner = componentPropertyOwner(node);
+  if (!owner) return undefined;
+
+  const identity: ComponentIdentity = {};
+  if (node.key) identity.key = node.key;
+
+  const definitions = owner.componentPropertyDefinitions;
+  if (definitions &amp;&amp; Object.keys(definitions).length &gt; 0) {
+    identity.propertyDefinitions = definitions;
+    if (owner.id !== node.id) identity.propertyOwnerId = owner.id;
+  }
+
+  return Object.keys(identity).length &gt; 0 ? identity : undefined;
+};
+
+/**
+ * Serializes an `INSTANCE`'s link back to its main component.
+ * @param instance - The instance node.
+ * @returns Its main component and set properties, or undefined when it has neither.
+ */
+export const serializeInstanceIdentity = async (
+  instance: InstanceLike
+): Promise&lt;InstanceIdentity | undefined&gt; =&gt; {
+  const main = await instance.getMainComponentAsync();
+  const properties = instance.componentProperties;
+  const hasProperties = properties !== undefined &amp;&amp; Object.keys(properties).length &gt; 0;
+  if (!main &amp;&amp; !hasProperties) return undefined;
+
+  const identity: InstanceIdentity = {};
+  if (main) identity.mainComponent = { id: main.id, key: main.key, name: main.name };
+  if (hasProperties) identity.componentProperties = properties;
+  return identity;
+};</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert2s4" />
+                  <label class="step__label" for="serializert2s4"
+                    >Run the tests and make sure they pass</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b>
+                    <code>cd plugin &amp;&amp; bun test src/main/component-identity.test.ts</code
+                    ><br />
+                    <b>Expect</b> <span class="pass">PASS</span> — 10 pass, 0 fail
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert2s5" />
+                  <label class="step__label" for="serializert2s5">Commit</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>git add plugin/src/main/component-identity.ts plugin/src/main/component-identity.test.ts
+git commit -m "feat(plugin): serialize component and instance identity"</code></pre>
+                  <p>---</p>
+                </div>
+              </li>
+            </ol>
+          </article>
+
+          <article class="task" id="task-3" data-spy>
+            <div class="task__head">
+              <span class="task__no">Task 03</span>
+              <h2>Layout intent, prototyping and annotations</h2>
+              <span class="chip chip--phase">R16</span>
+              <span class="chip chip--phase">R17</span>
+              <span class="chip chip--phase">R18</span>
+            </div>
+            <p>
+              Geometry says what a node currently measures. Intent says what it is for — hug, fill,
+              grow, the prototype it triggers, the note a designer pinned to it. Every helper here
+              returns <code>undefined</code> when there is nothing worth saying, which is how R19's
+              discipline is enforced at the source rather than filtered afterwards.
+            </p>
+
+            <div class="tension">
+              <span class="tension__count"></span><span class="tension__fill"></span>
+            </div>
+
+            <dl class="files">
+              <dt>Files</dt>
+              <dd>
+                <ul>
+                  <li><span class="verb">Create</span><code>plugin/src/main/intent.ts</code></li>
+                  <li>
+                    <span class="verb">Create</span><code>plugin/src/main/intent.test.ts</code>
+                  </li>
+                </ul>
+              </dd>
+              <dt>Interfaces</dt>
+              <dd>
+                <strong>Consumes</strong> — nothing.<br />
+                <strong>Produces</strong> — <code>serializeLayoutIntent(node)</code>,
+                <code>serializeReactions(node)</code>, <code>serializeAnnotations(node)</code>,
+                <code>serializeExportSettings(node)</code> and
+                <code>serializeRenderBounds(node)</code>, each taking a
+                <code>Record&lt;string, unknown&gt;</code> and returning its shape or
+                <code>undefined</code>. Task 4 imports all five from <code>./intent</code>.
+              </dd>
+            </dl>
+
+            <ol class="steps">
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert3s1" />
+                  <label class="step__label" for="serializert3s1">Write the failing test</label>
+                </div>
+                <div class="step__body">
+                  <p class="pre-label">plugin/src/main/intent.test.ts — create</p>
+                  <pre><code>import { describe, expect, test } from "bun:test";
+import {
+  serializeAnnotations,
+  serializeExportSettings,
+  serializeLayoutIntent,
+  serializeReactions,
+  serializeRenderBounds,
+} from "./intent";
+
+describe("serializeLayoutIntent", () =&gt; {
+  test("returns undefined for a node with no layout intent", () =&gt; {
+    expect(serializeLayoutIntent({ layoutGrow: 0, layoutAlign: "INHERIT" })).toBeUndefined();
+  });
+
+  test("emits hug and fill sizing", () =&gt; {
+    expect(
+      serializeLayoutIntent({ layoutSizingHorizontal: "FILL", layoutSizingVertical: "HUG" })
+    ).toEqual({ sizingHorizontal: "FILL", sizingVertical: "HUG" });
+  });
+
+  test("omits defaults but keeps non-defaults", () =&gt; {
+    expect(
+      serializeLayoutIntent({
+        layoutGrow: 1,
+        layoutAlign: "INHERIT",
+        layoutPositioning: "ABSOLUTE",
+        itemReverseZIndex: false,
+      })
+    ).toEqual({ grow: 1, positioning: "ABSOLUTE" });
+  });
+
+  test("carries min and max constraints", () =&gt; {
+    expect(serializeLayoutIntent({ minWidth: 120, maxHeight: 400 })).toEqual({
+      minWidth: 120,
+      maxHeight: 400,
+    });
+  });
+});
+
+describe("serializeReactions", () =&gt; {
+  test("returns undefined when there are none", () =&gt; {
+    expect(serializeReactions({ reactions: [] })).toBeUndefined();
+    expect(serializeReactions({})).toBeUndefined();
+  });
+
+  test("summarises a navigate reaction", () =&gt; {
+    const out = serializeReactions({
+      reactions: [
+        {
+          trigger: { type: "ON_CLICK" },
+          actions: [{ type: "NODE", destinationId: "4:5", navigation: "NAVIGATE" }],
+        },
+      ],
+    });
+    expect(out).toEqual([
+      {
+        trigger: "ON_CLICK",
+        actions: [{ type: "NODE", destinationId: "4:5", navigation: "NAVIGATE" }],
+      },
+    ]);
+  });
+});
+
+describe("serializeAnnotations", () =&gt; {
+  test("returns undefined when there are none", () =&gt; {
+    expect(serializeAnnotations({ annotations: [] })).toBeUndefined();
+  });
+
+  test("keeps the label and the pinned property types", () =&gt; {
+    const out = serializeAnnotations({
+      annotations: [{ label: "Uses the brand token", properties: [{ type: "fills" }] }],
+    });
+    expect(out).toEqual([{ label: "Uses the brand token", properties: ["fills"] }]);
+  });
+});
+
+describe("serializeExportSettings", () =&gt; {
+  test("returns undefined when the node is not exportable", () =&gt; {
+    expect(serializeExportSettings({ exportSettings: [] })).toBeUndefined();
+  });
+
+  test("summarises a scaled PNG export", () =&gt; {
+    const out = serializeExportSettings({
+      exportSettings: [{ format: "PNG", suffix: "@2x", constraint: { type: "SCALE", value: 2 } }],
+    });
+    expect(out).toEqual([
+      { format: "PNG", suffix: "@2x", constraint: { type: "SCALE", value: 2 } },
+    ]);
+  });
+});
+
+describe("serializeRenderBounds", () =&gt; {
+  test("omits render bounds that match the bounding box", () =&gt; {
+    const box = { x: 0, y: 0, width: 100, height: 50 };
+    expect(
+      serializeRenderBounds({ absoluteBoundingBox: box, absoluteRenderBounds: { ...box } })
+    ).toBeUndefined();
+  });
+
+  test("emits render bounds when a shadow makes them differ", () =&gt; {
+    expect(
+      serializeRenderBounds({
+        absoluteBoundingBox: { x: 0, y: 0, width: 100, height: 50 },
+        absoluteRenderBounds: { x: -4, y: -4, width: 108, height: 58 },
+      })
+    ).toEqual({ x: -4, y: -4, width: 108, height: 58 });
+  });
+});</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert3s2" />
+                  <label class="step__label" for="serializert3s2"
+                    >Run it to make sure it fails</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b> <code>cd plugin &amp;&amp; bun test src/main/intent.test.ts</code
+                    ><br />
+                    <b>Expect</b> <span class="fail">FAIL</span> —
+                    <code>Cannot find module './intent'</code>
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert3s3" />
+                  <label class="step__label" for="serializert3s3">Write the implementation</label>
+                </div>
+                <div class="step__body">
+                  <p class="pre-label">plugin/src/main/intent.ts — create</p>
+                  <pre><code>/**
+ * Layout intent, prototyping and annotations — the parts of a node that say
+ * what it is *for*, not what it currently measures.
+ *
+ * Every helper returns `undefined` when the node carries nothing worth saying,
+ * so an unremarkable rectangle serializes exactly as it did before phase 2.
+ */
+
+export interface LayoutIntent {
+  sizingHorizontal?: string;
+  sizingVertical?: string;
+  grow?: number;
+  align?: string;
+  positioning?: string;
+  reverseZIndex?: boolean;
+  minWidth?: number;
+  maxWidth?: number;
+  minHeight?: number;
+  maxHeight?: number;
+}
+
+export interface Box {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface ReactionSummary {
+  trigger?: string;
+  actions: Array&lt;{ type: string; destinationId?: string; navigation?: string }&gt;;
+}
+
+export interface AnnotationSummary {
+  label?: string;
+  properties?: string[];
+}
+
+export interface ExportSummary {
+  format?: string;
+  suffix?: string;
+  constraint?: { type: string; value?: number };
+}
+
+type Raw = Record&lt;string, unknown&gt;;
+
+const LAYOUT_DEFAULTS = {
+  layoutGrow: 0,
+  layoutAlign: "INHERIT",
+  layoutPositioning: "AUTO",
+} as const;
+
+const MEASURES = ["minWidth", "maxWidth", "minHeight", "maxHeight"] as const;
+
+/**
+ * Extracts hug/fill/grow intent and the min-max constraints.
+ * @param node - The raw scene node.
+ * @returns The intent, or undefined when the node is at every default.
+ */
+export const serializeLayoutIntent = (node: Raw): LayoutIntent | undefined =&gt; {
+  const intent: LayoutIntent = {};
+
+  if (typeof node.layoutSizingHorizontal === "string") {
+    intent.sizingHorizontal = node.layoutSizingHorizontal;
+  }
+  if (typeof node.layoutSizingVertical === "string") {
+    intent.sizingVertical = node.layoutSizingVertical;
+  }
+  if (typeof node.layoutGrow === "number" &amp;&amp; node.layoutGrow !== LAYOUT_DEFAULTS.layoutGrow) {
+    intent.grow = node.layoutGrow;
+  }
+  if (typeof node.layoutAlign === "string" &amp;&amp; node.layoutAlign !== LAYOUT_DEFAULTS.layoutAlign) {
+    intent.align = node.layoutAlign;
+  }
+  if (
+    typeof node.layoutPositioning === "string" &amp;&amp;
+    node.layoutPositioning !== LAYOUT_DEFAULTS.layoutPositioning
+  ) {
+    intent.positioning = node.layoutPositioning;
+  }
+  if (node.itemReverseZIndex === true) intent.reverseZIndex = true;
+
+  for (const key of MEASURES) {
+    const value = node[key];
+    if (typeof value === "number") intent[key] = value;
+  }
+
+  return Object.keys(intent).length &gt; 0 ? intent : undefined;
+};
+
+/**
+ * Summarises prototyping reactions down to trigger and destination.
+ * @param node - The raw scene node.
+ * @returns One summary per reaction, or undefined when there are none.
+ */
+export const serializeReactions = (node: Raw): ReactionSummary[] | undefined =&gt; {
+  const reactions = node.reactions;
+  if (!Array.isArray(reactions) || reactions.length === 0) return undefined;
+
+  return reactions.map((entry) =&gt; {
+    const reaction = entry as { trigger?: { type?: string }; actions?: unknown[] };
+    const actions = Array.isArray(reaction.actions) ? reaction.actions : [];
+    const summary: ReactionSummary = {
+      actions: actions.map((raw) =&gt; {
+        const action = raw as { type?: string; destinationId?: string; navigation?: string };
+        const out: ReactionSummary["actions"][number] = { type: action.type ?? "UNKNOWN" };
+        if (action.destinationId) out.destinationId = action.destinationId;
+        if (action.navigation) out.navigation = action.navigation;
+        return out;
+      }),
+    };
+    if (reaction.trigger?.type) summary.trigger = reaction.trigger.type;
+    return summary;
+  });
+};
+
+/**
+ * Keeps a designer's Dev Mode notes and the property types they pinned.
+ * @param node - The raw scene node.
+ * @returns One summary per annotation, or undefined when there are none.
+ */
+export const serializeAnnotations = (node: Raw): AnnotationSummary[] | undefined =&gt; {
+  const annotations = node.annotations;
+  if (!Array.isArray(annotations) || annotations.length === 0) return undefined;
+
+  return annotations.map((entry) =&gt; {
+    const annotation = entry as { label?: string; properties?: Array&lt;{ type?: string }&gt; };
+    const summary: AnnotationSummary = {};
+    if (annotation.label) summary.label = annotation.label;
+    const properties = Array.isArray(annotation.properties)
+      ? annotation.properties
+          .map((property) =&gt; property.type)
+          .filter((type): type is string =&gt; typeof type === "string")
+      : [];
+    if (properties.length &gt; 0) summary.properties = properties;
+    return summary;
+  });
+};
+
+/**
+ * Reports how the designer intends this node to be exported.
+ * @param node - The raw scene node.
+ * @returns One summary per export setting, or undefined when there are none.
+ */
+export const serializeExportSettings = (node: Raw): ExportSummary[] | undefined =&gt; {
+  const settings = node.exportSettings;
+  if (!Array.isArray(settings) || settings.length === 0) return undefined;
+
+  return settings.map((entry) =&gt; {
+    const setting = entry as {
+      format?: string;
+      suffix?: string;
+      constraint?: { type?: string; value?: number };
+    };
+    const summary: ExportSummary = {};
+    if (setting.format) summary.format = setting.format;
+    if (setting.suffix) summary.suffix = setting.suffix;
+    if (setting.constraint?.type) {
+      summary.constraint = { type: setting.constraint.type, value: setting.constraint.value };
+    }
+    return summary;
+  });
+};
+
+/**
+ * Emits render bounds only when effects or overflow push them past the
+ * bounding box — otherwise the two boxes are identical and one is noise.
+ * @param node - The raw scene node.
+ * @returns The render bounds, or undefined when they match the bounding box.
+ */
+export const serializeRenderBounds = (node: Raw): Box | undefined =&gt; {
+  const render = node.absoluteRenderBounds as Box | null | undefined;
+  if (!render) return undefined;
+  const box = node.absoluteBoundingBox as Box | null | undefined;
+  if (
+    box &amp;&amp;
+    box.x === render.x &amp;&amp;
+    box.y === render.y &amp;&amp;
+    box.width === render.width &amp;&amp;
+    box.height === render.height
+  ) {
+    return undefined;
+  }
+  return { x: render.x, y: render.y, width: render.width, height: render.height };
+};</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert3s4" />
+                  <label class="step__label" for="serializert3s4"
+                    >Run the tests and make sure they pass</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b> <code>cd plugin &amp;&amp; bun test src/main/intent.test.ts</code
+                    ><br />
+                    <b>Expect</b> <span class="pass">PASS</span> — 11 pass, 0 fail
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert3s5" />
+                  <label class="step__label" for="serializert3s5">Commit</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>git add plugin/src/main/intent.ts plugin/src/main/intent.test.ts
+git commit -m "feat(plugin): serialize layout intent, reactions and annotations"</code></pre>
+                  <p>---</p>
+                </div>
+              </li>
+            </ol>
+          </article>
+
+          <article class="task" id="task-4" data-spy>
+            <div class="task__head">
+              <span class="task__no">Task 04</span>
+              <h2>Make the serializer async and compose the new modules</h2>
+              <span class="chip chip--phase">R11</span>
+              <span class="chip chip--phase">R19</span>
+            </div>
+            <p>
+              <code>serializeNode</code> is synchronous today. The lookups from tasks 1 and 2 are
+              not, and cannot be — <code>documentAccess: "dynamic-page"</code> only exposes async
+              accessors. So the function becomes <code>async</code>, and this is the task where
+              R19's discipline gets its regression test: a plain rectangle must come out exactly as
+              it does today.
+            </p>
+            <p>
+              Note the ordering constraint that makes that test possible: the resolvers
+              short-circuit before touching their lookups when a node carries no reference, so a
+              plain rectangle never reaches the <code>figma</code> global at all.
+            </p>
+
+            <div class="tension">
+              <span class="tension__count"></span><span class="tension__fill"></span>
+            </div>
+
+            <dl class="files">
+              <dt>Files</dt>
+              <dd>
+                <ul>
+                  <li>
+                    <span class="verb">Modify</span><code>plugin/src/main/serializer.ts</code> —
+                    imports, the <code>SerializedNode</code> interface, and
+                    <code>serializeNode</code> (currently lines 347-372)
+                  </li>
+                  <li>
+                    <span class="verb">Create</span><code>plugin/src/main/serializer.test.ts</code>
+                  </li>
+                </ul>
+              </dd>
+              <dt>Interfaces</dt>
+              <dd>
+                <strong>Consumes</strong> — <code>resolveBoundVariables</code>,
+                <code>resolveStyleRef</code> from <code>./references</code>;
+                <code>serializeComponentIdentity</code>, <code>serializeInstanceIdentity</code> from
+                <code>./component-identity</code>; <code>serializeLayoutIntent</code>,
+                <code>serializeReactions</code>, <code>serializeAnnotations</code>,
+                <code>serializeExportSettings</code>, <code>serializeRenderBounds</code> from
+                <code>./intent</code>.<br />
+                <strong>Produces</strong> —
+                <code>serializeNode(node: SceneNode): Promise&lt;SerializedNode&gt;</code> — the
+                same name, now returning a promise, with optional <code>design</code>,
+                <code>layout</code>, <code>reactions</code>, <code>annotations</code>,
+                <code>exportSettings</code> and <code>renderBounds</code> fields. Task 5 awaits it
+                at every call site.
+              </dd>
+            </dl>
+
+            <ol class="steps">
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert4s1" />
+                  <label class="step__label" for="serializert4s1"
+                    >Write the baseline regression test first</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p>
+                    This is the test that stops enrichment from bloating every payload. Write it
+                    before touching the serializer.
+                  </p>
+                  <p class="pre-label">plugin/src/main/serializer.test.ts — create</p>
+                  <pre><code>import { beforeAll, describe, expect, test } from "bun:test";
+
+/**
+ * Minimal `figma` global. The serializer must not reach it for a node that
+ * carries no design-system reference; these stubs throw if it does.
+ */
+beforeAll(() =&gt; {
+  (globalThis as Record&lt;string, unknown&gt;).figma = {
+    getStyleByIdAsync: async (id: string) =&gt; (id === "S:abc" ? { name: "Body/Regular" } : null),
+    variables: {
+      getVariableByIdAsync: async (id: string) =&gt;
+        id === "VariableID:1:2"
+          ? { name: "color/brand/primary", variableCollectionId: "VariableCollectionId:1:1" }
+          : null,
+      getVariableCollectionByIdAsync: async () =&gt; ({ name: "Brand" }),
+    },
+  };
+});
+
+const { serializeNode } = await import("./serializer");
+
+const rectangle = {
+  id: "1:5",
+  name: "Divider",
+  type: "RECTANGLE",
+  visible: true,
+  opacity: 1,
+  blendMode: "PASS_THROUGH",
+  fills: [],
+  strokes: [],
+  effects: [],
+  absoluteBoundingBox: { x: 0, y: 0, width: 100, height: 1 },
+} as unknown as SceneNode;
+
+describe("serializeNode", () =&gt; {
+  test("a plain rectangle gains no new keys", async () =&gt; {
+    const out = await serializeNode(rectangle);
+    expect(Object.keys(out).sort()).toEqual(["bounds", "id", "name", "styles", "type"]);
+  });
+
+  test("an instance carries its main component", async () =&gt; {
+    const out = await serializeNode({
+      ...rectangle,
+      id: "1:6",
+      type: "INSTANCE",
+      getMainComponentAsync: async () =&gt; ({ id: "9:1", key: "btnkey", name: "Button/Primary" }),
+      componentProperties: { Label: { type: "TEXT", value: "Save" } },
+    } as unknown as SceneNode);
+    expect(out.design?.mainComponent).toEqual({
+      id: "9:1",
+      key: "btnkey",
+      name: "Button/Primary",
+    });
+  });
+
+  test("a bound fill resolves to its token name", async () =&gt; {
+    const out = await serializeNode({
+      ...rectangle,
+      boundVariables: { fills: [{ type: "VARIABLE_ALIAS", id: "VariableID:1:2" }] },
+    } as unknown as SceneNode);
+    expect(out.design?.boundVariables?.[0]).toMatchObject({
+      property: "fills[0]",
+      variableName: "color/brand/primary",
+      collectionName: "Brand",
+    });
+  });
+
+  test("a named text style resolves to its style name", async () =&gt; {
+    const out = await serializeNode({
+      ...rectangle,
+      fillStyleId: "S:abc",
+    } as unknown as SceneNode);
+    expect(out.design?.styles?.fill).toEqual({ id: "S:abc", name: "Body/Regular" });
+  });
+
+  test("layout intent rides along when it is not at defaults", async () =&gt; {
+    const out = await serializeNode({
+      ...rectangle,
+      layoutSizingHorizontal: "FILL",
+    } as unknown as SceneNode);
+    expect(out.layout).toEqual({ sizingHorizontal: "FILL" });
+  });
+
+  test("children are serialized concurrently and in order", async () =&gt; {
+    const out = await serializeNode({
+      ...rectangle,
+      id: "1:7",
+      type: "FRAME",
+      children: [
+        { ...rectangle, id: "1:8", name: "A" },
+        { ...rectangle, id: "1:9", name: "B", visible: false },
+        { ...rectangle, id: "1:10", name: "C" },
+      ],
+    } as unknown as SceneNode);
+    expect(out.children?.map((child) =&gt; child.name)).toEqual(["A", "C"]);
+  });
+});</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert4s2" />
+                  <label class="step__label" for="serializert4s2"
+                    >Run it to make sure it fails</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b> <code>cd plugin &amp;&amp; bun test src/main/serializer.test.ts</code
+                    ><br />
+                    <b>Expect</b> <span class="fail">FAIL</span> —
+                    <code>serializeNode(...).then is not a function</code>, because the serializer
+                    is still synchronous
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert4s3" />
+                  <label class="step__label" for="serializert4s3"
+                    >Extend the SerializedNode interface</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p>
+                    At the top of <code>plugin/src/main/serializer.ts</code>, add the imports and
+                    widen the exported node shape. Add these fields to the existing
+                    <code>SerializedNode</code> interface — do not remove anything already there.
+                  </p>
+                  <pre><code>import {
+  resolveBoundVariables,
+  resolveStyleRef,
+  type StyleRef,
+  type VariableRef,
+} from "./references";
+import {
+  serializeComponentIdentity,
+  serializeInstanceIdentity,
+  type ComponentRef,
+} from "./component-identity";
+import {
+  serializeAnnotations,
+  serializeExportSettings,
+  serializeLayoutIntent,
+  serializeReactions,
+  serializeRenderBounds,
+  type AnnotationSummary,
+  type Box,
+  type ExportSummary,
+  type LayoutIntent,
+  type ReactionSummary,
+} from "./intent";
+
+export interface SerializedDesign {
+  mainComponent?: ComponentRef;
+  componentProperties?: Record&lt;string, { type: string; value: unknown }&gt;;
+  key?: string;
+  propertyDefinitions?: Record&lt;string, unknown&gt;;
+  propertyOwnerId?: string;
+  boundVariables?: VariableRef[];
+  styles?: Record&lt;string, StyleRef | "mixed"&gt;;
+}</code></pre>
+                  <p>Then, inside <code>SerializedNode</code>:</p>
+                  <pre><code>  design?: SerializedDesign;
+  layout?: LayoutIntent;
+  reactions?: ReactionSummary[];
+  annotations?: AnnotationSummary[];
+  exportSettings?: ExportSummary[];
+  renderBounds?: Box;</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert4s4" />
+                  <label class="step__label" for="serializert4s4"
+                    >Add the design-system resolver</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p>
+                    Still in <code>serializer.ts</code>, above <code>serializeNode</code>. The
+                    <code>figma</code> lookups live here and nowhere else, which is what keeps the
+                    three new modules testable.
+                  </p>
+                  <pre><code>const STYLE_FIELDS = {
+  fill: "fillStyleId",
+  stroke: "strokeStyleId",
+  effect: "effectStyleId",
+  grid: "gridStyleId",
+  text: "textStyleId",
+} as const;
+
+const lookupVariable = async (id: string) =&gt; {
+  const variable = await figma.variables.getVariableByIdAsync(id);
+  return variable
+    ? { name: variable.name, variableCollectionId: variable.variableCollectionId }
+    : null;
+};
+
+const lookupCollection = async (id: string) =&gt; {
+  const collection = await figma.variables.getVariableCollectionByIdAsync(id);
+  return collection ? { name: collection.name } : null;
+};
+
+const lookupStyle = async (id: string) =&gt; {
+  const style = await figma.getStyleByIdAsync(id);
+  return style ? { name: style.name } : null;
+};
+
+/**
+ * Collects everything that ties a node to the design system: its component
+ * identity, the variables bound to its properties, and the named styles it uses.
+ * @param node - The scene node.
+ * @returns The design block, or undefined when the node references nothing.
+ */
+const serializeDesign = async (node: SceneNode): Promise&lt;SerializedDesign | undefined&gt; =&gt; {
+  const raw = node as unknown as Record&lt;string, unknown&gt;;
+  const design: SerializedDesign = {};
+
+  if (node.type === "INSTANCE") {
+    const identity = await serializeInstanceIdentity(node as never);
+    if (identity) Object.assign(design, identity);
+  } else if (node.type === "COMPONENT" || node.type === "COMPONENT_SET") {
+    const identity = serializeComponentIdentity(node as never);
+    if (identity) Object.assign(design, identity);
+  }
+
+  const bound = await resolveBoundVariables(
+    raw.boundVariables as Record&lt;string, unknown&gt; | undefined,
+    lookupVariable,
+    lookupCollection
+  );
+  if (bound) design.boundVariables = bound;
+
+  const styles: Record&lt;string, StyleRef | "mixed"&gt; = {};
+  for (const [name, field] of Object.entries(STYLE_FIELDS)) {
+    const ref = await resolveStyleRef(raw[field], lookupStyle);
+    if (ref) styles[name] = ref;
+  }
+  if (Object.keys(styles).length &gt; 0) design.styles = styles;
+
+  return Object.keys(design).length &gt; 0 ? design : undefined;
+};</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert4s5" />
+                  <label class="step__label" for="serializert4s5">Make serializeNode async</label>
+                </div>
+                <div class="step__body">
+                  <p>
+                    Replace the existing <code>serializeNode</code> export at the bottom of
+                    <code>serializer.ts</code>. Children are awaited with
+                    <code>Promise.all</code> so a wide frame does not serialize one child at a time.
+                  </p>
+                  <pre><code>export const serializeNode = async (node: SceneNode): Promise&lt;SerializedNode&gt; =&gt; {
+  const raw = node as unknown as Record&lt;string, unknown&gt;;
+  const base: SerializedNode = {
+    id: node.id,
+    name: node.name,
+    type: node.type,
+    bounds: getBounds(node),
+    styles: serializeStyles(node),
+  };
+
+  const design = await serializeDesign(node);
+  if (design) base.design = design;
+
+  const layout = serializeLayoutIntent(raw);
+  if (layout) base.layout = layout;
+
+  const reactions = serializeReactions(raw);
+  if (reactions) base.reactions = reactions;
+
+  const annotations = serializeAnnotations(raw);
+  if (annotations) base.annotations = annotations;
+
+  const exportSettings = serializeExportSettings(raw);
+  if (exportSettings) base.exportSettings = exportSettings;
+
+  const renderBounds = serializeRenderBounds(raw);
+  if (renderBounds) base.renderBounds = renderBounds;
+
+  if (node.type === "TEXT") {
+    return serializeText(node, base);
+  }
+
+  if ("children" in node) {
+    const visible = node.children.filter((child) =&gt; child.visible !== false);
+    return {
+      ...base,
+      children: await Promise.all(visible.map((child) =&gt; serializeNode(child))),
+    };
+  }
+
+  return base;
+};</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert4s6" />
+                  <label class="step__label" for="serializert4s6"
+                    >Run the tests and make sure they pass</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b> <code>cd plugin &amp;&amp; bun test src/main/serializer.test.ts</code
+                    ><br />
+                    <b>Expect</b> <span class="pass">PASS</span> — 6 pass, 0 fail. If the first test
+                    fails with extra keys, a helper is returning an empty object instead of
+                    <code>undefined</code>; fix the helper rather than filtering here.
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert4s7" />
+                  <label class="step__label" for="serializert4s7">Run the whole plugin suite</label>
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b> <code>cd plugin &amp;&amp; bun run test</code><br />
+                    <b>Expect</b> <span class="pass">PASS</span> — 36 pass, 0 fail (9 references, 10
+                    component identity, 11 intent, 6 serializer, plus phase 1's 19 if that plan has
+                    landed)
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert4s8" />
+                  <label class="step__label" for="serializert4s8">Commit</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>git add plugin/src/main/serializer.ts plugin/src/main/serializer.test.ts
+git commit -m "feat(plugin): serialize design-system identity and layout intent"</code></pre>
+                  <p>---</p>
+                </div>
+              </li>
+            </ol>
+          </article>
+
+          <article class="task" id="task-5" data-spy>
+            <div class="task__head">
+              <span class="task__no">Task 05</span>
+              <h2>Await the serializer at every call site</h2>
+              <span class="chip chip--phase">R11</span>
+            </div>
+            <p>
+              <code>serializeNode</code> now returns a promise.
+              <code>plugin/src/main/code.ts</code> calls it in four places, and TypeScript will
+              point at each one. This task is mechanical, but <code>get_selection</code> and
+              <code>get_node</code> need <code>Promise.all</code> rather than a bare
+              <code>map</code>, which is the kind of thing that silently ships an array of promises.
+            </p>
+
+            <div class="tension">
+              <span class="tension__count"></span><span class="tension__fill"></span>
+            </div>
+
+            <dl class="files">
+              <dt>Files</dt>
+              <dd>
+                <ul>
+                  <li>
+                    <span class="verb">Modify</span><code>plugin/src/main/code.ts</code> — the
+                    <code>get_document</code>, <code>get_selection</code>, <code>get_node</code> and
+                    <code>get_design_context</code> cases (currently lines 375-512)
+                  </li>
+                </ul>
+              </dd>
+              <dt>Interfaces</dt>
+              <dd>
+                <strong>Consumes</strong> —
+                <code>serializeNode(node): Promise&lt;SerializedNode&gt;</code> from task 4.<br />
+                <strong>Produces</strong> — no new exports. Every read tool returns the enriched
+                shape.
+              </dd>
+            </dl>
+
+            <ol class="steps">
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert5s1" />
+                  <label class="step__label" for="serializert5s1">Find every call site</label>
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b> <code>cd plugin &amp;&amp; bunx tsc --noEmit -p tsconfig.json</code
+                    ><br />
+                    <b>Expect</b> <span class="fail">FAIL</span> — four errors of the form
+                    <code
+                      >Type 'Promise&lt;SerializedNode&gt;' is not assignable to type
+                      'SerializedNode'</code
+                    >, one per call site. Use them as the worklist.
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert5s2" />
+                  <label class="step__label" for="serializert5s2">Await in get_document</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>      case "get_document":
+        return {
+          type: request.type,
+          requestId: request.requestId,
+          data: await serializeNode(figma.currentPage as unknown as SceneNode),
+        };</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert5s3" />
+                  <label class="step__label" for="serializert5s3">Await in get_selection</label>
+                </div>
+                <div class="step__body">
+                  <p>
+                    A bare <code>.map(serializeNode)</code> here would return an array of promises
+                    and serialize as <code>[{},{}]</code>. Use <code>Promise.all</code>.
+                  </p>
+                  <pre><code>      case "get_selection":
+        return {
+          type: request.type,
+          requestId: request.requestId,
+          data: await Promise.all(
+            figma.currentPage.selection.map((node) =&gt; serializeNode(node))
+          ),
+        };</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert5s4" />
+                  <label class="step__label" for="serializert5s4">Await in get_node</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>return {
+  type: request.type,
+  requestId: request.requestId,
+  data: await serializeNode(node as SceneNode),
+};</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert5s5" />
+                  <label class="step__label" for="serializert5s5"
+                    >Await inside get_design_context</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p>
+                    <code>serializeWithDepth</code> is already <code>async</code>, so only the one
+                    call changes:
+                  </p>
+                  <pre><code>        const serializeWithDepth = async (
+          node: unknown,
+          currentDepth: number
+        ): Promise&lt;SerializedNode&gt; =&gt; {
+          const serialized = await serializeNode(node as SceneNode);</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert5s6" />
+                  <label class="step__label" for="serializert5s6"
+                    >Verify the plugin type-checks and builds</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p class="expect">
+                    <b>Run</b>
+                    <code
+                      >cd plugin &amp;&amp; bunx tsc --noEmit -p tsconfig.json &amp;&amp; bun run
+                      build</code
+                    ><br />
+                    <b>Expect</b> <span class="pass">PASS</span> — no <code>tsc</code> output, and a
+                    clean bundle
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert5s7" />
+                  <label class="step__label" for="serializert5s7">Commit</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>git add plugin/src/main/code.ts
+git commit -m "refactor(plugin): await the async serializer at every call site"</code></pre>
+                  <p>---</p>
+                </div>
+              </li>
+            </ol>
+          </article>
+
+          <article class="task" id="task-6" data-spy>
+            <div class="task__head">
+              <span class="task__no">Task 06</span>
+              <h2>Verify in Figma and document</h2>
+            </div>
+            <p>
+              Unit tests prove the shapes. They cannot prove that
+              <code>getMainComponentAsync</code>, <code>getStyleByIdAsync</code> and
+              <code>getVariableByIdAsync</code> behave the way this plan assumes inside a real
+              <code>dynamic-page</code> document — that needs a real file with a real design system
+              in it.
+            </p>
+
+            <div class="tension">
+              <span class="tension__count"></span><span class="tension__fill"></span>
+            </div>
+
+            <dl class="files">
+              <dt>Files</dt>
+              <dd>
+                <ul>
+                  <li>
+                    <span class="verb">Modify</span><code>README.md</code> — the Editing Notes
+                    section
+                  </li>
+                  <li>
+                    <span class="verb">Create</span><code>docs/serialized-nodes.md</code> — a field
+                    reference for the enriched shape
+                  </li>
+                </ul>
+              </dd>
+              <dt>Interfaces</dt>
+              <dd>
+                <strong>Consumes</strong> — the shipped serializer.<br />
+                <strong>Produces</strong> — documentation only.
+              </dd>
+            </dl>
+
+            <ol class="steps">
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert6s1" />
+                  <label class="step__label" for="serializert6s1">Build and load</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>cd server &amp;&amp; bun run build
+cd ../plugin &amp;&amp; bun run build</code></pre>
+                  <p>
+                    Then in Figma: _Plugins → Development → Import plugin from manifest_, select
+                    <code>plugin/manifest.json</code>, and open a <strong>design</strong> file that
+                    has at least one published component, one variable collection and one text
+                    style.
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert6s2" />
+                  <label class="step__label" for="serializert6s2">Build the fixture frame</label>
+                </div>
+                <div class="step__body">
+                  <p>
+                    In the file, make a frame containing: an instance of a component with at least
+                    one variant property; a rectangle whose fill is bound to a colour variable; a
+                    text node using a named text style; an auto-layout child set to
+                    <code>Fill container</code>; and a node carrying a Dev Mode annotation.
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert6s3" />
+                  <label class="step__label" for="serializert6s3">Prove instance identity</label>
+                </div>
+                <div class="step__body">
+                  <p>Select the instance and call <code>get_selection</code>.</p>
+                  <p class="expect">
+                    <b>Expect</b> the node carries <code>design.mainComponent</code> with
+                    <code>id</code>, <code>key</code> and <code>name</code>, and
+                    <code>design.componentProperties</code> listing the variant property.
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert6s4" />
+                  <label class="step__label" for="serializert6s4">Prove token resolution</label>
+                </div>
+                <div class="step__body">
+                  <p>Select the variable-bound rectangle and call <code>get_selection</code>.</p>
+                  <p class="expect">
+                    <b>Expect</b> <code>design.boundVariables</code> contains an entry whose
+                    <code>property</code> is <code>fills[0]</code> and whose
+                    <code>variableName</code> is the token's full path — not a hex string.
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert6s5" />
+                  <label class="step__label" for="serializert6s5"
+                    >Prove style and layout intent</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p>
+                    Select the styled text node and the fill-sizing child, and call
+                    <code>get_selection</code> for each.
+                  </p>
+                  <p class="expect">
+                    <b>Expect</b> the text node has <code>design.styles.text</code> with the style's
+                    name; the auto-layout child has <code>layout.sizingHorizontal</code> of
+                    <code>"FILL"</code>.
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert6s6" />
+                  <label class="step__label" for="serializert6s6"
+                    >Prove the annotation survives</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p>Select the annotated node and call <code>get_selection</code>.</p>
+                  <p class="expect">
+                    <b>Expect</b> <code>annotations[0].label</code> matches the note as typed in Dev
+                    Mode.
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert6s7" />
+                  <label class="step__label" for="serializert6s7"
+                    >Prove the payload has not bloated</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p>
+                    Call <code>get_document</code> on a page with a few hundred nodes, before and
+                    after this phase if you still have the old build.
+                  </p>
+                  <p class="expect">
+                    <b>Expect</b> nodes with no component, variable, style or annotation carry none
+                    of the new keys. If plain nodes have grown, a helper is returning an empty
+                    object; fix it at the source.
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert6s8" />
+                  <label class="step__label" for="serializert6s8">Write the field reference</label>
+                </div>
+                <div class="step__body">
+                  <p>
+                    Create <code>docs/serialized-nodes.md</code> documenting the enriched shape: the
+                    <code>design</code> block (<code>mainComponent</code>,
+                    <code>componentProperties</code>, <code>key</code>,
+                    <code>propertyDefinitions</code>, <code>propertyOwnerId</code>,
+                    <code>boundVariables</code>, <code>styles</code>), then <code>layout</code>,
+                    <code>reactions</code>, <code>annotations</code>,
+                    <code>exportSettings</code> and <code>renderBounds</code>. For each, state when
+                    it is present and when it is omitted — the omission rules are the part readers
+                    will get wrong.
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert6s9" />
+                  <label class="step__label" for="serializert6s9"
+                    >Document the change in the README</label
+                  >
+                </div>
+                <div class="step__body">
+                  <p>Append to the Editing Notes bullet list in <code>README.md</code>:</p>
+                  <pre><code>- Serialized nodes carry design-system identity, not just geometry: instances report their main component and set properties, fills bound to variables report the token name, named styles report the style name, and auto-layout children report hug/fill intent. Fields are omitted when a node carries nothing for them, so plain nodes serialize exactly as before. See [docs/serialized-nodes.md](docs/serialized-nodes.md).</code></pre>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert6s10" />
+                  <label class="step__label" for="serializert6s10">Format and run everything</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>bun run format
+cd plugin &amp;&amp; bun run test &amp;&amp; bunx tsc --noEmit -p tsconfig.json &amp;&amp; bun run build</code></pre>
+                  <p class="expect">
+                    <b>Expect</b> <span class="pass">PASS</span> — Prettier reports no remaining
+                    changes on a second run, tests green, clean build
+                  </p>
+                </div>
+              </li>
+
+              <li class="step">
+                <div class="step__top">
+                  <input type="checkbox" id="serializert6s11" />
+                  <label class="step__label" for="serializert6s11">Commit</label>
+                </div>
+                <div class="step__body">
+                  <pre><code>git add README.md docs/serialized-nodes.md
+git commit -m "docs: document the enriched serialized node shape"</code></pre>
+                  <p>---</p>
+                </div>
+              </li>
+            </ol>
+          </article>
+
+          <section class="done-when" id="done" data-spy>
+            <h2>Done when</h2>
+            <ul class="plain">
+              <li>
+                <code>bun test</code> is green in <code>plugin/</code>, with 36 tests covering
+                references, component identity, intent and the serializer.
+              </li>
+              <li>
+                <code>bunx tsc --noEmit</code> and <code>bun run build</code> both succeed in
+                <code>plugin/</code>.
+              </li>
+              <li>
+                A plain rectangle serializes with exactly the keys it had before this phase — proven
+                by the baseline regression test and re-checked by hand on a real page.
+              </li>
+              <li>
+                In a real Figma design file, an instance reports its main component, a
+                variable-bound fill reports its token name, a styled text node reports its style
+                name, a fill-sizing child reports <code>layout.sizingHorizontal</code>, and an
+                annotated node reports its label.
+              </li>
+              <li>
+                <code>docs/serialized-nodes.md</code> documents every new field and, for each, when
+                it is omitted.
+              </li>
+            </ul>
+          </section>
+
+          <footer class="colophon">
+            <span>Figma Design Relay</span>
+            <span>Plan · Phase 2 · 2026-09-01</span>
+            <span
+              >Source: <code>docs/superpowers/plans/2026-09-01-serializer-enrichment.md</code></span
+            >
+            <span
+              ><a href="../specs/2026-09-01-official-figma-mcp-parity.html">← Parity spec</a></span
+            >
+          </footer>
+        </main>
+      </div>
+    </div>
+
+    <script src="../assets/doc.js"></script>
+  </body>
+</html>
