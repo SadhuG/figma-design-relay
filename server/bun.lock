@@ -2,7 +2,7 @@
   "lockfileVersion": 1,
   "workspaces": {
     "": {
-      "name": "figma-mcp-bridge",
+      "name": "figma-design-relay",
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.26.0",
         "ws": "^8.18.0",

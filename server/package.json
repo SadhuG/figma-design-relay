@@ -1,10 +1,10 @@
 {
-  "name": "@gethopp/figma-mcp-bridge",
+  "name": "@gethopp/figma-design-relay",
   "version": "0.1.1",
-  "description": "MCP server that bridges Figma plugin data to AI tools without hitting API rate limits",
+  "description": "MCP server that relays Figma plugin data to AI tools without hitting API rate limits",
   "type": "module",
   "bin": {
-    "figma-mcp-bridge": "dist/index.js"
+    "figma-design-relay": "dist/index.js"
   },
   "main": "dist/index.js",
   "files": [
@@ -23,12 +23,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/gethopp/figma-mcp-bridge.git",
+    "url": "git+https://github.com/gethopp/figma-design-relay.git",
     "directory": "server"
   },
-  "homepage": "https://github.com/gethopp/figma-mcp-bridge#readme",
+  "homepage": "https://github.com/gethopp/figma-design-relay#readme",
   "bugs": {
-    "url": "https://github.com/gethopp/figma-mcp-bridge/issues"
+    "url": "https://github.com/gethopp/figma-design-relay/issues"
   },
   "license": "MIT",
   "dependencies": {

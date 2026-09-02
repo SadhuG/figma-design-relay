@@ -7,18 +7,18 @@ import { Election } from "./election.js";
 import { registerTools } from "./tools.js";
 import { VERSION } from "./version.js";
 
-// Overridable so a fork/test instance can run beside a stock 1994 bridge
+// Overridable so a fork/test instance can run beside a stock 1994 relay
 // without joining its leader election. The plugin must be built with the
-// matching VITE_FIGMA_BRIDGE_WS URL (which must also be listed in the
+// matching VITE_FIGMA_DESIGN_RELAY_WS URL (which must also be listed in the
 // plugin manifest's networkAccess.allowedDomains).
 function resolvePort(): number {
-  const raw = process.env.FIGMA_BRIDGE_PORT;
+  const raw = process.env.FIGMA_DESIGN_RELAY_PORT;
   if (raw === undefined) return 1994;
   const port = Number(raw.trim());
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     // An explicitly set but invalid value must not silently join the stock
     // bridge on 1994 — fail loudly instead.
-    console.error(`Invalid FIGMA_BRIDGE_PORT "${raw}" — expected an integer between 1 and 65535`);
+    console.error(`Invalid FIGMA_DESIGN_RELAY_PORT "${raw}" — expected an integer between 1 and 65535`);
     process.exit(1);
   }
   return port;
@@ -71,7 +71,7 @@ async function main(): Promise<void> {
   });
 
   const server = new McpServer({
-    name: "figma-bridge",
+    name: "figma-design-relay",
     version: VERSION,
   });
 
