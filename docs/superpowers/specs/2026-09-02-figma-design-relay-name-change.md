@@ -6,18 +6,18 @@ Rename the project from **Figma MCP Bridge** to **Figma Design Relay** across it
 
 ## Canonical naming
 
-| Surface | New value |
-| --- | --- |
-| Product name | `Figma Design Relay` |
-| Repository slug | `figma-design-relay` |
-| npm package | `@gethopp/figma-design-relay` |
-| CLI executable | `figma-design-relay` |
-| Plugin package | `figma-design-relay-plugin` |
-| Figma plugin name | `Figma Design Relay` |
-| Figma plugin ID | `figma-design-relay` |
-| MCP configuration key | `figma-design-relay` |
-| WebSocket build variable | `VITE_FIGMA_DESIGN_RELAY_WS` |
-| Port environment variable | `FIGMA_DESIGN_RELAY_PORT` |
+| Surface                   | New value                     |
+| ------------------------- | ----------------------------- |
+| Product name              | `Figma Design Relay`          |
+| Repository slug           | `figma-design-relay`          |
+| npm package               | `@gethopp/figma-design-relay` |
+| CLI executable            | `figma-design-relay`          |
+| Plugin package            | `figma-design-relay-plugin`   |
+| Figma plugin name         | `Figma Design Relay`          |
+| Figma plugin ID           | `figma-design-relay`          |
+| MCP configuration key     | `figma-design-relay`          |
+| WebSocket build variable  | `VITE_FIGMA_DESIGN_RELAY_WS`  |
+| Port environment variable | `FIGMA_DESIGN_RELAY_PORT`     |
 
 ## Implementation scope
 

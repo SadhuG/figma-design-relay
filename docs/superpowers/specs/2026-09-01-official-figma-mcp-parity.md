@@ -47,7 +47,7 @@ These are areas where the bridge **already meets or beats** the official server.
 | Export formats      | PNG, SVG, JPG, PDF with `scale` and `clip` (absolute bounds)                                                     | PNG-ish screenshots                                            |
 | Motion / animation  | 7 tools: list styles, read node motion, apply/remove animation styles, manual keyframe tracks, timeline duration | `get_motion_context` (read-focused)                            |
 | HTML import         | `import_html_layers` bulk-imports an `html-to-figma` tree                                                        | No equivalent                                                  |
-| Deployment          | `npx @gethopp/figma-design-relay`, works with Figma **web**, no desktop app                                        | Requires Figma auth; Dev Mode variant requires the desktop app |
+| Deployment          | `npx @gethopp/figma-design-relay`, works with Figma **web**, no desktop app                                      | Requires Figma auth; Dev Mode variant requires the desktop app |
 | Transparency        | MIT, self-hostable, auditable                                                                                    | Closed, hosted                                                 |
 
 The write surface is also genuinely broad already: 22 mutation tools covering

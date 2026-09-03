@@ -18,7 +18,9 @@ function resolvePort(): number {
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     // An explicitly set but invalid value must not silently join the stock
     // bridge on 1994 — fail loudly instead.
-    console.error(`Invalid FIGMA_DESIGN_RELAY_PORT "${raw}" — expected an integer between 1 and 65535`);
+    console.error(
+      `Invalid FIGMA_DESIGN_RELAY_PORT "${raw}" — expected an integer between 1 and 65535`
+    );
     process.exit(1);
   }
   return port;
