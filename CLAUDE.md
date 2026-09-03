@@ -14,13 +14,13 @@ Figma plugin ──ws://localhost:1994/ws──> leader server ──stdio──
 
 ## Commands
 
-| Where       | Command                                     | Notes                                              |
-| ----------- | ------------------------------------------- | -------------------------------------------------- |
-| root        | `bun install`                               | installs Husky's pre-commit hook                    |
-| root        | `bun run format` / `bun run format:check`   | Prettier 3.9.6 over everything                      |
-| `server/`   | `bun run build`                             | `tsc` → `dist/`                                     |
-| `plugin/`   | `bun run build`                             | two Vite passes: UI, then `main`                    |
-| `plugin/`   | `bunx tsc --noEmit -p tsconfig.json`        | the plugin has no build-time type-check otherwise   |
+| Where     | Command                                   | Notes                                             |
+| --------- | ----------------------------------------- | ------------------------------------------------- |
+| root      | `bun install`                             | installs Husky's pre-commit hook                  |
+| root      | `bun run format` / `bun run format:check` | Prettier 3.9.6 over everything                    |
+| `server/` | `bun run build`                           | `tsc` → `dist/`                                   |
+| `plugin/` | `bun run build`                           | two Vite passes: UI, then `main`                  |
+| `plugin/` | `bunx tsc --noEmit -p tsconfig.json`      | the plugin has no build-time type-check otherwise |
 
 **Bun everywhere — never `npm` or `yarn`.**
 
@@ -65,14 +65,14 @@ One spec measures the gap; six plans close it. **Read `docs/superpowers/specs/20
 first** — it holds all 55 numbered requirements (R1–R55), and every plan task cites the ones it
 satisfies.
 
-| Phase | Plan (`docs/superpowers/plans/…`)              | Reqs    | Tasks | Needs                    |
-| ----- | ---------------------------------------------- | ------- | ----- | ------------------------ |
-| 1     | `2026-09-01-run-script-plugin-api-escape-hatch.md` | R1–R10  | 7     | —                        |
-| 2     | `2026-09-01-serializer-enrichment.md`          | R11–R19 | 6     | phase 1's test harness   |
-| 3     | `2026-09-01-design-context-v2.md`              | R20–R27 | 7     | **phase 2** (R14, R15)   |
-| 4     | `2026-09-01-code-connect.md`                   | R28–R35 | 8     | **phase 2** (R13)        |
-| 5     | `2026-09-01-library-reach.md`                  | R36–R42 | 7     | phase 1's test harness   |
-| 6     | `2026-09-01-figjam-slides-diagrams.md`         | R43–R50 | 8     | phase 1's test harness   |
+| Phase | Plan (`docs/superpowers/plans/…`)                  | Reqs    | Tasks | Needs                  |
+| ----- | -------------------------------------------------- | ------- | ----- | ---------------------- |
+| 1     | `2026-09-01-run-script-plugin-api-escape-hatch.md` | R1–R10  | 7     | —                      |
+| 2     | `2026-09-01-serializer-enrichment.md`              | R11–R19 | 6     | phase 1's test harness |
+| 3     | `2026-09-01-design-context-v2.md`                  | R20–R27 | 7     | **phase 2** (R14, R15) |
+| 4     | `2026-09-01-code-connect.md`                       | R28–R35 | 8     | **phase 2** (R13)      |
+| 5     | `2026-09-01-library-reach.md`                      | R36–R42 | 7     | phase 1's test harness |
+| 6     | `2026-09-01-figjam-slides-diagrams.md`             | R43–R50 | 8     | phase 1's test harness |
 
 R51–R55 are cross-cutting and apply to every tool any phase adds.
 
@@ -140,13 +140,13 @@ Renamed from "Figma MCP Bridge" in `5ae5a0b`; see
 `docs/superpowers/specs/2026-09-02-figma-design-relay-name-change.md` for the canonical table. Do not
 reintroduce the old strings.
 
-| Surface        | Value                          |
-| -------------- | ------------------------------ |
-| Product        | Figma Design Relay             |
-| npm package    | `@gethopp/figma-design-relay`  |
-| CLI            | `figma-design-relay`           |
-| Plugin id      | `figma-design-relay`           |
-| MCP config key | `figma-design-relay`           |
+| Surface        | Value                                                   |
+| -------------- | ------------------------------------------------------- |
+| Product        | Figma Design Relay                                      |
+| npm package    | `@gethopp/figma-design-relay`                           |
+| CLI            | `figma-design-relay`                                    |
+| Plugin id      | `figma-design-relay`                                    |
+| MCP config key | `figma-design-relay`                                    |
 | Env vars       | `FIGMA_DESIGN_RELAY_PORT`, `VITE_FIGMA_DESIGN_RELAY_WS` |
 
 ## Conventions
@@ -159,3 +159,8 @@ reintroduce the old strings.
 - Errors say what to do next, not just what went wrong. "Open the plugin in the target file and
   retry" beats "Plugin not connected".
 - Commit messages: `feat(scope): …`, `fix(scope): …`, `docs: …`, `test: …`, `chore: …`.
+- **Keep the docs current as you work.** When you discover a durable fact, settle a convention, add a
+  command, or change a workflow, write it into the right place — this file, the `.claude/` config, the
+  README, or the `docs/superpowers/` spec and plans — as part of finishing the work, not afterwards.
+  These docs are the source of truth that future sessions and executor agents rely on; anything left
+  only in a conversation is lost.
