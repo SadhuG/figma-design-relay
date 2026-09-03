@@ -1,4 +1,4 @@
-# Figma MCP Bridge
+# Figma Design Relay
 
 [![Pairing with Hopp](https://gethopp.app/git/hopp-shield.svg?ref=hopp-repo)](https://gethopp.app)
 
@@ -11,7 +11,7 @@
 
 <br/>
 
-<img src="https://raw.githubusercontent.com/gethopp/figma-mcp-bridge/main/logo.png" alt="Figma MCP Bridge" align="center" />
+<img src="https://raw.githubusercontent.com/gethopp/figma-design-relay/main/logo.png" alt="Figma Design Relay" align="center" />
 
 <br/>
 
@@ -19,7 +19,7 @@ While other amazing Figma MCP servers like [Figma-Context-MCP](https://github.co
 
 The limit for free accounts is 6 requests per month, yes **per month**.
 
-Figma MCP Bridge is a solution to this problem. It is a plugin + MCP server that streams live Figma document data to AI tools without hitting Figma API rate limits, so its Figma MCP for the rest of us ✊
+Figma Design Relay is a solution to this problem. It is a plugin + MCP server that streams live Figma document data to AI tools without hitting Figma API rate limits, so its Figma MCP for the rest of us ✊
 
 It supports **multiple Figma files connected simultaneously**; open the plugin in each file and your AI agent can query any of them by `fileKey`. Single-file setups work exactly as before with no changes required.
 
@@ -27,7 +27,7 @@ It also includes a small, opt-in set of **write tools** for safe agent-driven ed
 
 ## Demo
 
-[Watch a demo of building a UI in Cursor with Figma MCP Bridge](https://youtu.be/ouygIhFBx0g)
+[Watch a demo of building a UI in Cursor with Figma Design Relay](https://youtu.be/ouygIhFBx0g)
 
 [![Watch the video](https://img.youtube.com/vi/ouygIhFBx0g/maxresdefault.jpg)](https://youtu.be/ouygIhFBx0g)
 
@@ -39,9 +39,9 @@ Add the following to your AI tool's MCP configuration (e.g. Cursor, Windsurf, Cl
 
 ```json
 {
-  "figma-bridge": {
+  "figma-design-relay": {
     "command": "npx",
-    "args": ["-y", "@gethopp/figma-mcp-bridge"]
+    "args": ["-y", "@gethopp/figma-design-relay"]
   }
 }
 ```
@@ -50,7 +50,7 @@ That's it — no binaries to download or install.
 
 ### 2. Add the Figma plugin
 
-Download the plugin from the [latest release](https://github.com/gethopp/figma-mcp-bridge/releases) page, then in Figma go to `Plugins > Development > Import plugin from manifest` and select the `manifest.json` file from the `plugin/` folder.
+Download the plugin from the [latest release](https://github.com/gethopp/figma-design-relay/releases) page, then in Figma go to `Plugins > Development > Import plugin from manifest` and select the `manifest.json` file from the `plugin/` folder.
 
 ### 3. Start using it 🎉
 
@@ -130,7 +130,7 @@ This repo uses [Bun](https://bun.sh) as its package manager and script runner th
 #### 1. Clone this repository locally
 
 ```bash
-git clone git@github.com:gethopp/figma-mcp-bridge.git
+git clone git@github.com:gethopp/figma-design-relay.git
 ```
 
 #### 2. Install root tooling
@@ -138,7 +138,7 @@ git clone git@github.com:gethopp/figma-mcp-bridge.git
 Install the root dependencies once. This runs Husky's `prepare` script, which installs the Git pre-commit hook that formats staged files with Prettier.
 
 ```bash
-cd figma-mcp-bridge && bun install
+cd figma-design-relay && bun install
 ```
 
 #### 3. Build the server
@@ -159,9 +159,9 @@ For local development, add the following to your AI tool's MCP config:
 
 ```json
 {
-  "figma-bridge": {
+  "figma-design-relay": {
     "command": "node",
-    "args": ["/path/to/figma-mcp-bridge/server/dist/index.js"]
+    "args": ["/path/to/figma-design-relay/server/dist/index.js"]
   }
 }
 ```
@@ -178,7 +178,7 @@ bun run format:check  # verify formatting without writing (useful in CI)
 ## Structure
 
 ```
-Figma-MCP-Bridge/
+Figma-Design-Relay/
 ├── plugin/   # Figma plugin (TypeScript/React)
 └── server/   # MCP server (TypeScript/Node.js)
     └── src/
@@ -194,15 +194,15 @@ Figma-MCP-Bridge/
 
 ## How it works
 
-There are two main components to the Figma MCP Bridge:
+There are two main components to Figma Design Relay:
 
 ### 1. The Figma Plugin
 
-The Figma plugin is the user interface for the Figma MCP Bridge. You run this inside the Figma file you want to use the MCP server for, and its responsible for getting you all the information you need.
+The Figma plugin is the user interface for Figma Design Relay. You run this inside the Figma file you want to use the MCP server for, and its responsible for getting you all the information you need.
 
 ### 2. The MCP Server
 
-The MCP server is the core of the Figma MCP Bridge. It maintains a registry of WebSocket connections keyed by `fileKey`, so multiple Figma files can be connected simultaneously. The server is responsible for:
+The MCP server is the core of Figma Design Relay. It maintains a registry of WebSocket connections keyed by `fileKey`, so multiple Figma files can be connected simultaneously. The server is responsible for:
 
 - Handling WebSocket connections from one or more Figma plugin instances
 - Routing tool calls to the correct file based on `fileKey`

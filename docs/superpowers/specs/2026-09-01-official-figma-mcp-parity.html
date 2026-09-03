@@ -1,0 +1,1494 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Replacing the official Figma MCP server — Figma Design Relay spec</title>
+    <meta
+      name="description"
+      content="Parity analysis between Figma Design Relay and Figma's first-party MCP server: where the relay already wins, where it falls short, and a six-phase plan to close the distance."
+    />
+    <link rel="stylesheet" href="../assets/doc.css" />
+  </head>
+  <body data-doc="parity-spec">
+    <a class="skip" href="#main">Skip to the document</a>
+
+    <div class="shell">
+      <header class="masthead">
+        <p class="eyebrow">Spec · Draft · 2026-09-01</p>
+        <h1>Can this bridge carry the whole load?</h1>
+        <p class="standfirst">
+          Figma Design Relay already does things the first-party MCP server cannot — unlimited calls,
+          live unsaved state, several files at once. This is the honest accounting of what it
+          <strong>still cannot carry</strong>, and what it would take to close the span.
+        </p>
+
+        <dl class="masthead__meta">
+          <div><b>Goal</b> — full-time replacement for Figma's own MCP server</div>
+          <div><b>Baseline</b> — <code>mcp.figma.com/mcp</code> · figma_prod@2_2_96</div>
+          <div><b>Requirements</b> — 55, R1 through R55</div>
+          <div><b>Plans</b> — <a href="../index.html">6, one per phase</a></div>
+        </dl>
+      </header>
+
+      <!-- =====================================================================
+           SIGNATURE: the span.
+           Eighteen official tools, drawn as the hangers of a suspension bridge.
+           A lit hanger carries load. A dashed one is slack. Where the bronze
+           runs out, the deck is unsupported — and that is the whole argument.
+           ================================================================== -->
+      <figure class="span">
+        <figcaption class="span__head">
+          <span>Load-bearing survey — 18 first-party tools</span>
+          <span>Hover or focus a hanger</span>
+        </figcaption>
+
+        <div class="span__scroll">
+          <div class="span__deck">
+            <svg
+              class="span__cable"
+              viewBox="0 0 100 128"
+              preserveAspectRatio="none"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path
+                d="M0,8 Q50,116 100,8"
+                fill="none"
+                stroke="#c08a52"
+                stroke-width="1.5"
+                vector-effect="non-scaling-stroke"
+              />
+            </svg>
+            <span class="tower tower--l" aria-hidden="true"></span>
+            <span class="tower tower--r" aria-hidden="true"></span>
+
+            <ol class="span__hangers">
+              <li class="hanger hanger--covered" style="--i: 0; --cy: 8px; --wire: 111px">
+                <button
+                  class="hanger__btn"
+                  type="button"
+                  data-tool="get_metadata"
+                  data-status="covered"
+                  data-status-label="Matched"
+                  data-note="File name, page list and current page. The bridge returns the same shape, read live from the open document rather than from Figma's servers."
+                >
+                  <span class="hanger__wire"></span>
+                  <span class="hanger__node"></span>
+                  <span class="sr-only">get_metadata — matched</span>
+                </button>
+              </li>
+              <li class="hanger hanger--covered" style="--i: 1; --cy: 20px; --wire: 99px">
+                <button
+                  class="hanger__btn"
+                  type="button"
+                  data-tool="get_screenshot"
+                  data-status="covered"
+                  data-status-label="Exceeded"
+                  data-note="The bridge exports PNG, SVG, JPG and PDF with scale and absolute-bounds clipping, and save_screenshots writes them straight into the workspace instead of handing back a URL that expires in about a week."
+                >
+                  <span class="hanger__wire"></span>
+                  <span class="hanger__node"></span>
+                  <span class="sr-only">get_screenshot — exceeded</span>
+                </button>
+              </li>
+              <li class="hanger hanger--covered" style="--i: 2; --cy: 30px; --wire: 89px">
+                <button
+                  class="hanger__btn"
+                  type="button"
+                  data-tool="get_variable_defs"
+                  data-status="covered"
+                  data-status-label="Matched"
+                  data-note="Every local collection, its modes, and each variable's value per mode, with aliases resolved. Reading definitions is solved; binding them to nodes is not — see gap 1."
+                >
+                  <span class="hanger__wire"></span>
+                  <span class="hanger__node"></span>
+                  <span class="sr-only">get_variable_defs — matched</span>
+                </button>
+              </li>
+              <li class="hanger hanger--partial" style="--i: 3; --cy: 39px; --wire: 80px">
+                <button
+                  class="hanger__btn"
+                  type="button"
+                  data-tool="get_design_context"
+                  data-status="partial"
+                  data-status-label="Partial · phase 3"
+                  data-note="We return a depth-limited JSON tree. Figma returns React and Tailwind reference code, a screenshot, token names, annotations and Code Connect snippets in the same response."
+                >
+                  <span class="hanger__wire"></span>
+                  <span class="hanger__node"></span>
+                  <span class="sr-only">get_design_context — partial</span>
+                </button>
+              </li>
+              <li class="hanger hanger--partial" style="--i: 4; --cy: 47px; --wire: 72px">
+                <button
+                  class="hanger__btn"
+                  type="button"
+                  data-tool="upload_assets"
+                  data-status="partial"
+                  data-status-label="Partial"
+                  data-note="create_image already pushes a local file, URL or data URI into the canvas as an image-backed rectangle. What is missing is bulk upload and reuse of an existing image hash."
+                >
+                  <span class="hanger__wire"></span>
+                  <span class="hanger__node"></span>
+                  <span class="sr-only">upload_assets — partial</span>
+                </button>
+              </li>
+              <li class="hanger hanger--gap" style="--i: 5; --cy: 53px; --wire: 66px">
+                <button
+                  class="hanger__btn"
+                  type="button"
+                  data-tool="use_figma"
+                  data-status="gap"
+                  data-status-label="Gap · phase 1"
+                  data-note="The load-bearing one. Arbitrary Plugin API execution, which reaches components, variants, variable binding, styles, boolean operations, prototyping and every read our serializer omits. Closing this one gap subsumes most of the others."
+                >
+                  <span class="hanger__wire"></span>
+                  <span class="hanger__node"></span>
+                  <span class="sr-only">use_figma — gap</span>
+                </button>
+              </li>
+              <li class="hanger hanger--gap" style="--i: 6; --cy: 57px; --wire: 62px">
+                <button
+                  class="hanger__btn"
+                  type="button"
+                  data-tool="whoami"
+                  data-status="gap"
+                  data-status-label="Gap · phase 5"
+                  data-note="Identity of the signed-in user. Cheap to add: figma.currentUser, once manifest.json requests the currentuser permission."
+                >
+                  <span class="hanger__wire"></span>
+                  <span class="hanger__node"></span>
+                  <span class="sr-only">whoami — gap</span>
+                </button>
+              </li>
+              <li class="hanger hanger--gap" style="--i: 7; --cy: 60px; --wire: 59px">
+                <button
+                  class="hanger__btn"
+                  type="button"
+                  data-tool="get_libraries"
+                  data-status="gap"
+                  data-status-label="Gap · phase 5"
+                  data-note="Published team libraries. Partly reachable through figma.teamLibrary once the manifest requests the teamlibrary permission, though the Plugin API exposes collections rather than a full catalogue."
+                >
+                  <span class="hanger__wire"></span>
+                  <span class="hanger__node"></span>
+                  <span class="sr-only">get_libraries — gap</span>
+                </button>
+              </li>
+              <li class="hanger hanger--gap" style="--i: 8; --cy: 62px; --wire: 57px">
+                <button
+                  class="hanger__btn"
+                  type="button"
+                  data-tool="search_design_system"
+                  data-status="gap"
+                  data-status-label="Gap · phase 5"
+                  data-note="Full-text search across an organisation's published components. The bridge sees only files where the plugin is currently open, so this is the hardest of the phase 5 set."
+                >
+                  <span class="hanger__wire"></span>
+                  <span class="hanger__node"></span>
+                  <span class="sr-only">search_design_system — gap</span>
+                </button>
+              </li>
+              <li class="hanger hanger--gap" style="--i: 9; --cy: 62px; --wire: 57px">
+                <button
+                  class="hanger__btn"
+                  type="button"
+                  data-tool="get_code_connect_map"
+                  data-status="gap"
+                  data-status-label="Gap · phase 4"
+                  data-note="Maps Figma component keys to real components in the codebase. Fully reproducible offline: the mappings live in *.figma.ts files in the user's own repo."
+                >
+                  <span class="hanger__wire"></span>
+                  <span class="hanger__node"></span>
+                  <span class="sr-only">get_code_connect_map — gap</span>
+                </button>
+              </li>
+              <li class="hanger hanger--gap" style="--i: 10; --cy: 60px; --wire: 59px">
+                <button
+                  class="hanger__btn"
+                  type="button"
+                  data-tool="add_code_connect_map"
+                  data-status="gap"
+                  data-status-label="Gap · phase 4"
+                  data-note="Writes a new component-to-code mapping. On the bridge this becomes a local file edit rather than a call to Figma's cloud."
+                >
+                  <span class="hanger__wire"></span>
+                  <span class="hanger__node"></span>
+                  <span class="sr-only">add_code_connect_map — gap</span>
+                </button>
+              </li>
+              <li class="hanger hanger--gap" style="--i: 11; --cy: 57px; --wire: 62px">
+                <button
+                  class="hanger__btn"
+                  type="button"
+                  data-tool="get_code_connect_suggestions"
+                  data-status="gap"
+                  data-status-label="Gap · phase 4"
+                  data-note="Proposes mappings for unmapped components. Needs component keys from the plugin plus a scan of the repo's component exports."
+                >
+                  <span class="hanger__wire"></span>
+                  <span class="hanger__node"></span>
+                  <span class="sr-only">get_code_connect_suggestions — gap</span>
+                </button>
+              </li>
+              <li class="hanger hanger--gap" style="--i: 12; --cy: 53px; --wire: 66px">
+                <button
+                  class="hanger__btn"
+                  type="button"
+                  data-tool="get_context_for_code_connect"
+                  data-status="gap"
+                  data-status-label="Gap · phase 4"
+                  data-note="Supplies the component's props and variants so a mapping can be authored accurately. Reachable once the serializer carries component property definitions — see gap 2."
+                >
+                  <span class="hanger__wire"></span>
+                  <span class="hanger__node"></span>
+                  <span class="sr-only">get_context_for_code_connect — gap</span>
+                </button>
+              </li>
+              <li class="hanger hanger--gap" style="--i: 13; --cy: 47px; --wire: 72px">
+                <button
+                  class="hanger__btn"
+                  type="button"
+                  data-tool="send_code_connect_mappings"
+                  data-status="gap"
+                  data-status-label="Gap · phase 4"
+                  data-note="Publishes mappings back to Figma. The bridge's equivalent is committing the *.figma.ts files, which keeps the mapping reviewable in version control."
+                >
+                  <span class="hanger__wire"></span>
+                  <span class="hanger__node"></span>
+                  <span class="sr-only">send_code_connect_mappings — gap</span>
+                </button>
+              </li>
+              <li class="hanger hanger--gap" style="--i: 14; --cy: 39px; --wire: 80px">
+                <button
+                  class="hanger__btn"
+                  type="button"
+                  data-tool="get_figjam"
+                  data-status="gap"
+                  data-status-label="Gap · phase 6"
+                  data-note="Reads FigJam boards. Blocked today by manifest.json, which declares editorType figma and dev only. Adding figjam is the first step."
+                >
+                  <span class="hanger__wire"></span>
+                  <span class="hanger__node"></span>
+                  <span class="sr-only">get_figjam — gap</span>
+                </button>
+              </li>
+              <li class="hanger hanger--gap" style="--i: 15; --cy: 30px; --wire: 89px">
+                <button
+                  class="hanger__btn"
+                  type="button"
+                  data-tool="generate_diagram"
+                  data-status="gap"
+                  data-status-label="Gap · phase 6"
+                  data-note="Renders Mermaid source as a FigJam diagram. Depends on FigJam editor support landing first; the layout itself is ours to write."
+                >
+                  <span class="hanger__wire"></span>
+                  <span class="hanger__node"></span>
+                  <span class="sr-only">generate_diagram — gap</span>
+                </button>
+              </li>
+              <li class="hanger hanger--blocked" style="--i: 16; --cy: 20px; --wire: 26px">
+                <button
+                  class="hanger__btn"
+                  type="button"
+                  data-tool="create_new_file"
+                  data-status="blocked"
+                  data-status-label="Structural — cannot close"
+                  data-note="The Figma Plugin API cannot create documents; a plugin only ever runs inside one that already exists. The bridge tops out at create_page. The user makes the file and opens the plugin once."
+                >
+                  <span class="hanger__wire"></span>
+                  <span class="hanger__node"></span>
+                  <span class="sr-only">create_new_file — structurally blocked</span>
+                </button>
+              </li>
+              <li class="hanger hanger--blocked" style="--i: 17; --cy: 8px; --wire: 26px">
+                <button
+                  class="hanger__btn"
+                  type="button"
+                  data-tool="generate_figma_design"
+                  data-status="blocked"
+                  data-status-label="Structural — cannot close"
+                  data-note="A Figma-hosted generative model. Not replicable locally. import_html_layers covers an overlapping need by a different route: render it in a browser, then import the layer tree."
+                >
+                  <span class="hanger__wire"></span>
+                  <span class="hanger__node"></span>
+                  <span class="sr-only">generate_figma_design — structurally blocked</span>
+                </button>
+              </li>
+            </ol>
+          </div>
+
+          <div class="span__roadway" aria-hidden="true"></div>
+
+          <ol class="span__labels">
+            <li class="is-covered"><span>get_metadata</span></li>
+            <li class="is-covered"><span>get_screenshot</span></li>
+            <li class="is-covered"><span>get_variable_defs</span></li>
+            <li class="is-partial"><span>get_design_context</span></li>
+            <li class="is-partial"><span>upload_assets</span></li>
+            <li><span>use_figma</span></li>
+            <li><span>whoami</span></li>
+            <li><span>get_libraries</span></li>
+            <li><span>search_design_system</span></li>
+            <li><span>get_code_connect_map</span></li>
+            <li><span>add_code_connect_map</span></li>
+            <li><span>get_code_connect_suggestions</span></li>
+            <li><span>get_context_for_code_connect</span></li>
+            <li><span>send_code_connect_mappings</span></li>
+            <li><span>get_figjam</span></li>
+            <li><span>generate_diagram</span></li>
+            <li><span>create_new_file</span></li>
+            <li><span>generate_figma_design</span></li>
+          </ol>
+        </div>
+
+        <dl class="span__readout" data-readout>
+          <dt data-readout-name>use_figma</dt>
+          <dd data-readout-text>
+            The load-bearing one. Arbitrary Plugin API execution, which reaches components,
+            variants, variable binding, styles, boolean operations, prototyping and every read our
+            serializer omits. Closing this one gap subsumes most of the others.
+            <b class="status status--gap" data-readout-status>Gap · phase 1</b>
+          </dd>
+        </dl>
+
+        <p class="span__legend">
+          <span><i class="key key--covered"></i><b>Carried</b> — matched or exceeded</span>
+          <span><i class="key key--partial"></i><b>Slack</b> — partial coverage</span>
+          <span><i class="key key--gap"></i><b>Missing</b> — closable gap</span>
+          <span><i class="key key--blocked"></i><b>Anchored out</b> — structural limit</span>
+        </p>
+      </figure>
+
+      <div class="tally">
+        <div><b class="n-covered">3</b><span>Matched or beaten</span></div>
+        <div><b class="n-partial">2</b><span>Partial</span></div>
+        <div><b>11</b><span>Gaps we can close</span></div>
+        <div><b>2</b><span>Structurally out of reach</span></div>
+      </div>
+
+      <div class="layout">
+        <nav class="rail" aria-label="Sections">
+          <p class="rail__title">Contents</p>
+          <ol>
+            <li>
+              <a href="#baseline"><span>Baseline</span></a>
+            </li>
+            <li>
+              <a href="#capable"><span>Where we're capable</span></a>
+            </li>
+            <li>
+              <a href="#lacking"><span>Where we're lacking</span></a>
+            </li>
+            <li>
+              <a href="#eval"><span>Can the sandbox eval?</span></a>
+            </li>
+            <li>
+              <a href="#roadmap"><span>Roadmap</span></a>
+            </li>
+            <li>
+              <a href="#requirements"><span>Requirements</span></a>
+            </li>
+          </ol>
+        </nav>
+
+        <main id="main">
+          <section id="baseline" data-spy>
+            <h2>What we are comparing against</h2>
+            <p>
+              Two different first-party servers ship under the name “Figma MCP”. This spec targets
+              the <strong>remote server</strong>, because that is the one the official Claude Code
+              Figma plugin configures:
+            </p>
+            <pre><code>{ "figma": { "type": "http", "url": "https://mcp.figma.com/mcp" } }</code></pre>
+            <p>
+              Its eighteen tools are the hangers on the span above, taken verbatim from the plugin's
+              <code>.mcp.json</code> (<code>figma_prod@2_2_96</code>).
+            </p>
+            <p>
+              The second is the <strong>Dev Mode local server</strong> (Figma desktop app, on
+              <code>127.0.0.1:3845</code>), whose surface is a subset plus <code>get_code</code> and
+              <code>create_design_system_rules</code>. It needs the desktop app and a Dev or Full
+              seat, so it is not a useful baseline — and anything we match on the remote server we
+              also match there.
+            </p>
+          </section>
+
+          <section id="capable" data-spy>
+            <h2>Where we are already capable</h2>
+            <p>
+              These are the places the bridge already meets or beats the official server. Several of
+              them are not incidental: they fall out of being a plugin rather than an API client.
+            </p>
+
+            <div class="tablewrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Capability</th>
+                    <th scope="col">Figma Design Relay</th>
+                    <th scope="col">Official</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Cost and rate limits</td>
+                    <td>Unlimited — no Figma API calls at all</td>
+                    <td>Rate-limited; effectively a paid-seat feature</td>
+                  </tr>
+                  <tr>
+                    <td>Live editor state</td>
+                    <td>Reads the open document, including unsaved edits</td>
+                    <td>Reads Figma's server-side file state</td>
+                  </tr>
+                  <tr>
+                    <td>Multi-file</td>
+                    <td>
+                      Registry keyed by <code>fileKey</code>; any number of open plugin instances
+                    </td>
+                    <td>One file per call, addressed by URL</td>
+                  </tr>
+                  <tr>
+                    <td>Screenshots to disk</td>
+                    <td><code>save_screenshots</code> writes straight into the workspace</td>
+                    <td>Inline image, or an asset URL that expires in about seven days</td>
+                  </tr>
+                  <tr>
+                    <td>Export formats</td>
+                    <td>PNG, SVG, JPG, PDF with <code>scale</code> and <code>clip</code></td>
+                    <td>Screenshots</td>
+                  </tr>
+                  <tr>
+                    <td>Motion</td>
+                    <td>
+                      Seven tools — read, apply and remove animation styles, manual keyframe tracks,
+                      timeline duration
+                    </td>
+                    <td><code>get_motion_context</code>, read-focused</td>
+                  </tr>
+                  <tr>
+                    <td>HTML import</td>
+                    <td>
+                      <code>import_html_layers</code> bulk-imports an
+                      <code>html-to-figma</code> tree
+                    </td>
+                    <td>No equivalent</td>
+                  </tr>
+                  <tr>
+                    <td>Deployment</td>
+                    <td><code>npx @gethopp/figma-design-relay</code>; works with Figma on the web</td>
+                    <td>Requires Figma auth; the Dev Mode variant requires the desktop app</td>
+                  </tr>
+                  <tr>
+                    <td>Transparency</td>
+                    <td>MIT, self-hostable, auditable</td>
+                    <td>Closed, hosted</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <p>
+              The write surface is broad already: <strong>22 mutation tools</strong> covering node
+              properties, solid and gradient fills, effects, strokes, auto-layout, text content and
+              typography, frames, text, shapes and images, pages, duplicate, reparent, group and
+              ungroup, selection, viewport, and a delete that is gated behind explicit confirmation.
+            </p>
+          </section>
+
+          <section id="lacking" data-spy>
+            <h2>Where we are lacking</h2>
+            <p>
+              Ranked by how much each one blocks the sentence “use the bridge instead of the
+              official server, every day.” The order is the argument — gap 1 carries most of the
+              weight.
+            </p>
+
+            <article class="pier pier--blocking">
+              <div class="pier__head">
+                <span class="pier__no">Gap 01</span>
+                <h3>No arbitrary Plugin API execution</h3>
+                <span class="chip chip--blocking">Blocking</span>
+                <span class="chip chip--phase">Phase 1</span>
+              </div>
+              <p>
+                The official server's most important tool is <code>use_figma</code>: it runs
+                arbitrary JavaScript against the Plugin API inside the file and returns whatever the
+                script returns. Everything the Plugin API can do is reachable through it.
+              </p>
+              <p>
+                The bridge instead exposes a fixed menu of about forty hand-written RPCs. Anything
+                off the menu is simply impossible. Concretely, an agent on the bridge today
+                <strong>cannot</strong>:
+              </p>
+              <ul class="plain">
+                <li>
+                  create or edit components, component sets, variants, or component properties;
+                </li>
+                <li>create or edit instances, swap main components, or set instance overrides;</li>
+                <li>
+                  author variables, collections or modes, or bind them to properties
+                  (<code>setBoundVariable</code>, <code>setBoundVariableForPaint</code>);
+                </li>
+                <li>create or apply paint, text, effect or grid <strong>styles</strong>;</li>
+                <li>do boolean operations, vector editing, flatten, or outline strokes;</li>
+                <li>create sections or slices, or author prototyping reactions and flows;</li>
+                <li>
+                  set per-segment text styling (<code>setRangeFills</code>,
+                  <code>setRangeFontName</code>);
+                </li>
+                <li>
+                  set constraints, <code>layoutSizingHorizontal</code> /
+                  <code>layoutSizingVertical</code>, absolute positioning, or grid layout;
+                </li>
+                <li>read or write plugin data, annotations, dev resources, or export settings;</li>
+                <li>
+                  run <code>node.query()</code> or <code>findAll</code>, or any read the serializer
+                  omits.
+                </li>
+              </ul>
+            </article>
+
+            <article class="pier pier--blocking">
+              <div class="pier__head">
+                <span class="pier__no">Gap 02</span>
+                <h3>Serialized nodes drop design-system identity</h3>
+                <span class="chip chip--blocking">Blocking for design → code</span>
+                <span class="chip chip--phase">Phase 2</span>
+              </div>
+              <p>
+                <code>plugin/src/main/serializer.ts</code> emits geometry, paints, effects,
+                auto-layout, constraints and text properties — but omits every field an agent needs
+                to write <em>correct</em> code rather than pixel-matched code:
+              </p>
+              <ul class="plain">
+                <li>
+                  <code>componentId</code>, <code>mainComponent</code>,
+                  <code>componentProperties</code>, <code>variantProperties</code> — so an instance
+                  of <code>Button/Primary</code> looks like an anonymous frame.
+                </li>
+                <li>
+                  <code>boundVariables</code> — so a fill bound to
+                  <code>color/brand/primary</code> serializes as a raw hex, and the agent hardcodes
+                  <code>#3B82F6</code> instead of reaching for the token.
+                </li>
+                <li>
+                  <code>fillStyleId</code>, <code>strokeStyleId</code>, <code>textStyleId</code>,
+                  <code>effectStyleId</code> — the same problem, for styles.
+                </li>
+                <li>
+                  <code>layoutSizingHorizontal</code> / <code>layoutSizingVertical</code>,
+                  <code>layoutPositioning</code>, <code>layoutGrow</code> — so hug and fill intent
+                  is lost and the agent emits fixed sizes.
+                </li>
+                <li>
+                  <code>reactions</code>, <code>exportSettings</code>, <code>annotations</code>,
+                  <code>absoluteRenderBounds</code>.
+                </li>
+              </ul>
+            </article>
+
+            <article class="pier">
+              <div class="pier__head">
+                <span class="pier__no">Gap 03</span>
+                <h3><code>get_design_context</code> returns a tree, not an answer</h3>
+                <span class="chip chip--phase">Phase 3</span>
+              </div>
+              <p>
+                Figma's version returns, in one call: React and Tailwind reference code, a
+                screenshot, CSS-variable token names, design annotations, Code Connect snippets, and
+                an asset URL for every icon and image. Ours returns a depth-limited JSON tree and
+                nothing else, so the agent has to call <code>get_screenshot</code> and
+                <code>get_variable_defs</code> separately and then invent the mapping itself.
+              </p>
+            </article>
+
+            <article class="pier">
+              <div class="pier__head">
+                <span class="pier__no">Gap 04</span>
+                <h3>No Code Connect</h3>
+                <span class="chip chip--phase">Phase 4</span>
+              </div>
+              <p>
+                Five official tools tie Figma component keys to real codebase components. This is
+                the mechanism that makes an agent's output use <em>your</em>
+                <code>&lt;Button&gt;</code>
+                rather than a fresh div. The bridge has none of it.
+              </p>
+              <blockquote>
+                <p>
+                  The read direction is fully reproducible offline. Code Connect mappings live in
+                  <code>*.figma.ts</code> files <strong>in the user's own repository</strong>, and
+                  the plugin can supply the component keys. We do not need Figma's cloud for this
+                  one — we need a parser and a lookup.
+                </p>
+              </blockquote>
+            </article>
+
+            <article class="pier">
+              <div class="pier__head">
+                <span class="pier__no">Gap 05</span>
+                <h3>No cross-file or library search</h3>
+                <span class="chip chip--phase">Phase 5</span>
+              </div>
+              <p>
+                <code>search_design_system</code> and <code>get_libraries</code> search an
+                organisation's published libraries. The bridge sees only files where the plugin is
+                currently open. Partly closable: the Plugin API exposes
+                <code>figma.teamLibrary.getAvailableLibraryVariableCollectionsAsync()</code>,
+                <code>figma.variables.importVariableByKeyAsync()</code> and
+                <code>figma.importComponentByKeyAsync()</code> — but the manifest needs the
+                <code>teamlibrary</code> permission, and there is no full-text component search.
+              </p>
+            </article>
+
+            <article class="pier">
+              <div class="pier__head">
+                <span class="pier__no">Gap 06</span>
+                <h3>Design files only</h3>
+                <span class="chip chip--phase">Phase 6</span>
+              </div>
+              <p>
+                <code>manifest.json</code> declares <code>"editorType": ["figma", "dev"]</code>.
+                FigJam and Slides files are unreachable, so <code>get_figjam</code> and
+                <code>generate_diagram</code> have no counterpart at all.
+              </p>
+            </article>
+
+            <article class="pier pier--structural">
+              <div class="pier__head">
+                <span class="pier__no">Gap 07</span>
+                <h3>Limits we cannot close</h3>
+                <span class="chip chip--structural">Structural</span>
+              </div>
+              <p>Worth stating plainly rather than pretending otherwise.</p>
+              <ul class="plain">
+                <li>
+                  <strong><code>create_new_file</code> is impossible.</strong> The Plugin API cannot
+                  create documents. The bridge tops out at <code>create_page</code> inside a file
+                  that already exists. Mitigation: document that the user creates the file and opens
+                  the plugin once.
+                </li>
+                <li>
+                  <strong>The plugin must be open in the target file.</strong> The official server
+                  addresses any file the user can reach, by URL. The bridge cannot act on a pasted
+                  link to a file nobody has open. Mitigation: <code>list_files</code> plus an error
+                  that tells the agent exactly what to ask for.
+                </li>
+                <li><strong>No branch addressing</strong> — there is no <code>branchKey</code>.</li>
+                <li>
+                  <strong><code>generate_figma_design</code></strong> is a Figma-hosted generative
+                  model. Not replicable; <code>import_html_layers</code> covers an overlapping need
+                  by a different route.
+                </li>
+                <li>
+                  <strong>Scripts are not atomic.</strong> Official <code>use_figma</code> documents
+                  that a failed script makes no changes. The Plugin API has no rollback, so a bridge
+                  script that throws halfway leaves partial mutations behind. Document it; do not
+                  paper over it.
+                </li>
+              </ul>
+            </article>
+
+            <article class="pier pier--blocking">
+              <div class="pier__head">
+                <span class="pier__no">Gap 08</span>
+                <h3>No tests</h3>
+                <span class="chip chip--blocking">Blocking</span>
+                <span class="chip chip--phase">Phase 1</span>
+              </div>
+              <p>
+                There is no test runner, no test file, and no CI job beyond
+                <code>release.yml</code>. That is about 5,200 lines of protocol-sensitive code —
+                leader election, RPC validation, a 1,875-line plugin dispatcher — verified entirely
+                by hand. Any plan that meaningfully grows the surface has to fix this first, which
+                is why phase 1 opens with the harness rather than the feature.
+              </p>
+            </article>
+          </section>
+
+          <section id="eval" data-spy>
+            <h2>Can the plugin sandbox actually <code>eval</code>?</h2>
+            <p>
+              Everything in phase 1 rests on this, so it was checked rather than assumed. The answer
+              is yes. Figma's plugin sandbox is a Realms-based sandbox that Figma's own engineering
+              write-up describes as implemented with
+              <code>with (scopeProxy) { eval(userCode) }</code>, and which “includes a new copy of
+              the <code>eval</code> function”. Community plugins that execute user-authored Plugin
+              API code — Scripter, Figlet — rely on exactly this.
+            </p>
+            <p>Two consequences shape the design:</p>
+            <ol class="plain">
+              <li>
+                Use <strong>direct</strong> <code>eval(source)</code>, never
+                <code>(0, eval)(source)</code>. Indirect eval runs in the realm's global scope,
+                where <code>figma</code> may not resolve; a direct eval inherits the scope chain
+                that makes it resolve.
+              </li>
+              <li>
+                Evaluate <code>(async () =&gt; { … })</code> and call the result, so a script gets
+                both top-level <code>await</code> and top-level <code>return</code> — matching
+                <code>use_figma</code>'s contract exactly.
+              </li>
+            </ol>
+            <p>
+              Phase 1 still probes this at runtime in a real file, so a future sandbox change fails
+              with an actionable message rather than a bare <code>ReferenceError</code>.
+            </p>
+          </section>
+
+          <section id="roadmap" data-spy>
+            <h2>The six phases</h2>
+            <p>
+              Each phase is independently shippable and independently useful. Phases 2 through 6
+              depend on phase 1 only for its test harness — but <code>run_script</code> makes every
+              one of them dramatically cheaper to prototype, which is why it goes first.
+            </p>
+            <p>
+              Two ordering constraints are real rather than preference: phase 3 needs phase 2's
+              resolved token and style names to generate code that references tokens, and phase 4
+              needs phase 2's component property definitions to author accurate mappings.
+            </p>
+
+            <div class="tablewrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Phase</th>
+                    <th scope="col">Deliverable</th>
+                    <th scope="col">Closes</th>
+                    <th scope="col">Requirements</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>1</strong></td>
+                    <td>
+                      Test harness, then <code>run_script</code> — a
+                      <code>use_figma</code> equivalent
+                    </td>
+                    <td>Gap 08, Gap 01</td>
+                    <td><a href="#req-p1">R1–R10</a></td>
+                  </tr>
+                  <tr>
+                    <td><strong>2</strong></td>
+                    <td>
+                      Serializer enrichment: components, bound variables, style IDs, layout sizing,
+                      annotations
+                    </td>
+                    <td>Gap 02</td>
+                    <td><a href="#req-p2">R11–R19</a></td>
+                  </tr>
+                  <tr>
+                    <td><strong>3</strong></td>
+                    <td>
+                      <code>get_design_context</code> v2 — reference code, inline screenshot, token
+                      names and asset export in one response
+                    </td>
+                    <td>Gap 03</td>
+                    <td><a href="#req-p3">R20–R27</a></td>
+                  </tr>
+                  <tr>
+                    <td><strong>4</strong></td>
+                    <td>
+                      Code Connect: parse local <code>*.figma.ts</code>, map component keys, surface
+                      snippets in design context
+                    </td>
+                    <td>Gap 04</td>
+                    <td><a href="#req-p4">R28–R35</a></td>
+                  </tr>
+                  <tr>
+                    <td><strong>5</strong></td>
+                    <td>
+                      Library reach — <code>teamlibrary</code> permission, import-by-key, variable
+                      collections — plus <code>whoami</code>
+                    </td>
+                    <td>Gap 05</td>
+                    <td><a href="#req-p5">R36–R42</a></td>
+                  </tr>
+                  <tr>
+                    <td><strong>6</strong></td>
+                    <td>FigJam and Slides editor support, plus a Mermaid-to-FigJam diagram tool</td>
+                    <td>Gap 06</td>
+                    <td><a href="#req-p6">R43–R50</a></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <p>
+              Every phase has its own plan, one per phase rather than one for all six. Each plan
+              cites the requirements its tasks satisfy.
+            </p>
+
+            <ul class="phasenav">
+              <li>
+                <a href="../plans/2026-09-01-run-script-plugin-api-escape-hatch.html"
+                  >1 · run_script</a
+                >
+              </li>
+              <li><a href="../plans/2026-09-01-serializer-enrichment.html">2 · Serializer</a></li>
+              <li><a href="../plans/2026-09-01-design-context-v2.html">3 · Design context</a></li>
+              <li><a href="../plans/2026-09-01-code-connect.html">4 · Code Connect</a></li>
+              <li><a href="../plans/2026-09-01-library-reach.html">5 · Libraries</a></li>
+              <li><a href="../plans/2026-09-01-figjam-slides-diagrams.html">6 · FigJam</a></li>
+            </ul>
+          </section>
+
+          <section id="requirements" data-spy>
+            <h2>Requirements</h2>
+            <p>
+              Normative. Requirements are numbered continuously across the whole roadmap so a task
+              in any plan can cite one unambiguously. Phase 1's <strong>R1–R10</strong> are already
+              cited by the
+              <a href="../plans/2026-09-01-run-script-plugin-api-escape-hatch.html">phase 1 plan</a>
+              and must not be renumbered.
+            </p>
+
+            <ul class="phasenav">
+              <li><a href="#req-p1">1 · run_script</a></li>
+              <li><a href="#req-p2">2 · Serializer</a></li>
+              <li><a href="#req-p3">3 · Design context</a></li>
+              <li><a href="#req-p4">4 · Code Connect</a></li>
+              <li><a href="#req-p5">5 · Libraries</a></li>
+              <li><a href="#req-p6">6 · FigJam</a></li>
+              <li><a href="#req-x">Cross-cutting</a></li>
+            </ul>
+
+            <h3 id="req-p1">Phase 1 — <code>run_script</code></h3>
+            <p class="req-meta">
+              <b>R1–R10</b> · closes Gap 01 and Gap 08 · depends on nothing · planned
+            </p>
+
+            <div class="tablewrap">
+              <table class="reqs">
+                <thead>
+                  <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">Requirement</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>R1</td>
+                    <td>
+                      The bridge exposes an MCP tool <code>run_script</code> taking
+                      <code>code</code> (string) and optional <code>fileKey</code>.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R2</td>
+                    <td>
+                      <code>code</code> executes inside the plugin sandbox with the Plugin API in
+                      scope as <code>figma</code>, supporting top-level <code>await</code> and
+                      top-level <code>return</code>.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R3</td>
+                    <td>
+                      The returned value is JSON-serialized. Figma nodes collapse to
+                      <code>{ id, name, type }</code>; <code>figma.mixed</code> and any other symbol
+                      becomes <code>"mixed"</code>; cycles become <code>"[circular]"</code>.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R4</td>
+                    <td>
+                      Results are bounded: depth 12, 500 array items per array, 200,000 characters
+                      of JSON. Over the character cap, return a flagged truncated preview rather
+                      than an oversized frame.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R5</td>
+                    <td>
+                      Scripts are capped at 100,000 characters, enforced by both the server's Zod
+                      schema and the plugin runner.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R6</td>
+                    <td>
+                      A script that throws returns an MCP error carrying
+                      <code>name: message</code>, not a silent success.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R7</td>
+                    <td>
+                      <code>run_script</code> is rejected in Dev Mode with the same clear message
+                      the other edit tools use.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R8</td>
+                    <td>
+                      The tool description carries the non-obvious sandbox rules: return to output,
+                      load fonts before text mutation, colors are 0–1, fills are read-only arrays,
+                      <code>await figma.setCurrentPageAsync()</code> to switch pages, work
+                      incrementally, and <strong>scripts are not atomic</strong>.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R9</td>
+                    <td>
+                      The follower-to-leader RPC path validates <code>run_script</code> like every
+                      other tool, via <code>rpcInputSchemas</code> and <code>rpcToArgs</code>.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R10</td>
+                    <td>
+                      <code>bun test</code> runs in both <code>server/</code> and
+                      <code>plugin/</code>, and is green.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3 id="req-p2">Phase 2 — Serializer enrichment</h3>
+            <p class="req-meta">
+              <b>R11–R19</b> · closes Gap 02 · depends on R10 · unlocks phases 3 and 4
+            </p>
+            <p>
+              Everything here lands in <code>plugin/src/main/serializer.ts</code> and propagates
+              automatically to <code>get_document</code>, <code>get_node</code>,
+              <code>get_selection</code> and <code>get_design_context</code>, which all serialize
+              through it.
+            </p>
+
+            <div class="tablewrap">
+              <table class="reqs">
+                <thead>
+                  <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">Requirement</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>R11</td>
+                    <td>
+                      <code>serializeNode</code> becomes asynchronous.
+                      <code>manifest.json</code> declares
+                      <code>"documentAccess": "dynamic-page"</code>, under which the synchronous
+                      accessors this phase needs are unavailable — component identity must come from
+                      <code>instance.getMainComponentAsync()</code>, styles from
+                      <code>figma.getStyleByIdAsync()</code>, and variables from
+                      <code>figma.variables.getVariableByIdAsync()</code>. Every call site in
+                      <code>plugin/src/main/code.ts</code> awaits the new signature.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R12</td>
+                    <td>
+                      <code>INSTANCE</code> nodes carry
+                      <code>mainComponent: { id, key, name }</code> plus
+                      <code>componentProperties</code> as a map of property name to
+                      <code>{ type, value }</code>, so an instance of <code>Button/Primary</code> is
+                      recognisable as one.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R13</td>
+                    <td>
+                      <code>COMPONENT</code> and <code>COMPONENT_SET</code> nodes carry
+                      <code>key</code>, and <code>componentPropertyDefinitions</code> is read
+                      <strong>only</strong> from the owning node: the node itself when it is a
+                      <code>COMPONENT_SET</code>, a <code>COMPONENT</code> only when its parent is
+                      not a set, and otherwise the variant's parent set. Reading the getter off a
+                      variant is an error the serializer must not make.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R14</td>
+                    <td>
+                      Every node emits <code>boundVariables</code> resolved to human-readable form —
+                      <code>{ property, variableId, variableName, collectionName }</code> —
+                      including paint-level bindings such as
+                      <code>fills[i].boundVariables.color</code>. A fill bound to
+                      <code>color/brand/primary</code> must not serialize as a bare hex.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R15</td>
+                    <td>
+                      Style references are emitted with resolved names —
+                      <code>fillStyleId</code>, <code>strokeStyleId</code>,
+                      <code>effectStyleId</code>, <code>gridStyleId</code>,
+                      <code>textStyleId</code>, each as <code>{ id, name }</code>. A style id of
+                      <code>figma.mixed</code> serializes as <code>"mixed"</code>, matching R3.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R16</td>
+                    <td>
+                      Layout intent is emitted, not just geometry:
+                      <code>layoutSizingHorizontal</code>, <code>layoutSizingVertical</code>,
+                      <code>layoutGrow</code>, <code>layoutAlign</code>,
+                      <code>layoutPositioning</code>, <code>itemReverseZIndex</code>, and the
+                      <code>minWidth</code> / <code>maxWidth</code> / <code>minHeight</code> /
+                      <code>maxHeight</code> constraints. Without these, hug and fill intent is lost
+                      and an agent emits fixed pixel sizes.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R17</td>
+                    <td>
+                      <code>reactions</code> (prototyping triggers, actions and destinations),
+                      <code>exportSettings</code>, and both <code>absoluteBoundingBox</code> and
+                      <code>absoluteRenderBounds</code> are emitted.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R18</td>
+                    <td>
+                      Dev Mode <code>annotations</code> are emitted verbatim, including their label
+                      and any pinned properties, so designer notes reach the agent.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R19</td>
+                    <td>
+                      Payload discipline: every field added by R12–R18 is
+                      <strong>omitted when absent, empty, or at its default</strong>, and a
+                      regression test asserts that a plain rectangle with no component, variable,
+                      style or annotation serializes to the same shape it does today. Enrichment
+                      must not make <code>get_document</code> unusable on a large page.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3 id="req-p3">Phase 3 — <code>get_design_context</code> v2</h3>
+            <p class="req-meta">
+              <b>R20–R27</b> · closes Gap 03 · depends on R14 and R15 for token and style names
+            </p>
+            <p>
+              This is the tool an agent reaches for first when implementing a design, so it has to
+              answer the whole question in one call.
+            </p>
+
+            <div class="tablewrap">
+              <table class="reqs">
+                <thead>
+                  <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">Requirement</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>R20</td>
+                    <td>
+                      <code>get_design_context</code> accepts an optional <code>nodeId</code>. When
+                      given it serializes that subtree; when omitted it keeps today's behaviour of
+                      using the selection, falling back to the current page.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R21</td>
+                    <td>
+                      The response is a <strong>multi-part MCP result</strong>: a text block
+                      carrying reference code and the token list, plus an <code>image</code> content
+                      block carrying the node's screenshot. Returning a base64 blob inside a text
+                      block, as <code>get_screenshot</code> does today, does not satisfy this.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R22</td>
+                    <td>
+                      Reference-code generation lives in a pure, server-side module under
+                      <code>server/src/codegen/</code> that takes the serialized tree and returns a
+                      string. It must not run inside the plugin sandbox. A
+                      <code>format</code> parameter selects <code>"react"</code> (default),
+                      <code>"html"</code>, <code>"css"</code> or <code>"json"</code>.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R23</td>
+                    <td>
+                      Wherever a node carries a bound variable or a named style (R14, R15), the
+                      generated code references the <strong>token or style name</strong>, not the
+                      resolved hex or pixel value. Raw values appear only where no binding exists.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R24</td>
+                    <td>
+                      Icons and images in the subtree are exported to disk under a caller-supplied
+                      directory and referenced by workspace-relative path — a deliberate divergence
+                      from the official server's ~7-day asset URLs, because local files are
+                      committable. The response must instruct the agent to reference those files
+                      rather than hand-writing <code>&lt;svg&gt;</code> markup it has no vector data
+                      for.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R25</td>
+                    <td>
+                      Once phase 4 lands, hints apply in priority order: Code Connect snippet,
+                      component description, annotation, design token, raw value. The response
+                      states which source it used per node, so the agent can tell a mapped component
+                      from a guessed one.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R26</td>
+                    <td>
+                      The response is bounded by the same discipline as R4 — a
+                      <code>depth</code> parameter, and a documented character cap with flagged
+                      truncation — so a large frame degrades rather than fails.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R27</td>
+                    <td>
+                      Codegen is covered by golden-file tests: a fixture serialized tree in, an
+                      expected code string out, one fixture per <code>format</code>.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3 id="req-p4">Phase 4 — Code Connect</h3>
+            <p class="req-meta">
+              <b>R28–R35</b> · closes Gap 04 · depends on R13 for component property definitions
+            </p>
+            <p>
+              The read direction needs no Figma cloud access at all: the mappings are files in the
+              user's own repository.
+            </p>
+
+            <div class="tablewrap">
+              <table class="reqs">
+                <thead>
+                  <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">Requirement</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>R28</td>
+                    <td>
+                      The server discovers Code Connect files matching
+                      <code>**/*.figma.{ts,tsx,js,jsx}</code> under its working directory. Discovery
+                      is <strong>contained</strong>: a path resolving outside the working directory
+                      is rejected, matching the rule <code>import_html_layers</code> already
+                      enforces.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R29</td>
+                    <td>
+                      Each <code>figma.connect(...)</code> call parses into a mapping record
+                      carrying the Figma file key and node id from the URL argument, the code
+                      component name, its workspace-relative import path, and its declared props
+                      mapping. A file that fails to parse is reported by path and skipped, not
+                      silently dropped.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R30</td>
+                    <td>
+                      <code>get_code_connect_map</code> returns the mappings for a given
+                      <code>fileKey</code>, or for a list of <code>nodeIds</code>, as
+                      <code>{ nodeId, component, source, props }</code>.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R31</td>
+                    <td>
+                      <code>add_code_connect_map</code> <strong>writes a local file</strong> rather
+                      than calling Figma. It takes a node id, a component name and a source path,
+                      and creates or extends the appropriate <code>*.figma.ts</code> file. The tool
+                      description states that the mapping is a workspace file, not a cloud record.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R32</td>
+                    <td>
+                      <code>get_code_connect_suggestions</code> proposes mappings by matching
+                      unmapped component names in the open Figma file against exported component
+                      names in the workspace, returning ranked candidates with the evidence for each
+                      match. It never writes.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R33</td>
+                    <td>
+                      <code>get_context_for_code_connect</code> returns a component's property
+                      definitions and variant axes so a mapping can be authored accurately. Depends
+                      on R13.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R34</td>
+                    <td>
+                      There is <strong>no</strong> <code>send_code_connect_mappings</code>
+                      equivalent. The bridge's substitute is that mappings are files under version
+                      control, and the documentation says so explicitly rather than leaving the
+                      absence unexplained.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R35</td>
+                    <td>
+                      When a node in a <code>get_design_context</code> response has a mapping, the
+                      snippet is surfaced in that response at the priority R25 defines.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3 id="req-p5">Phase 5 — Library reach and identity</h3>
+            <p class="req-meta"><b>R36–R42</b> · closes Gap 05 · depends on R10</p>
+            <p>
+              This is the phase most constrained by what the Plugin API actually exposes, so its
+              requirements are deliberately narrower than the official tools.
+            </p>
+
+            <div class="tablewrap">
+              <table class="reqs">
+                <thead>
+                  <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">Requirement</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>R36</td>
+                    <td>
+                      <code>plugin/manifest.json</code> requests the <code>currentuser</code> and
+                      <code>teamlibrary</code> permissions. The manifest change is user-visible on
+                      plugin import, so the README explains why each is needed.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R37</td>
+                    <td>
+                      <code>whoami</code> returns <code>figma.currentUser</code> as
+                      <code>{ id, name, photoUrl }</code>. <code>figma.currentUser</code> can be
+                      <code>null</code>; the tool returns an explicit “no current user” result
+                      rather than an empty object.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R38</td>
+                    <td>
+                      <code>get_libraries</code> returns available team library variable collections
+                      via
+                      <code>figma.teamLibrary.getAvailableLibraryVariableCollectionsAsync()</code>,
+                      including each collection's library name and key.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R39</td>
+                    <td>
+                      Import-by-key is exposed for the four importable kinds:
+                      <code>figma.importComponentByKeyAsync</code>,
+                      <code>figma.importComponentSetByKeyAsync</code>,
+                      <code>figma.importStyleByKeyAsync</code> and
+                      <code>figma.variables.importVariableByKeyAsync</code>. Each returns the
+                      imported object's id so a following call can place or bind it.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R40</td>
+                    <td>
+                      <code>search_design_system</code> is implemented as a
+                      <strong>narrower</strong> tool than the official one, and its description says
+                      so in the first sentence. The Plugin API has no full-text search across an
+                      organisation's published libraries, so the bridge searches what it can reach:
+                      available library variable collections, and components already present or
+                      instantiated in the connected files. The description must stop an agent
+                      assuming org-wide coverage.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R41</td>
+                    <td>
+                      When a team-library call is refused because the account's plan or permissions
+                      do not allow it, the error names the permission and the plan requirement
+                      rather than surfacing a raw API error.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R42</td>
+                    <td>
+                      Every tool in this phase has unit tests against stubbed
+                      <code>figma.teamLibrary</code> and <code>figma.currentUser</code> objects, so
+                      the suite runs without a Figma session.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3 id="req-p6">Phase 6 — FigJam, Slides and diagrams</h3>
+            <p class="req-meta"><b>R43–R50</b> · closes Gap 06 · depends on R10</p>
+            <p>
+              The bridge is design-file-only today because of one line in the manifest; everything
+              downstream of changing it needs care.
+            </p>
+
+            <div class="tablewrap">
+              <table class="reqs">
+                <thead>
+                  <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">Requirement</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>R43</td>
+                    <td>
+                      <code>plugin/manifest.json</code> declares
+                      <code>"editorType": ["figma", "figjam", "slides", "dev"]</code>.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R44</td>
+                    <td>
+                      The current design-editor gate (<code>EDIT_REQUEST_TYPES</code> plus
+                      <code>requireEditorMode</code>) is replaced by an
+                      <strong>editor-aware capability table</strong>. Node types and APIs differ per
+                      editor — <code>figma.createPage()</code> does not exist in FigJam or Slides,
+                      sticky notes and connectors exist only in FigJam, slide nodes only in Slides —
+                      and a tool unavailable in the current editor is rejected up front with a
+                      message naming the editor it needs.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R45</td>
+                    <td>
+                      FigJam documents serialize <code>STICKY</code>, <code>CONNECTOR</code>,
+                      <code>SHAPE_WITH_TEXT</code>, <code>CODE_BLOCK</code>,
+                      <code>SECTION</code> and <code>TABLE</code> nodes, including connector
+                      endpoints, so a diagram's topology survives the round trip.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R46</td>
+                    <td>
+                      A FigJam write surface covers creating sticky notes, connectors,
+                      shapes-with-text and sections, matching the shape of the existing design write
+                      tools — validated Zod input, <code>fileKey</code> routing, node ids returned.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R47</td>
+                    <td>
+                      Slides support is scoped explicitly: read and screenshot are supported; write
+                      is limited to text and frame content inside existing slides. Creating slide
+                      structure is out of scope for this phase, and the documentation says so.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R48</td>
+                    <td>
+                      <code>generate_diagram</code> accepts Mermaid source and renders it into a
+                      FigJam board. The supported subset is fixed and documented: flowchart,
+                      sequence, entity-relationship, and state diagrams.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R49</td>
+                    <td>
+                      Mermaid input outside the supported subset returns an error naming the diagram
+                      type it received and listing the supported ones. It never renders a partial or
+                      approximate diagram.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R50</td>
+                    <td>
+                      A regression suite proves the design-file behaviour of every existing tool is
+                      unchanged by the manifest and gate changes.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3 id="req-x">Cross-cutting</h3>
+            <p class="req-meta"><b>R51–R55</b> · applies to every tool added by any phase</p>
+
+            <div class="tablewrap">
+              <table class="reqs">
+                <thead>
+                  <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">Requirement</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>R51</td>
+                    <td>
+                      Every new tool registers a Zod schema in <code>toolInputSchemas</code> and a
+                      mapper in <code>rpcToArgs</code>, so the follower-to-leader RPC path validates
+                      it. The <code>Record&lt;ToolName, …&gt;</code> typing makes omitting the
+                      mapper a compile error; do not work around it.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R52</td>
+                    <td>
+                      Every new tool accepts the optional <code>fileKey</code> parameter and routes
+                      through <code>node.sendWithParams</code>, so multi-file workflows keep
+                      working.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R53</td>
+                    <td>
+                      Every new module has unit tests, and <code>bun test</code> stays green in both
+                      <code>server/</code> and <code>plugin/</code>.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R54</td>
+                    <td>
+                      Every new tool is added to the README's tool table, and any behaviour that
+                      diverges from the official server is called out in the Editing Notes.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>R55</td>
+                    <td>
+                      Errors say what to do next, not just what went wrong. “Open the plugin in the
+                      target file and retry” beats “Plugin not connected”; naming the missing
+                      permission beats surfacing the raw API error.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <footer class="colophon">
+            <span>Figma Design Relay</span>
+            <span>Spec · 2026-09-01</span>
+            <span
+              >Source:
+              <code>docs/superpowers/specs/2026-09-01-official-figma-mcp-parity.md</code></span
+            >
+            <span><a href="../index.html">All six plans →</a></span>
+          </footer>
+        </main>
+      </div>
+    </div>
+
+    <script src="../assets/doc.js"></script>
+  </body>
+</html>

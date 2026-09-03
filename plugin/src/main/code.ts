@@ -95,10 +95,10 @@ const getFileKey = (): string => {
   if (!cachedFallbackFileKey) {
     cachedFallbackFileKey = generateFallbackFileKey();
     console.warn(
-      `[figma-mcp-bridge] figma.fileKey unavailable for "${figma.root.name}". ` +
+      `[figma-design-relay] figma.fileKey unavailable for "${figma.root.name}". ` +
         `Using session fallback key "${cachedFallbackFileKey}". ` +
         `If you encounter this in a built plugin, please report at ` +
-        `https://github.com/gethopp/figma-mcp-bridge/issues with steps to reproduce.`
+        `https://github.com/gethopp/figma-design-relay/issues with steps to reproduce.`
     );
   }
   return cachedFallbackFileKey;

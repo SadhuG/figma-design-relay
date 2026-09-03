@@ -2,7 +2,7 @@
   "lockfileVersion": 1,
   "workspaces": {
     "": {
-      "name": "figma-mcp-bridge-plugin",
+      "name": "figma-design-relay-plugin",
       "dependencies": {
         "react": "^18.3.1",
         "react-dom": "^18.3.1",

@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Figma Design Relay — specs &amp; plans</title>
+    <meta
+      name="description"
+      content="Design documents for Figma Design Relay: the parity analysis against Figma's first-party MCP server, and an implementation plan for each of the six phases that close the gap."
+    />
+    <link rel="stylesheet" href="assets/doc.css" />
+  </head>
+  <body data-doc="index">
+    <a class="skip" href="#main">Skip to the documents</a>
+
+    <div class="shell">
+      <header class="masthead">
+        <p class="eyebrow">Figma Design Relay · Design documents</p>
+        <h1>Specs &amp; plans</h1>
+        <p class="standfirst">
+          The written work of turning this plugin bridge into a full replacement for Figma's own MCP
+          server: one spec that measures the gap, and six plans that close it. Every page has a
+          markdown twin beside it — the markdown is what executor agents read, these are what people
+          read.
+        </p>
+
+        <dl class="masthead__meta">
+          <div><b>Spec</b> — 1, with 55 numbered requirements</div>
+          <div><b>Plans</b> — 6, one per phase</div>
+          <div><b>Tasks</b> — 43</div>
+          <div><b>Steps</b> — 290</div>
+        </dl>
+      </header>
+
+      <main id="main">
+        <h2>The measurement</h2>
+        <div class="cards">
+          <a class="card" href="specs/2026-09-01-official-figma-mcp-parity.html">
+            <p class="eyebrow">Spec · 2026-09-01</p>
+            <h2>Can this bridge carry the whole load?</h2>
+            <p>
+              All eighteen first-party tools, surveyed as the hangers of a suspension bridge. Three
+              matched or beaten, two partial, eleven gaps we can close, and two structurally out of
+              reach — plus the six-phase roadmap and every requirement, R1 through R55.
+            </p>
+            <span class="card__more">Read the parity analysis →</span>
+          </a>
+        </div>
+
+        <h2>The work</h2>
+        <div class="cards">
+          <a class="card" href="plans/2026-09-01-run-script-plugin-api-escape-hatch.html">
+            <p class="eyebrow">Phase 1 · R1–R10 · 7 tasks</p>
+            <h2>One tool that carries everything else</h2>
+            <p>
+              A test harness the repository has never had, then <code>run_script</code> — arbitrary
+              Figma Plugin API execution through the bridge. Closes the largest gap by itself.
+            </p>
+            <span class="card__more">Open the plan →</span>
+          </a>
+
+          <a class="card" href="plans/2026-09-01-serializer-enrichment.html">
+            <p class="eyebrow">Phase 2 · R11–R19 · 6 tasks</p>
+            <h2>Serializer enrichment</h2>
+            <p>
+              Component and instance identity, resolved variable and style names, layout intent and
+              annotations — so an agent writes <code>var(--color-brand-primary)</code> instead of a
+              hardcoded hex.
+            </p>
+            <span class="card__more">Open the plan →</span>
+          </a>
+
+          <a class="card" href="plans/2026-09-01-design-context-v2.html">
+            <p class="eyebrow">Phase 3 · R20–R27 · 7 tasks</p>
+            <h2>Design context v2</h2>
+            <p>
+              Reference code, an inline screenshot, the tokens the design actually uses and exported
+              assets on disk — the whole design-to-code question answered in one call.
+            </p>
+            <span class="card__more">Open the plan →</span>
+          </a>
+
+          <a class="card" href="plans/2026-09-01-code-connect.html">
+            <p class="eyebrow">Phase 4 · R28–R35 · 8 tasks</p>
+            <h2>Code Connect, entirely local</h2>
+            <p>
+              Discover and parse the <code>*.figma.ts</code> files already in the repository, map
+              Figma nodes to real components, and surface the mapping where an agent will see it. No
+              Figma cloud access at all.
+            </p>
+            <span class="card__more">Open the plan →</span>
+          </a>
+
+          <a class="card" href="plans/2026-09-01-library-reach.html">
+            <p class="eyebrow">Phase 5 · R36–R42 · 7 tasks</p>
+            <h2>Library reach and identity</h2>
+            <p>
+              Two manifest permissions, published team libraries, import-by-key, and a design-system
+              search that is honest in its first sentence about the reach the Plugin API does not
+              give us.
+            </p>
+            <span class="card__more">Open the plan →</span>
+          </a>
+
+          <a class="card" href="plans/2026-09-01-figjam-slides-diagrams.html">
+            <p class="eyebrow">Phase 6 · R43–R50 · 8 tasks</p>
+            <h2>FigJam, Slides and diagrams</h2>
+            <p>
+              Past design files: an editor capability table, FigJam reads and writes, a documented
+              Slides scope, and Mermaid rendered as a real FigJam diagram — with no regression in
+              design files.
+            </p>
+            <span class="card__more">Open the plan →</span>
+          </a>
+        </div>
+
+        <footer class="colophon">
+          <span>Figma Design Relay</span>
+          <span>Sources live beside each page as <code>.md</code></span>
+          <span
+            >Pages 2–6 are generated by <code>_src/build-plans.mjs</code> from their markdown</span
+          >
+          <span><a href="https://github.com/gethopp/figma-design-relay">Repository</a></span>
+        </footer>
+      </main>
+    </div>
+
+    <script src="assets/doc.js"></script>
+  </body>
+</html>

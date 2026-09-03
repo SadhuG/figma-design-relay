@@ -54,7 +54,7 @@ type PluginStatus = {
 // `||` (not `??`) so an empty build-time value falls back to the default.
 // A custom endpoint must also be listed in manifest.json's
 // networkAccess.allowedDomains or Figma will block the connection.
-const WS_BASE_URL = import.meta.env.VITE_FIGMA_BRIDGE_WS || "ws://localhost:1994/ws";
+const WS_BASE_URL = import.meta.env.VITE_FIGMA_DESIGN_RELAY_WS || "ws://localhost:1994/ws";
 
 export default function App() {
   const [connected, setConnected] = useState(false);
@@ -186,7 +186,7 @@ export default function App() {
           <span className="badge-text">{statusLabel}</span>
         </div>
         <a
-          href="https://www.gethopp.app/?ref=figma-mcp-bridge"
+          href="https://www.gethopp.app/?ref=figma-design-relay"
           target="_blank"
           rel="noopener noreferrer"
           className="branding"

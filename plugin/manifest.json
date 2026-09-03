@@ -1,6 +1,6 @@
 {
-  "name": "Figma MCP Bridge",
-  "id": "figma-mcp-bridge",
+  "name": "Figma Design Relay",
+  "id": "figma-design-relay",
   "api": "1.0.0",
   "main": "dist/code.js",
   "ui": "dist/index.html",
