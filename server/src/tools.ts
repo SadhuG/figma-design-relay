@@ -55,7 +55,7 @@ RULES — violating these is the usual cause of confusing failures:
 
 RESULT SHAPE: \`{ ok: true, value }\` on success, or \`{ ok: true, truncated: true, valuePreview }\` when the serialised value exceeds 200000 characters. Figma nodes in the returned value collapse to \`{ id, name, type }\`; \`figma.mixed\` serialises as "mixed"; cycles become "[circular]". Return ids and read them back rather than returning whole node objects.
 
-LIMITS: 100000 characters of source; results capped at depth 12 and 500 items per array; the bridge times out after 3 minutes. Requires the plugin to be open in Figma's design editor — Dev Mode is read-only and will reject this tool.`;
+LIMITS: 100000 characters of source; results capped at depth 12 and 500 items per array; the relay times out after 3 minutes. Requires the plugin to be open in Figma's design editor — Dev Mode is read-only and will reject this tool.`;
 
 type ToolResult = {
   content: Array<{ type: "text"; text: string }>;

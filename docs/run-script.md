@@ -1,7 +1,7 @@
 # `run_script`
 
 `run_script` executes JavaScript against the [Figma Plugin API](https://developers.figma.com/docs/plugins/api/api-reference/)
-inside whichever file has the bridge plugin open. It is the bridge's escape
+inside whichever file has the relay plugin open. It is the relay's escape
 hatch: the other tools cover common operations with validated inputs, and
 `run_script` covers everything else — components and variants, instances and
 overrides, variables and modes, styles, boolean operations, vector editing,
@@ -44,7 +44,7 @@ other symbol → `"mixed"`; circular references → `"[circular]"`; functions �
 
 - Source: 100000 characters.
 - Result: 200000 characters, depth 12, 500 array items per array.
-- The bridge times out a request after 3 minutes.
+- The relay times out a request after 3 minutes.
 - Design editor only. Dev Mode is read-only and rejects `run_script` up front.
 
 ## Gotchas
