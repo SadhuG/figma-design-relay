@@ -24,6 +24,14 @@ Figma plugin ──ws://localhost:1994/ws──> leader server ──stdio──
 
 **Bun everywhere — never `npm` or `yarn`.**
 
+### Verifying against a real Figma document
+
+`server/.smoke/` drives real tool calls against a live file without touching your MCP client config.
+It runs on **port 1995** — `manifest.json` allows both 1994 and 1995 in
+`networkAccess.allowedDomains` so a test instance can run beside a stock relay. Start
+`node .smoke/hold-leader.mjs` and leave it running, or the plugin has nothing to connect to. See
+`server/.smoke/README.md`.
+
 There is **no `test` script in either package yet**. Phase 1, task 1 adds it (`"test": "bun test"`)
 plus `exclude: ["src/**/*.test.ts"]` in both tsconfigs. Until that lands, `bun run test` fails with
 `Script not found "test"` — that is expected, not a broken checkout.
