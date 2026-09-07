@@ -1,8 +1,9 @@
 import { serializeNode } from "./serializer";
 import { addLayersToFrame } from "../html-figma/figma";
 import { runScript } from "./script-runner";
+import { EDIT_REQUEST_TYPES, requireEditorMode } from "./editor-gate";
 
-type RequestType =
+export type RequestType =
   | "get_document"
   | "get_selection"
   | "get_node"
@@ -331,49 +332,10 @@ const decodeBase64ToBytes = (base64: string): Uint8Array => {
   }
 };
 
-const EDIT_REQUEST_TYPES = new Set<RequestType>([
-  "set_node_visibility",
-  "set_text_content",
-  "set_text_properties",
-  "set_node_properties",
-  "set_solid_fill",
-  "set_gradient_fill",
-  "set_effects",
-  "set_stroke_properties",
-  "set_auto_layout",
-  "create_page",
-  "create_frame",
-  "create_text",
-  "create_shape",
-  "create_image",
-  "import_html_layers",
-  "duplicate_nodes",
-  "reparent_nodes",
-  "group_nodes",
-  "ungroup_node",
-  "delete_nodes",
-  "apply_animation_style",
-  "remove_animation_style",
-  "apply_manual_keyframe_track",
-  "remove_manual_keyframe_track",
-  "set_timeline_duration",
-  "run_script",
-]);
-
-const requireEditorMode = (toolName: RequestType): void => {
-  // Dev Mode is read-only — every figma.create*/setter throws at runtime there,
-  // and the resulting errors are confusing. Reject up front with a clear hint.
-  if (figma.editorType === "dev") {
-    throw new Error(
-      `${toolName} requires the plugin to be opened in Figma's design editor (Dev Mode is read-only). Switch to the design editor and re-run.`
-    );
-  }
-};
-
 const handleRequest = async (request: ServerRequest): Promise<PluginResponse> => {
   try {
     if (EDIT_REQUEST_TYPES.has(request.type)) {
-      requireEditorMode(request.type);
+      requireEditorMode(request.type, figma.editorType);
     }
     switch (request.type) {
       case "get_document":
