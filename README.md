@@ -11,7 +11,7 @@
 
 <br/>
 
-<img src="https://raw.githubusercontent.com/gethopp/figma-design-relay/main/logo.png" alt="Figma Design Relay" align="center" />
+<img src="https://raw.githubusercontent.com/SadhuG/figma-design-relay/main/logo.png" alt="Figma Design Relay" align="center" />
 
 <br/>
 
@@ -50,7 +50,7 @@ That's it — no binaries to download or install.
 
 ### 2. Add the Figma plugin
 
-Download the plugin from the [latest release](https://github.com/gethopp/figma-design-relay/releases) page, then in Figma go to `Plugins > Development > Import plugin from manifest` and select the `manifest.json` file from the `plugin/` folder.
+Download the plugin from the [latest release](https://github.com/SadhuG/figma-design-relay/releases) page, then in Figma go to `Plugins > Development > Import plugin from manifest` and select the `manifest.json` file from the `plugin/` folder.
 
 ### 3. Start using it 🎉
 
@@ -132,7 +132,7 @@ This repo uses [Bun](https://bun.sh) as its package manager and script runner th
 #### 1. Clone this repository locally
 
 ```bash
-git clone git@github.com:gethopp/figma-design-relay.git
+git clone git@github.com:SadhuG/figma-design-relay.git
 ```
 
 #### 2. Install root tooling
