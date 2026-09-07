@@ -1020,6 +1020,28 @@ blockquote p:last-child {
   color: #ff8a6b;
 }
 
+/* A step that shipped, but not by the route the plan wrote down. */
+.deviation {
+  border: 1px solid var(--bronze);
+  background: rgba(196, 138, 74, 0.06);
+  border-radius: 3px;
+  padding: 0.85rem 1rem;
+  margin: 1rem 0 1.25rem;
+  font-size: 0.82rem;
+  line-height: 1.7;
+}
+
+.deviation b {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bronze);
+  font-weight: 400;
+  margin-bottom: 0.4rem;
+}
+
 .done-when {
   border: 1px solid var(--span-dim);
   background: rgba(27, 217, 123, 0.05);
