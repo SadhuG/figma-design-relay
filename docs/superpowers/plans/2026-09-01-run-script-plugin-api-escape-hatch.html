@@ -210,7 +210,7 @@
             <ol class="steps">
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t1s1" />
+                  <input type="checkbox" id="t1s1" checked />
                   <label class="step__label" for="t1s1">Write the failing test</label>
                 </div>
                 <div class="step__body">
@@ -239,7 +239,7 @@ describe("validateRpc", () =&gt; {
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t1s2" />
+                  <input type="checkbox" id="t1s2" checked />
                   <label class="step__label" for="t1s2"
                     >Run it to confirm the harness is not wired up yet</label
                   >
@@ -255,7 +255,7 @@ describe("validateRpc", () =&gt; {
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t1s3" />
+                  <input type="checkbox" id="t1s3" checked />
                   <label class="step__label" for="t1s3"
                     >Add the test script to server/package.json</label
                   >
@@ -271,7 +271,7 @@ describe("validateRpc", () =&gt; {
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t1s4" />
+                  <input type="checkbox" id="t1s4" checked />
                   <label class="step__label" for="t1s4"
                     >Run the tests and make sure they pass</label
                   >
@@ -286,7 +286,7 @@ describe("validateRpc", () =&gt; {
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t1s5" />
+                  <input type="checkbox" id="t1s5" checked />
                   <label class="step__label" for="t1s5"
                     >Keep test files out of the published build</label
                   >
@@ -318,7 +318,7 @@ describe("validateRpc", () =&gt; {
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t1s6" />
+                  <input type="checkbox" id="t1s6" checked />
                   <label class="step__label" for="t1s6"
                     >Verify the build is clean and test-free</label
                   >
@@ -336,7 +336,7 @@ describe("validateRpc", () =&gt; {
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t1s7" />
+                  <input type="checkbox" id="t1s7" checked />
                   <label class="step__label" for="t1s7"
                     >Add the test script to plugin/package.json</label
                   >
@@ -352,7 +352,7 @@ describe("validateRpc", () =&gt; {
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t1s8" />
+                  <input type="checkbox" id="t1s8" checked />
                   <label class="step__label" for="t1s8"
                     >Keep test files out of the plugin's type-check</label
                   >
@@ -386,7 +386,7 @@ describe("validateRpc", () =&gt; {
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t1s9" />
+                  <input type="checkbox" id="t1s9" checked />
                   <label class="step__label" for="t1s9"
                     >Confirm the plugin harness runs and still type-checks</label
                   >
@@ -407,7 +407,7 @@ describe("validateRpc", () =&gt; {
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t1s10" />
+                  <input type="checkbox" id="t1s10" checked />
                   <label class="step__label" for="t1s10">Commit</label>
                 </div>
                 <div class="step__body">
@@ -463,7 +463,7 @@ git commit -m "test: add bun test harness for server and plugin"</code></pre>
             <ol class="steps">
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t2s1" />
+                  <input type="checkbox" id="t2s1" checked />
                   <label class="step__label" for="t2s1">Write the failing test</label>
                 </div>
                 <div class="step__body">
@@ -550,7 +550,7 @@ describe("toJsonSafe", () =&gt; {
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t2s2" />
+                  <input type="checkbox" id="t2s2" checked />
                   <label class="step__label" for="t2s2">Run it to make sure it fails</label>
                 </div>
                 <div class="step__body">
@@ -565,7 +565,7 @@ describe("toJsonSafe", () =&gt; {
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t2s3" />
+                  <input type="checkbox" id="t2s3" checked />
                   <label class="step__label" for="t2s3">Write the implementation</label>
                 </div>
                 <div class="step__body">
@@ -650,7 +650,7 @@ export const toJsonSafe = (value: unknown): unknown =&gt;
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t2s4" />
+                  <input type="checkbox" id="t2s4" checked />
                   <label class="step__label" for="t2s4"
                     >Run the tests and make sure they pass</label
                   >
@@ -666,7 +666,7 @@ export const toJsonSafe = (value: unknown): unknown =&gt;
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t2s5" />
+                  <input type="checkbox" id="t2s5" checked />
                   <label class="step__label" for="t2s5">Commit</label>
                 </div>
                 <div class="step__body">
@@ -742,7 +742,7 @@ git commit -m "feat(plugin): add JSON-safe serializer for script results"</code>
             <ol class="steps">
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t3s1" />
+                  <input type="checkbox" id="t3s1" checked />
                   <label class="step__label" for="t3s1">Write the failing test</label>
                 </div>
                 <div class="step__body">
@@ -820,7 +820,7 @@ describe("runScript", () =&gt; {
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t3s2" />
+                  <input type="checkbox" id="t3s2" checked />
                   <label class="step__label" for="t3s2">Run it to make sure it fails</label>
                 </div>
                 <div class="step__body">
@@ -835,7 +835,7 @@ describe("runScript", () =&gt; {
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t3s3" />
+                  <input type="checkbox" id="t3s3" checked />
                   <label class="step__label" for="t3s3">Write the direct-eval shim</label>
                 </div>
                 <div class="step__body">
@@ -858,7 +858,7 @@ export const evalDirect = (source: string): unknown =&gt; eval(source);</code></
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t3s4" />
+                  <input type="checkbox" id="t3s4" checked />
                   <label class="step__label" for="t3s4">Write the runner</label>
                 </div>
                 <div class="step__body">
@@ -934,7 +934,7 @@ export const runScript = async (
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t3s5" />
+                  <input type="checkbox" id="t3s5" checked />
                   <label class="step__label" for="t3s5"
                     >Run the tests and make sure they pass</label
                   >
@@ -950,7 +950,7 @@ export const runScript = async (
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t3s6" />
+                  <input type="checkbox" id="t3s6" checked />
                   <label class="step__label" for="t3s6">Confirm the plugin still bundles</label>
                 </div>
                 <div class="step__body">
@@ -966,7 +966,7 @@ export const runScript = async (
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t3s7" />
+                  <input type="checkbox" id="t3s7" checked />
                   <label class="step__label" for="t3s7">Commit</label>
                 </div>
                 <div class="step__body">
@@ -1022,7 +1022,7 @@ git commit -m "feat(plugin): add Plugin API script runner"</code></pre>
             <ol class="steps">
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t4s1" />
+                  <input type="checkbox" id="t4s1" checked />
                   <label class="step__label" for="t4s1">Add the import</label>
                 </div>
                 <div class="step__body">
@@ -1034,7 +1034,7 @@ import { runScript } from "./script-runner";</code></pre>
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t4s2" />
+                  <input type="checkbox" id="t4s2" checked />
                   <label class="step__label" for="t4s2"
                     >Add run_script to the RequestType union</label
                   >
@@ -1051,7 +1051,7 @@ import { runScript } from "./script-runner";</code></pre>
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t4s3" />
+                  <input type="checkbox" id="t4s3" checked />
                   <label class="step__label" for="t4s3">Declare the code param</label>
                 </div>
                 <div class="step__body">
@@ -1065,7 +1065,7 @@ import { runScript } from "./script-runner";</code></pre>
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t4s4" />
+                  <input type="checkbox" id="t4s4" checked />
                   <label class="step__label" for="t4s4"
                     >Gate it behind the design-editor check</label
                   >
@@ -1084,7 +1084,7 @@ import { runScript } from "./script-runner";</code></pre>
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t4s5" />
+                  <input type="checkbox" id="t4s5" checked />
                   <label class="step__label" for="t4s5">Add the switch case</label>
                 </div>
                 <div class="step__body">
@@ -1115,7 +1115,7 @@ import { runScript } from "./script-runner";</code></pre>
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t4s6" />
+                  <input type="checkbox" id="t4s6" checked />
                   <label class="step__label" for="t4s6"
                     >Verify the plugin type-checks and builds</label
                   >
@@ -1135,7 +1135,7 @@ import { runScript } from "./script-runner";</code></pre>
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t4s7" />
+                  <input type="checkbox" id="t4s7" checked />
                   <label class="step__label" for="t4s7">Verify the existing tests still pass</label>
                 </div>
                 <div class="step__body">
@@ -1149,7 +1149,7 @@ import { runScript } from "./script-runner";</code></pre>
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t4s8" />
+                  <input type="checkbox" id="t4s8" checked />
                   <label class="step__label" for="t4s8">Commit</label>
                 </div>
                 <div class="step__body">
@@ -1206,7 +1206,7 @@ git commit -m "feat(plugin): dispatch run_script requests to the script runner"<
             <ol class="steps">
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t5s1" />
+                  <input type="checkbox" id="t5s1" checked />
                   <label class="step__label" for="t5s1">Write the failing test</label>
                 </div>
                 <div class="step__body">
@@ -1242,7 +1242,7 @@ git commit -m "feat(plugin): dispatch run_script requests to the script runner"<
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t5s2" />
+                  <input type="checkbox" id="t5s2" checked />
                   <label class="step__label" for="t5s2">Run it to make sure it fails</label>
                 </div>
                 <div class="step__body">
@@ -1257,7 +1257,7 @@ git commit -m "feat(plugin): dispatch run_script requests to the script runner"<
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t5s3" />
+                  <input type="checkbox" id="t5s3" checked />
                   <label class="step__label" for="t5s3">Add the input schema</label>
                 </div>
                 <div class="step__body">
@@ -1280,7 +1280,7 @@ git commit -m "feat(plugin): dispatch run_script requests to the script runner"<
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t5s4" />
+                  <input type="checkbox" id="t5s4" checked />
                   <label class="step__label" for="t5s4">Add the RPC argument mapper</label>
                 </div>
                 <div class="step__body">
@@ -1296,7 +1296,7 @@ git commit -m "feat(plugin): dispatch run_script requests to the script runner"<
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t5s5" />
+                  <input type="checkbox" id="t5s5" checked />
                   <label class="step__label" for="t5s5"
                     >Run the tests and make sure they pass</label
                   >
@@ -1311,7 +1311,7 @@ git commit -m "feat(plugin): dispatch run_script requests to the script runner"<
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t5s6" />
+                  <input type="checkbox" id="t5s6" checked />
                   <label class="step__label" for="t5s6">Verify the server type-checks</label>
                 </div>
                 <div class="step__body">
@@ -1324,7 +1324,7 @@ git commit -m "feat(plugin): dispatch run_script requests to the script runner"<
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t5s7" />
+                  <input type="checkbox" id="t5s7" checked />
                   <label class="step__label" for="t5s7">Commit</label>
                 </div>
                 <div class="step__body">
@@ -1378,7 +1378,7 @@ git commit -m "feat(server): validate run_script on the MCP and RPC paths"</code
             <ol class="steps">
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t6s1" />
+                  <input type="checkbox" id="t6s1" checked />
                   <label class="step__label" for="t6s1">Add the description constant</label>
                 </div>
                 <div class="step__body">
@@ -1406,7 +1406,7 @@ LIMITS: 100000 characters of source; results capped at depth 12 and 500 items pe
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t6s2" />
+                  <input type="checkbox" id="t6s2" checked />
                   <label class="step__label" for="t6s2">Register the tool</label>
                 </div>
                 <div class="step__body">
@@ -1427,7 +1427,7 @@ LIMITS: 100000 characters of source; results capped at depth 12 and 500 items pe
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t6s3" />
+                  <input type="checkbox" id="t6s3" checked />
                   <label class="step__label" for="t6s3">Verify the server builds</label>
                 </div>
                 <div class="step__body">
@@ -1440,7 +1440,7 @@ LIMITS: 100000 characters of source; results capped at depth 12 and 500 items pe
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t6s4" />
+                  <input type="checkbox" id="t6s4" checked />
                   <label class="step__label" for="t6s4"
                     >Verify the tool is advertised over MCP</label
                   >
@@ -1461,7 +1461,7 @@ printf '%s\n%s\n' \
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t6s5" />
+                  <input type="checkbox" id="t6s5" checked />
                   <label class="step__label" for="t6s5">Commit</label>
                 </div>
                 <div class="step__body">
@@ -1514,7 +1514,7 @@ git commit -m "feat(server): register the run_script MCP tool"</code></pre>
             <ol class="steps">
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t7s1" />
+                  <input type="checkbox" id="t7s1" checked />
                   <label class="step__label" for="t7s1"
                     >Build both halves and load the plugin</label
                   >
@@ -1533,7 +1533,7 @@ cd ../plugin &amp;&amp; bun run build</code></pre>
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t7s2" />
+                  <input type="checkbox" id="t7s2" checked />
                   <label class="step__label" for="t7s2"
                     >Prove figma resolves inside evaluated code</label
                   >
@@ -1563,7 +1563,7 @@ cd ../plugin &amp;&amp; bun run build</code></pre>
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t7s3" />
+                  <input type="checkbox" id="t7s3" checked />
                   <label class="step__label" for="t7s3"
                     >Prove a write works and ids come back</label
                   >
@@ -1585,7 +1585,7 @@ return { createdNodeIds: [frame.id] };</code></pre>
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t7s4" />
+                  <input type="checkbox" id="t7s4" checked />
                   <label class="step__label" for="t7s4">Prove the error path</label>
                 </div>
                 <div class="step__body">
@@ -1600,7 +1600,7 @@ return { createdNodeIds: [frame.id] };</code></pre>
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t7s5" />
+                  <input type="checkbox" id="t7s5" checked />
                   <label class="step__label" for="t7s5">Prove the Dev Mode gate</label>
                 </div>
                 <div class="step__body">
@@ -1615,12 +1615,31 @@ return { createdNodeIds: [frame.id] };</code></pre>
                       Mode is read-only). Switch to the design editor and re-run.</code
                     >
                   </p>
+                  <div class="deviation">
+                    <b>Done differently</b>
+                    <p>
+                      Dev Mode needs a paid Figma seat, which this project does not have. The gate
+                      was extracted into <code>plugin/src/main/editor-gate.ts</code>, taking
+                      <code>editorType</code> as a parameter rather than reading
+                      <code>figma.editorType</code>, and covered by
+                      <code>editor-gate.test.ts</code> — the rejection message, the design-editor
+                      pass-through, <code>run_script</code>'s membership in the gated set, and the
+                      fact that FigJam and Slides are not gated.
+                    </p>
+                    <p>
+                      That a thrown error reaches the agent as an MCP error result is proven
+                      separately by Step 4, which travels the same
+                      <code>try</code>/<code>catch</code>. The one claim no test reaches is that
+                      Figma reports <code>editorType === "dev"</code> in Dev Mode; the 25 write
+                      tools already in the gated set ship on that same assumption.
+                    </p>
+                  </div>
                 </div>
               </li>
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t7s6" />
+                  <input type="checkbox" id="t7s6" checked />
                   <label class="step__label" for="t7s6">Clean up the smoke-test frame</label>
                 </div>
                 <div class="step__body">
@@ -1632,7 +1651,7 @@ return { removed: "&lt;id from step 3&gt;" };</code></pre>
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t7s7" />
+                  <input type="checkbox" id="t7s7" checked />
                   <label class="step__label" for="t7s7">Write the long-form guide</label>
                 </div>
                 <div class="step__body">
@@ -1686,7 +1705,7 @@ nothing; ids let the next call address the same nodes.</code></pre>
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t7s8" />
+                  <input type="checkbox" id="t7s8" checked />
                   <label class="step__label" for="t7s8">Add run_script to the README table</label>
                 </div>
                 <div class="step__body">
@@ -1697,7 +1716,7 @@ nothing; ids let the next call address the same nodes.</code></pre>
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t7s9" />
+                  <input type="checkbox" id="t7s9" checked />
                   <label class="step__label" for="t7s9"
                     >Document the caveats under Editing Notes</label
                   >
@@ -1715,7 +1734,7 @@ nothing; ids let the next call address the same nodes.</code></pre>
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t7s10" />
+                  <input type="checkbox" id="t7s10" checked />
                   <label class="step__label" for="t7s10"
                     >Format, and run everything one more time</label
                   >
@@ -1733,7 +1752,7 @@ cd ../plugin &amp;&amp; bun run test &amp;&amp; bun run build</code></pre>
 
               <li class="step">
                 <div class="step__top">
-                  <input type="checkbox" id="t7s11" />
+                  <input type="checkbox" id="t7s11" checked />
                   <label class="step__label" for="t7s11">Commit</label>
                 </div>
                 <div class="step__body">

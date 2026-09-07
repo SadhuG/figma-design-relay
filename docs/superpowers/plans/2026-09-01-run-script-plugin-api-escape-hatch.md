@@ -40,7 +40,7 @@ The repo has no test runner and no tests. Everything downstream is TDD, so this 
 - Consumes: `validateRpc(tool, nodeIds?, params?)` from `server/src/schema.ts`, already exported, returning `{ error: string | null; params?: Record<string, unknown> }`.
 - Produces: a working `bun test` in `server/` and `plugin/`. Every later task writes its tests against this harness.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `server/src/schema.test.ts`:
 
@@ -66,12 +66,12 @@ describe("validateRpc", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to confirm the harness is not wired up yet**
+- [x] **Step 2: Run it to confirm the harness is not wired up yet**
 
 Run: `cd server && bun run test`
 Expected: FAIL — `error: Script not found "test"` (the script does not exist yet).
 
-- [ ] **Step 3: Add the `test` script to `server/package.json`**
+- [x] **Step 3: Add the `test` script to `server/package.json`**
 
 In the `"scripts"` object, add `"test"` beside the existing `"build"`:
 
@@ -83,12 +83,12 @@ In the `"scripts"` object, add `"test"` beside the existing `"build"`:
   },
 ```
 
-- [ ] **Step 4: Run the tests and make sure they pass**
+- [x] **Step 4: Run the tests and make sure they pass**
 
 Run: `cd server && bun run test`
 Expected: PASS — 3 pass, 0 fail.
 
-- [ ] **Step 5: Keep test files out of the published build**
+- [x] **Step 5: Keep test files out of the published build**
 
 `server/tsconfig.json` has `"include": ["src/**/*"]`, so `tsc` would compile `schema.test.ts` into `dist/` and ship it on npm. Add an `exclude` alongside `include`:
 
@@ -111,12 +111,12 @@ Expected: PASS — 3 pass, 0 fail.
 }
 ```
 
-- [ ] **Step 6: Verify the build is clean and test-free**
+- [x] **Step 6: Verify the build is clean and test-free**
 
 Run: `cd server && bun run build && ls dist`
 Expected: PASS — `dist/` contains `index.js`, `schema.js`, `tools.js`, … and **no** `schema.test.js`.
 
-- [ ] **Step 7: Add the `test` script to `plugin/package.json`**
+- [x] **Step 7: Add the `test` script to `plugin/package.json`**
 
 Later tasks put their tests in `plugin/src/main/`. Add `"test"` to the plugin's `"scripts"`:
 
@@ -128,7 +128,7 @@ Later tasks put their tests in `plugin/src/main/`. Add `"test"` to the plugin's 
   },
 ```
 
-- [ ] **Step 8: Keep test files out of the plugin's type-check**
+- [x] **Step 8: Keep test files out of the plugin's type-check**
 
 `plugin/tsconfig.json` sets `"types": ["@figma/plugin-typings"]`, which loads _only_ those ambient types — so `import ... from "bun:test"` in a file under `src` makes `tsc --noEmit` fail with `Cannot find module 'bun:test'`. Bun type-checks nothing at test time, so the fix is to exclude test files from `tsc`:
 
@@ -150,12 +150,12 @@ Later tasks put their tests in `plugin/src/main/`. Add `"test"` to the plugin's 
 }
 ```
 
-- [ ] **Step 9: Confirm the plugin harness runs and still type-checks**
+- [x] **Step 9: Confirm the plugin harness runs and still type-checks**
 
 Run: `cd plugin && bun run test && bunx tsc --noEmit -p tsconfig.json`
 Expected: PASS — `0 pass, 0 fail` with no error about a missing `test` script, and no `tsc` output. (Bun exits 0 when it finds no test files.)
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add server/package.json server/tsconfig.json server/src/schema.test.ts plugin/package.json plugin/tsconfig.json
@@ -184,7 +184,7 @@ Implements spec requirements **R3** and the depth/array halves of **R4**.
 
   Task 3 imports `toJsonSafe` from `./script-result`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `plugin/src/main/script-result.test.ts`:
 
@@ -268,12 +268,12 @@ describe("toJsonSafe", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `cd plugin && bun test src/main/script-result.test.ts`
 Expected: FAIL — `Cannot find module './script-result'`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `plugin/src/main/script-result.ts`:
 
@@ -355,12 +355,12 @@ export const toJsonSafe = (value: unknown): unknown =>
   toJsonSafeInner(value, 0, new WeakSet<object>());
 ```
 
-- [ ] **Step 4: Run the tests and make sure they pass**
+- [x] **Step 4: Run the tests and make sure they pass**
 
 Run: `cd plugin && bun test src/main/script-result.test.ts`
 Expected: PASS — 9 pass, 0 fail.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add plugin/src/main/script-result.ts plugin/src/main/script-result.test.ts
@@ -402,7 +402,7 @@ Implements spec requirements **R2**, **R5**, **R6**, and the character-cap half 
 
   The optional `evaluate` parameter exists so tests can inject an evaluator; production callers pass nothing and get `evalDirect`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `plugin/src/main/script-runner.test.ts`:
 
@@ -473,12 +473,12 @@ describe("runScript", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `cd plugin && bun test src/main/script-runner.test.ts`
 Expected: FAIL — `Cannot find module './script-runner'`.
 
-- [ ] **Step 3: Write the direct-eval shim**
+- [x] **Step 3: Write the direct-eval shim**
 
 Create `plugin/src/main/eval-direct.ts`:
 
@@ -498,7 +498,7 @@ Create `plugin/src/main/eval-direct.ts`:
 export const evalDirect = (source: string): unknown => eval(source);
 ```
 
-- [ ] **Step 4: Write the runner**
+- [x] **Step 4: Write the runner**
 
 Create `plugin/src/main/script-runner.ts`:
 
@@ -571,17 +571,17 @@ export const runScript = async (
 };
 ```
 
-- [ ] **Step 5: Run the tests and make sure they pass**
+- [x] **Step 5: Run the tests and make sure they pass**
 
 Run: `cd plugin && bun test src/main/script-runner.test.ts`
 Expected: PASS — 10 pass, 0 fail.
 
-- [ ] **Step 6: Confirm the plugin still bundles**
+- [x] **Step 6: Confirm the plugin still bundles**
 
 Run: `cd plugin && bun run build`
 Expected: PASS. A build **warning** mentioning direct `eval` (e.g. `Using direct eval with a bundler is not recommended`) is expected and acceptable — it is why `eval-direct.ts` is isolated. A build _error_ is not; stop and read it.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add plugin/src/main/eval-direct.ts plugin/src/main/script-runner.ts plugin/src/main/script-runner.test.ts
@@ -605,7 +605,7 @@ Implements spec requirements **R6** (errors surface on the error channel) and **
 - Consumes: `runScript` from `./script-runner` (Task 3).
 - Produces: the plugin now answers a bridge request of `type: "run_script"` with `params: { code: string }`, replying with `data: ScriptOutcome` on success and the standard `error` field on failure. Task 6's server tool relies on exactly this shape.
 
-- [ ] **Step 1: Add the import**
+- [x] **Step 1: Add the import**
 
 At the top of `plugin/src/main/code.ts`, beside the existing imports:
 
@@ -615,7 +615,7 @@ import { addLayersToFrame } from "../html-figma/figma";
 import { runScript } from "./script-runner";
 ```
 
-- [ ] **Step 2: Add `run_script` to the `RequestType` union**
+- [x] **Step 2: Add `run_script` to the `RequestType` union**
 
 Append a member to the union that ends at `| "set_timeline_duration";`:
 
@@ -624,7 +624,7 @@ Append a member to the union that ends at `| "set_timeline_duration";`:
   | "run_script";
 ```
 
-- [ ] **Step 3: Declare the `code` param**
+- [x] **Step 3: Declare the `code` param**
 
 In the `ServerRequestParams` type, add `code` beside the existing optional fields:
 
@@ -635,7 +635,7 @@ In the `ServerRequestParams` type, add `code` beside the existing optional field
 };
 ```
 
-- [ ] **Step 4: Gate it behind the design-editor check**
+- [x] **Step 4: Gate it behind the design-editor check**
 
 Add `"run_script"` to the `EDIT_REQUEST_TYPES` set (after `"set_timeline_duration"`):
 
@@ -647,7 +647,7 @@ Add `"run_script"` to the `EDIT_REQUEST_TYPES` set (after `"set_timeline_duratio
 
 Scripts can mutate, and Dev Mode is read-only, so `run_script` gets the same up-front rejection as every other write tool rather than a confusing runtime failure from inside the evaluated code.
 
-- [ ] **Step 5: Add the switch case**
+- [x] **Step 5: Add the switch case**
 
 In `handleRequest`, immediately before the `default:` branch:
 
@@ -672,17 +672,17 @@ In `handleRequest`, immediately before the `default:` branch:
       }
 ```
 
-- [ ] **Step 6: Verify the plugin type-checks and builds**
+- [x] **Step 6: Verify the plugin type-checks and builds**
 
 Run: `cd plugin && bunx tsc --noEmit -p tsconfig.json && bun run build`
 Expected: PASS (the direct-`eval` bundler warning from Task 3 is still fine).
 
-- [ ] **Step 7: Verify the existing tests still pass**
+- [x] **Step 7: Verify the existing tests still pass**
 
 Run: `cd plugin && bun run test`
 Expected: PASS — 19 pass, 0 fail (9 from Task 2, 10 from Task 3).
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add plugin/src/main/code.ts
@@ -707,7 +707,7 @@ Implements spec requirements **R1**, **R5** (server-side half) and **R9**.
 - Consumes: `fileKeyField` (already defined in `schema.ts`), `validateRpc`.
 - Produces: `toolInputSchemas.run_script`, a Zod object with `.shape` `{ code, fileKey }`. Task 6 registers the MCP tool with `toolInputSchemas.run_script.shape` and destructures `{ code, fileKey }`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `server/src/schema.test.ts`:
 
@@ -740,12 +740,12 @@ describe("validateRpc run_script", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `cd server && bun run test`
 Expected: FAIL — `run_script` is not in `rpcInputSchemas`, so `validateRpc` returns `{ error: null }` for every case and the three "rejects" tests fail.
 
-- [ ] **Step 3: Add the input schema**
+- [x] **Step 3: Add the input schema**
 
 In `server/src/schema.ts`, inside `toolInputSchemas`, add the entry after the last existing one and before the closing `} as const;`:
 
@@ -762,7 +762,7 @@ In `server/src/schema.ts`, inside `toolInputSchemas`, add the entry after the la
   }),
 ```
 
-- [ ] **Step 4: Add the RPC argument mapper**
+- [x] **Step 4: Add the RPC argument mapper**
 
 In the `rpcToArgs` map, add the matching entry (order does not matter; put it after `set_timeline_duration`). `run_script` carries no node IDs, so the mapper just forwards `params`:
 
@@ -772,17 +772,17 @@ In the `rpcToArgs` map, add the matching entry (order does not matter; put it af
 };
 ```
 
-- [ ] **Step 5: Run the tests and make sure they pass**
+- [x] **Step 5: Run the tests and make sure they pass**
 
 Run: `cd server && bun run test`
 Expected: PASS — 8 pass, 0 fail.
 
-- [ ] **Step 6: Verify the server type-checks**
+- [x] **Step 6: Verify the server type-checks**
 
 Run: `cd server && bun run build`
 Expected: PASS with no `tsc` errors.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add server/src/schema.ts server/src/schema.test.ts
@@ -806,7 +806,7 @@ Implements spec requirements **R1** and **R8**.
 - Consumes: `toolInputSchemas.run_script` (Task 5); `node.sendWithParams(requestType, nodeIds?, params?, fileKey?)` from `server/src/node.ts`; the existing module-private `renderResponse(fn)` helper.
 - Produces: the `run_script` MCP tool. Nothing later in this plan consumes it.
 
-- [ ] **Step 1: Add the description constant**
+- [x] **Step 1: Add the description constant**
 
 In `server/src/tools.ts`, after the existing constants near the top of the module:
 
@@ -831,7 +831,7 @@ RESULT SHAPE: \`{ ok: true, value }\` on success, or \`{ ok: true, truncated: tr
 LIMITS: 100000 characters of source; results capped at depth 12 and 500 items per array; the bridge times out after 3 minutes. Requires the plugin to be open in Figma's design editor — Dev Mode is read-only and will reject this tool.`;
 ```
 
-- [ ] **Step 2: Register the tool**
+- [x] **Step 2: Register the tool**
 
 Inside `registerTools`, after the last existing `server.tool(...)` call:
 
@@ -846,12 +846,12 @@ server.tool(
 );
 ```
 
-- [ ] **Step 3: Verify the server builds**
+- [x] **Step 3: Verify the server builds**
 
 Run: `cd server && bun run build`
 Expected: PASS with no `tsc` errors.
 
-- [ ] **Step 4: Verify the tool is advertised over MCP**
+- [x] **Step 4: Verify the tool is advertised over MCP**
 
 Start the built server and ask it for its tool list over stdio:
 
@@ -865,7 +865,7 @@ printf '%s\n%s\n' \
 
 Expected: prints `"name":"run_script"`. If it prints nothing, the registration did not take — do not proceed.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/tools.ts
@@ -888,7 +888,7 @@ Everything so far is verified by unit tests and a stdio probe. Nothing has yet p
 - Consumes: the shipped `run_script` tool.
 - Produces: documentation only.
 
-- [ ] **Step 1: Build both halves and load the plugin**
+- [x] **Step 1: Build both halves and load the plugin**
 
 ```bash
 cd server && bun run build
@@ -897,7 +897,7 @@ cd ../plugin && bun run build
 
 Then in Figma: `Plugins > Development > Import plugin from manifest`, select `plugin/manifest.json`, open a **design** file (`figma.com/design/...`), and run the plugin. Point your MCP client at `node /path/to/figma-design-relay/server/dist/index.js`.
 
-- [ ] **Step 2: Prove `figma` resolves inside evaluated code**
+- [x] **Step 2: Prove `figma` resolves inside evaluated code**
 
 Call `run_script` with:
 
@@ -909,7 +909,7 @@ Expected: `{ ok: true, value: { file: "<your file name>", page: "Page 1", editor
 
 If this returns `ReferenceError: figma is not defined`, the sandbox is not resolving the global through the direct eval. **Stop.** The fallback is to move evaluation into a `new Function("figma", ...)` call that passes `figma` in explicitly; if `new Function` is also blocked, the feature is not deliverable as designed and the spec needs revisiting.
 
-- [ ] **Step 3: Prove a write works and ids come back**
+- [x] **Step 3: Prove a write works and ids come back**
 
 ```js
 const frame = figma.createFrame();
@@ -923,7 +923,7 @@ return { createdNodeIds: [frame.id] };
 
 Expected: a 200x120 frame appears on the canvas, and the result is `{ ok: true, value: { createdNodeIds: ["<id>"] } }`.
 
-- [ ] **Step 4: Prove the error path**
+- [x] **Step 4: Prove the error path**
 
 ```js
 return figma.getNodeById("definitely-not-a-node").name;
@@ -931,12 +931,21 @@ return figma.getNodeById("definitely-not-a-node").name;
 
 Expected: an MCP **error** result whose text is a `TypeError`/`Error` message — not a successful result containing a failure.
 
-- [ ] **Step 5: Prove the Dev Mode gate**
+- [x] **Step 5: Prove the Dev Mode gate**
 
 Switch the same file to Dev Mode, re-run the plugin, and call `run_script` with `return 1`.
 Expected: an error reading `run_script requires the plugin to be opened in Figma's design editor (Dev Mode is read-only). Switch to the design editor and re-run.`
 
-- [ ] **Step 6: Clean up the smoke-test frame**
+**Done differently: Dev Mode needs a paid Figma seat, which this project does not have.** The gate
+was instead extracted into `plugin/src/main/editor-gate.ts`, taking `editorType` as a parameter
+rather than reading `figma.editorType`, and covered by `editor-gate.test.ts` — the rejection message,
+the design-editor pass-through, `run_script`'s membership in the gated set, and the fact that FigJam
+and Slides are not gated. That the thrown error reaches the agent as an MCP error result is proven
+separately by Step 4, which travels the same `try`/`catch`. The one claim no test reaches is that
+Figma reports `editorType === "dev"` in Dev Mode; the 25 write tools already in the gated set ship on
+that same assumption.
+
+- [x] **Step 6: Clean up the smoke-test frame**
 
 Call `run_script` with (substituting the id from Step 3):
 
@@ -946,7 +955,7 @@ if (node) node.remove();
 return { removed: "<id from step 3>" };
 ```
 
-- [ ] **Step 7: Write the long-form guide**
+- [x] **Step 7: Write the long-form guide**
 
 Create `docs/run-script.md`:
 
@@ -1039,7 +1048,7 @@ clean up what was half-created, and only then retry. Do not blindly re-run — t
 is how you end up with duplicates.
 ````
 
-- [ ] **Step 8: Add `run_script` to the README**
+- [x] **Step 8: Add `run_script` to the README**
 
 In `README.md`, add a row to the Available Tools table immediately after the `delete_nodes` row:
 
@@ -1047,7 +1056,7 @@ In `README.md`, add a row to the Available Tools table immediately after the `de
 | `run_script` | Execute JavaScript against the Figma Plugin API — the escape hatch for anything the other tools do not cover ([guide](docs/run-script.md)) |
 ```
 
-- [ ] **Step 9: Document the caveats under Editing Notes**
+- [x] **Step 9: Document the caveats under Editing Notes**
 
 In `README.md`, append to the Editing Notes bullet list:
 
@@ -1055,7 +1064,7 @@ In `README.md`, append to the Editing Notes bullet list:
 - `run_script` executes agent-authored JavaScript with the full Plugin API in scope. It is the escape hatch for components, variables, styles, boolean operations, prototyping, and any other API the dedicated tools do not cover. Unlike the dedicated tools it is **not atomic** — a script that throws part-way leaves its earlier mutations in the file, because the Plugin API has no rollback. See [docs/run-script.md](docs/run-script.md) for the full contract, limits, and gotchas.
 ```
 
-- [ ] **Step 10: Format, and run everything one more time**
+- [x] **Step 10: Format, and run everything one more time**
 
 ```bash
 bun run format
@@ -1065,7 +1074,7 @@ cd ../plugin && bun run test && bun run build
 
 Expected: Prettier reports no remaining changes on a second run; server tests 8 pass; plugin tests 19 pass; both builds succeed.
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add README.md docs/run-script.md
