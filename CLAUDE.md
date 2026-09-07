@@ -55,8 +55,10 @@ plugin/src/
 - `server/src/schema.ts:989` — `validateRpc`, the follower→leader guard.
 - `server/src/tools.ts:92` — `registerTools`; `:662` — `renderResponse`, the shared handler wrapper
   that turns a `BridgeResponse.error` into an MCP error result.
-- `plugin/src/main/code.ts:331` — `EDIT_REQUEST_TYPES`; `:359` — `requireEditorMode`. Phase 6
-  replaces both with a capability table.
+- `plugin/src/main/editor-gate.ts:7` — `EDIT_REQUEST_TYPES`; `:43` — `requireEditorMode`, which
+  takes `editorType` as a parameter rather than reading `figma.editorType`, so the Dev Mode gate is
+  unit-testable. Dispatch calls both at `plugin/src/main/code.ts:337`. Phase 6 replaces the pair with
+  a capability table.
 - `plugin/src/main/serializer.ts:349` — `serializeNode`. Phase 2 makes it async.
 
 ## The plan set
@@ -112,7 +114,9 @@ Use `superpowers:subagent-driven-development` or `superpowers:executing-plans` t
   `realpath`. `import_html_layers` and `save_screenshots` already do this; every new file-touching
   tool must too.
 - **Dev Mode is read-only.** Write tools are rejected up front rather than failing at runtime. Phase 6
-  generalises this to a per-editor capability table.
+  generalises this to a per-editor capability table. **Dev Mode needs a paid Figma seat, which this
+  project does not have**, so the gate cannot be exercised by hand — verify it with
+  `plugin/src/main/editor-gate.test.ts` instead, and do not budget a manual Dev Mode step in a plan.
 - **Scripts are not atomic.** The Plugin API has no rollback, so a `run_script` that throws part-way
   leaves its earlier mutations. Say so in docs; do not paper over it.
 - The bridge times out a request after **180 seconds**.
