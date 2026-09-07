@@ -6,7 +6,7 @@
   "ui": "dist/index.html",
   "permissions": [],
   "networkAccess": {
-    "allowedDomains": ["ws://localhost:1994"],
+    "allowedDomains": ["ws://localhost:1994", "ws://localhost:1995"],
     "reasoning": "Connects to local MCP server via WebSocket to stream Figma document data to AI tools"
   },
   "documentAccess": "dynamic-page",
