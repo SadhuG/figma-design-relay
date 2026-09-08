@@ -46,10 +46,11 @@ Prefer a dedicated tool when one exists (create_frame, set_auto_layout, get_scre
 RULES — violating these is the usual cause of confusing failures:
 - \`return\` is your only output channel. console.log is discarded. Always return the ids of every node you create or mutate, e.g. \`return { createdNodeIds: [...], mutatedNodeIds: [...] }\`.
 - Top-level \`await\` and \`return\` are supported. Do NOT wrap your code in an async IIFE, and do NOT call figma.closePlugin().
+- The plugin runs with \`documentAccess: "dynamic-page"\`, so the SYNCHRONOUS lookups throw. Use \`await figma.getNodeByIdAsync(id)\`, \`await instance.getMainComponentAsync()\`, \`await figma.getStyleByIdAsync(id)\`, \`await figma.variables.getVariableByIdAsync(id)\`, and \`await page.loadAsync()\` before reading a page other than the current one.
 - Colors are 0-1, not 0-255: \`{ r: 1, g: 0, b: 0 }\` is red.
 - \`fills\`/\`strokes\` are read-only arrays — clone, modify, then reassign the whole array.
 - Before touching a text node (characters, appendChild, setBoundVariable), load its fonts: read \`node.getStyledTextSegments(['fontName'])\` and \`await figma.loadFontAsync(...)\` each one. Skipping this throws "Cannot write to node with unloaded font".
-- Switch pages with \`await figma.setCurrentPageAsync(page)\`. The sync setter throws. Page context resets to the first page on every call.
+- Switch pages with \`await figma.setCurrentPageAsync(page)\`. The sync setter throws. The switch PERSISTS: the plugin is one long-lived session, so the page you leave current stays current for every later call — including get_document, get_selection and get_screenshot — and it moves the user's viewport. Switch back when you are done, or read other pages with \`await page.loadAsync()\` and leave the current page alone.
 - \`await\` every promise. An unawaited \`loadFontAsync\` or \`setCurrentPageAsync\` fails silently.
 - Work incrementally: several small scripts that you validate between beat one large one.
 - SCRIPTS ARE NOT ATOMIC. The Plugin API has no rollback, so a script that throws halfway leaves its earlier mutations in the file. On an error, read the message, inspect the current state, and clean up before retrying — do not blindly re-run.

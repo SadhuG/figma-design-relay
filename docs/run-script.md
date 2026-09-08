@@ -49,6 +49,13 @@ other symbol → `"mixed"`; circular references → `"[circular]"`; functions �
 
 ## Gotchas
 
+- **The synchronous lookups throw.** The plugin declares
+  `documentAccess: "dynamic-page"` in its manifest, so `figma.getNodeById`,
+  `instance.mainComponent`, `figma.getStyleById` and
+  `figma.variables.getVariableById` all raise rather than returning a value.
+  Reach for the async form of each — `getNodeByIdAsync`,
+  `getMainComponentAsync()`, `getStyleByIdAsync`, `getVariableByIdAsync` — and
+  call `await page.loadAsync()` before walking a page that is not current.
 - **Colors are 0-1**, not 0-255. `{ r: 1, g: 0, b: 0 }` is red.
 - **`fills` and `strokes` are read-only arrays.** Clone, modify, reassign:
   ```js
@@ -67,8 +74,12 @@ other symbol → `"mixed"`; circular references → `"[circular]"`; functions �
   return { mutatedNodeIds: [node.id] };
   ```
 - **Switch pages with `await figma.setCurrentPageAsync(page)`.** The synchronous
-  `figma.currentPage = page` setter throws. Page context resets to the first
-  page at the start of every call.
+  `figma.currentPage = page` setter throws. The switch **persists**: the plugin
+  is a single long-lived session, so the page you leave current stays current for
+  every later call — `get_document`, `get_selection` and `get_screenshot`
+  included — and the user's viewport moves with it. Switch back when you are
+  done, or avoid the problem entirely by reading another page with
+  `await page.loadAsync()` instead of making it current.
 - **`await` every promise.** An unawaited `loadFontAsync` or
   `setCurrentPageAsync` fails silently and leaves half-applied changes.
 - **Position new top-level nodes away from (0, 0).** Nodes appended straight to

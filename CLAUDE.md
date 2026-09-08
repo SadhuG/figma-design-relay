@@ -21,8 +21,14 @@ Figma plugin ──ws://localhost:1994/ws──> leader server ──stdio──
 | `server/` | `bun run build`                           | `tsc` → `dist/`                                   |
 | `plugin/` | `bun run build`                           | two Vite passes: UI, then `main`                  |
 | `plugin/` | `bunx tsc --noEmit -p tsconfig.json`      | the plugin has no build-time type-check otherwise |
+| `server/` | `bun test`                                | 13 tests: schema validation + the /rpc guards     |
+| `plugin/` | `bun test`                                | 29 tests: script result, runner, editor gate      |
 
 **Bun everywhere — never `npm` or `yarn`.**
+
+Both packages run tests with `bun test` (phase 1, task 1 added the script and the
+`exclude: ["src/**/*.test.ts"]` entry in both tsconfigs). Tests live beside the code they cover as
+`*.test.ts`.
 
 ### Verifying against a real Figma document
 
@@ -31,10 +37,6 @@ It runs on **port 1995** — `manifest.json` allows both 1994 and 1995 in
 `networkAccess.allowedDomains` so a test instance can run beside a stock relay. Start
 `node .smoke/hold-leader.mjs` and leave it running, or the plugin has nothing to connect to. See
 `server/.smoke/README.md`.
-
-There is **no `test` script in either package yet**. Phase 1, task 1 adds it (`"test": "bun test"`)
-plus `exclude: ["src/**/*.test.ts"]` in both tsconfigs. Until that lands, `bun run test` fails with
-`Script not found "test"` — that is expected, not a broken checkout.
 
 ## Layout
 
@@ -45,10 +47,10 @@ server/src/
   leader.ts    HTTP + WebSocket host    follower.ts  proxies to leader over /rpc
   bridge.ts    socket registry keyed by fileKey; 180s per-request timeout
   election.ts  leader election
-  schema.ts    Zod input schemas + the RPC validation layer   (1008 lines)
-  tools.ts     all 39 MCP tool registrations                  (1159 lines)
+  schema.ts    Zod input schemas + the RPC validation layer   (1023 lines)
+  tools.ts     all 40 MCP tool registrations                  (1189 lines)
 plugin/src/
-  main/code.ts        request dispatcher, one switch case per tool  (1875 lines)
+  main/code.ts        request dispatcher, one switch case per tool  (1859 lines)
   main/serializer.ts  scene graph → JSON                             (372 lines)
   html-figma/         vendored html-to-figma importer
   ui/                 React panel
@@ -57,11 +59,11 @@ plugin/src/
 ### Landmarks worth knowing before editing
 
 - `server/src/schema.ts:593` — `toolInputSchemas`, the advertised MCP input shapes.
-- `server/src/schema.ts:910` — `rpcToArgs`, typed `Record<ToolName, …>`. **Adding a key to
+- `server/src/schema.ts:924` — `rpcToArgs`, typed `Record<ToolName, …>`. **Adding a key to
   `toolInputSchemas` without adding its mapper here is a compile error.** That is deliberate; do not
   work around it.
-- `server/src/schema.ts:989` — `validateRpc`, the follower→leader guard.
-- `server/src/tools.ts:92` — `registerTools`; `:662` — `renderResponse`, the shared handler wrapper
+- `server/src/schema.ts:1004` — `validateRpc`, the follower→leader guard.
+- `server/src/tools.ts:113` — `registerTools`; `:692` — `renderResponse`, the shared handler wrapper
   that turns a `BridgeResponse.error` into an MCP error result.
 - `plugin/src/main/editor-gate.ts:7` — `EDIT_REQUEST_TYPES`; `:43` — `requireEditorMode`, which
   takes `editorType` as a parameter rather than reading `figma.editorType`, so the Dev Mode gate is
@@ -127,6 +129,12 @@ Use `superpowers:subagent-driven-development` or `superpowers:executing-plans` t
   `plugin/src/main/editor-gate.test.ts` instead, and do not budget a manual Dev Mode step in a plan.
 - **Scripts are not atomic.** The Plugin API has no rollback, so a `run_script` that throws part-way
   leaves its earlier mutations. Say so in docs; do not paper over it.
+- **The leader binds `127.0.0.1`, never `0.0.0.0`.** `/rpc` runs every tool — `run_script`
+  included — with no authentication, so it must not be reachable off this machine. It also rejects
+  any request carrying an `Origin` header or a non-JSON content type, which is what stops a web
+  page the user happens to visit from driving the relay through the browser. `LOOPBACK_HOST` in
+  `server/src/types.ts` is the single source for the address; followers and the election dial the
+  same literal rather than `localhost`, because that name can resolve to `::1` first.
 - The bridge times out a request after **180 seconds**.
 - Prettier runs on commit via Husky + lint-staged. Don't fight it — `bun run format` from the root.
 
