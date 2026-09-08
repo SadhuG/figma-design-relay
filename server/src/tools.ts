@@ -63,10 +63,15 @@ LIMITS: 100000 characters of source; results capped at depth 12 and 500 items pe
 export type ExportFormat = "PNG" | "SVG" | "JPG" | "PDF";
 
 export interface ScreenshotSender {
+  /**
+   * `fileKey` is optional because most callers pre-bind it into the wrapper, the
+   * way save_screenshots does; exportAssets forwards it per call instead.
+   */
   sendWithParams(
     requestType: string,
     nodeIds?: string[],
-    params?: Record<string, unknown>
+    params?: Record<string, unknown>,
+    fileKey?: string
   ): Promise<BridgeResponse>;
 }
 
