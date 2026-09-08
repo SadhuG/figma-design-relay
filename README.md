@@ -33,26 +33,36 @@ It also includes a small, opt-in set of **write tools** for safe agent-driven ed
 
 ## Quick Start
 
-### 1. Add the MCP server to your favourite AI tool
+### 1. Download the release
 
-Add the following to your AI tool's MCP configuration (e.g. Cursor, Windsurf, Claude Desktop):
+Grab the archive from the [latest release](https://github.com/SadhuG/figma-design-relay/releases) page and unzip it. It contains both halves — `server/` and `plugin/`.
+
+> This fork is not published to npm. The upstream project owns the `@gethopp` scope, so there is no `npx` one-liner here. If you would rather build from source, see [Local development](#local-development).
+
+### 2. Add the MCP server to your favourite AI tool
+
+Install the server's runtime dependencies once — they are not bundled:
+
+```bash
+cd server && bun install --production
+```
+
+Then add the following to your AI tool's MCP configuration (e.g. Cursor, Windsurf, Claude Desktop), using the absolute path to the unzipped folder:
 
 ```json
 {
   "figma-design-relay": {
-    "command": "npx",
-    "args": ["-y", "@gethopp/figma-design-relay"]
+    "command": "node",
+    "args": ["/absolute/path/to/figma-design-relay/server/dist/index.js"]
   }
 }
 ```
 
-That's it — no binaries to download or install.
+### 3. Add the Figma plugin
 
-### 2. Add the Figma plugin
+In Figma go to `Plugins > Development > Import plugin from manifest` and select `manifest.json` from the unzipped `plugin/` folder.
 
-Download the plugin from the [latest release](https://github.com/SadhuG/figma-design-relay/releases) page, then in Figma go to `Plugins > Development > Import plugin from manifest` and select the `manifest.json` file from the `plugin/` folder.
-
-### 3. Start using it 🎉
+### 4. Start using it 🎉
 
 Open a Figma file, run the plugin, and start prompting your AI tool. The MCP server will automatically connect to the plugin.
 

@@ -1,6 +1,7 @@
 {
-  "name": "@gethopp/figma-design-relay",
+  "name": "figma-design-relay-server",
   "version": "0.1.1",
+  "private": true,
   "description": "MCP server that relays Figma plugin data to AI tools without hitting API rate limits",
   "type": "module",
   "bin": {
@@ -12,8 +13,7 @@
   ],
   "scripts": {
     "build": "tsc",
-    "test": "bun test",
-    "prepublishOnly": "bun run build"
+    "test": "bun test"
   },
   "keywords": [
     "figma",

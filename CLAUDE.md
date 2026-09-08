@@ -191,11 +191,31 @@ reintroduce the old strings.
 | Surface        | Value                                                   |
 | -------------- | ------------------------------------------------------- |
 | Product        | Figma Design Relay                                      |
-| npm package    | `@gethopp/figma-design-relay`                           |
+| npm package    | _none_ — see "Releases" below                           |
 | CLI            | `figma-design-relay`                                    |
 | Plugin id      | `figma-design-relay`                                    |
 | MCP config key | `figma-design-relay`                                    |
 | Env vars       | `FIGMA_DESIGN_RELAY_PORT`, `VITE_FIGMA_DESIGN_RELAY_WS` |
+
+## Releases
+
+**Nothing is published to npm, and nothing should be.** The `@gethopp` scope belongs to the upstream
+maintainer, so `server/package.json` is named `figma-design-relay-server` and marked
+`"private": true` — `npm publish` refuses it. Do not "fix" that by renaming it back.
+
+`.github/workflows/release.yml` is `workflow_dispatch` with two inputs: a semantic `version` and
+`dry_run`, which **defaults to true**. A dry run builds, packages, and uploads the archive as a build
+artifact, but creates no tag and no release; a real release is an explicit opt-out. Use a dry run
+whenever the workflow itself changes, since it is otherwise never exercised.
+
+The archive carries both halves — `plugin/` (self-contained) and `server/` (`dist` plus
+`package.json` and `bun.lock`, because dependencies are not bundled and the user runs
+`bun install --production`). README's Quick Start documents that flow; keep the two in step.
+
+Every action in both workflows runs on **node24**. GitHub is force-running node20 actions on node24
+and will eventually stop, so when adding an action, check its `action.yml` `runs.using` at the exact
+ref you pin rather than assuming a high version number means a current runtime — `softprops/action-gh-release@v2`
+was still node20 well after v3 shipped.
 
 ## Syncing with upstream
 
