@@ -1,5 +1,5 @@
 import type { Node } from "./node.js";
-import { Role } from "./types.js";
+import { LOOPBACK_HOST, Role } from "./types.js";
 
 /**
  * Election handles leader detection and role transitions.
@@ -16,7 +16,7 @@ export class Election {
     private port: number,
     private node: Node
   ) {
-    this.leaderUrl = `http://localhost:${port}`;
+    this.leaderUrl = `http://${LOOPBACK_HOST}:${port}`;
   }
 
   async start(): Promise<void> {

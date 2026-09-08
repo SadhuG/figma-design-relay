@@ -1,9 +1,11 @@
 import http from "node:http";
+import type { AddressInfo } from "node:net";
 import type { Duplex } from "node:stream";
 import { Bridge } from "./bridge.js";
 import { validateRpc } from "./schema.js";
 import { executeSaveScreenshots } from "./tools.js";
 import type { ExportFormat } from "./tools.js";
+import { LOOPBACK_HOST } from "./types.js";
 import type { RPCRequest, RPCResponse } from "./types.js";
 import { VERSION } from "./version.js";
 
@@ -26,6 +28,12 @@ export class Leader {
     return this.bridge;
   }
 
+  /** The bound address, or null before `start()` resolves. */
+  address(): AddressInfo | null {
+    const address = this.server?.address() ?? null;
+    return typeof address === "string" ? null : address;
+  }
+
   start(): Promise<void> {
     return new Promise((resolve, reject) => {
       const server = http.createServer((req, res) => {
@@ -36,6 +44,25 @@ export class Leader {
         }
 
         if (req.url === "/rpc" && req.method === "POST") {
+          // Only another relay process on this machine may call /rpc. A browser
+          // cannot forge either of these: it always attaches Origin to a
+          // cross-site POST, and a request that sets application/well-known
+          // types other than the CORS-safelisted three is preflighted, which we
+          // fail by answering no CORS headers at all.
+          if (req.headers.origin !== undefined) {
+            this.sendJSON(res, 403, {
+              error:
+                "/rpc does not accept browser requests. Tool calls must come from a relay process on this machine.",
+            });
+            return;
+          }
+          const contentType = req.headers["content-type"] ?? "";
+          if (!contentType.split(";")[0].trim().toLowerCase().startsWith("application/json")) {
+            this.sendJSON(res, 415, {
+              error: "/rpc requires Content-Type: application/json.",
+            });
+            return;
+          }
           this.handleRPC(req, res);
           return;
         }
@@ -63,9 +90,9 @@ export class Leader {
         }
       });
 
-      server.listen(this.port, () => {
+      server.listen(this.port, LOOPBACK_HOST, () => {
         this.server = server;
-        console.error(`Leader listening on :${this.port}`);
+        console.error(`Leader listening on ${LOOPBACK_HOST}:${this.port}`);
         resolve();
       });
     });

@@ -31,6 +31,7 @@ import {
   setTextPropertiesInput,
   toolInputSchemas,
 } from "./schema.js";
+import { LOOPBACK_HOST } from "./types.js";
 import type { BridgeResponse } from "./types.js";
 import { Follower } from "./follower.js";
 
@@ -117,7 +118,7 @@ export function registerTools(server: McpServer, node: Node, port: number): void
         let files = node.listConnectedFiles();
         if (files === undefined) {
           // Follower: fetch via RPC from leader
-          const follower = new Follower(`http://localhost:${port}`);
+          const follower = new Follower(`http://${LOOPBACK_HOST}:${port}`);
           files = await follower.listConnectedFiles();
         }
         return {
