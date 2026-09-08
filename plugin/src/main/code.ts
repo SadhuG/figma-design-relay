@@ -1,7 +1,9 @@
 import { serializeNode } from "./serializer";
 import { addLayersToFrame } from "../html-figma/figma";
+import { runScript } from "./script-runner";
+import { EDIT_REQUEST_TYPES, requireEditorMode } from "./editor-gate";
 
-type RequestType =
+export type RequestType =
   | "get_document"
   | "get_selection"
   | "get_node"
@@ -38,7 +40,8 @@ type RequestType =
   | "remove_animation_style"
   | "apply_manual_keyframe_track"
   | "remove_manual_keyframe_track"
-  | "set_timeline_duration";
+  | "set_timeline_duration"
+  | "run_script";
 
 type ServerRequestParams = Record<string, unknown> & {
   format?: "PNG" | "SVG" | "JPG" | "PDF";
@@ -58,6 +61,7 @@ type ServerRequestParams = Record<string, unknown> & {
   track?: any;
   timelineId?: string;
   duration?: number;
+  code?: string;
 };
 
 type ServerRequest = {
@@ -98,7 +102,7 @@ const getFileKey = (): string => {
       `[figma-design-relay] figma.fileKey unavailable for "${figma.root.name}". ` +
         `Using session fallback key "${cachedFallbackFileKey}". ` +
         `If you encounter this in a built plugin, please report at ` +
-        `https://github.com/gethopp/figma-design-relay/issues with steps to reproduce.`
+        `https://github.com/SadhuG/figma-design-relay/issues with steps to reproduce.`
     );
   }
   return cachedFallbackFileKey;
@@ -328,48 +332,10 @@ const decodeBase64ToBytes = (base64: string): Uint8Array => {
   }
 };
 
-const EDIT_REQUEST_TYPES = new Set<RequestType>([
-  "set_node_visibility",
-  "set_text_content",
-  "set_text_properties",
-  "set_node_properties",
-  "set_solid_fill",
-  "set_gradient_fill",
-  "set_effects",
-  "set_stroke_properties",
-  "set_auto_layout",
-  "create_page",
-  "create_frame",
-  "create_text",
-  "create_shape",
-  "create_image",
-  "import_html_layers",
-  "duplicate_nodes",
-  "reparent_nodes",
-  "group_nodes",
-  "ungroup_node",
-  "delete_nodes",
-  "apply_animation_style",
-  "remove_animation_style",
-  "apply_manual_keyframe_track",
-  "remove_manual_keyframe_track",
-  "set_timeline_duration",
-]);
-
-const requireEditorMode = (toolName: RequestType): void => {
-  // Dev Mode is read-only — every figma.create*/setter throws at runtime there,
-  // and the resulting errors are confusing. Reject up front with a clear hint.
-  if (figma.editorType === "dev") {
-    throw new Error(
-      `${toolName} requires the plugin to be opened in Figma's design editor (Dev Mode is read-only). Switch to the design editor and re-run.`
-    );
-  }
-};
-
 const handleRequest = async (request: ServerRequest): Promise<PluginResponse> => {
   try {
     if (EDIT_REQUEST_TYPES.has(request.type)) {
-      requireEditorMode(request.type);
+      requireEditorMode(request.type, figma.editorType);
     }
     switch (request.type) {
       case "get_document":
@@ -456,7 +422,7 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
       case "get_design_context": {
         const depth = typeof request.params?.depth === "number" ? request.params.depth : 2;
         const serializeWithDepth = async (
-          node: unknown,
+          node: SceneNode | PageNode,
           currentDepth: number
         ): Promise<ReturnType<typeof serializeNode>> => {
           const serialized = serializeNode(node);
@@ -466,8 +432,7 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
               ...serialized,
               children: undefined,
               childCount:
-                (node as ChildrenMixin & SceneNode).children?.filter((c) => c.visible !== false)
-                  .length ?? 0,
+                "children" in node ? node.children.filter((c) => c.visible !== false).length : 0,
             } as ReturnType<typeof serializeNode> & { childCount: number };
           }
           if (serialized.children) {
@@ -494,7 +459,7 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
         const contextNodes =
           selection.length > 0
             ? await Promise.all(selection.map((node) => serializeWithDepth(node, 0)))
-            : [await serializeWithDepth(figma.currentPage as unknown as SceneNode, 0)];
+            : [await serializeWithDepth(figma.currentPage, 0)];
 
         return {
           type: request.type,
@@ -805,8 +770,11 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
         }
 
         if (typeof params.x === "number" || typeof params.y === "number") {
+          // The typings say every SceneNode has x/y, so TS narrows `node` to
+          // `never` here -- hence `nodeId` rather than `node.id`. The check stays
+          // because the lookup is driven by a caller-supplied id.
           if (!("x" in node) || !("y" in node)) {
-            throw new Error(`Node does not support x/y positioning: ${node.id}`);
+            throw new Error(`Node does not support x/y positioning: ${nodeId}`);
           }
           positionNode(node, params.x, params.y);
           applied.x = node.x;
@@ -836,8 +804,14 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
         }
 
         if (typeof params.cornerRadius === "number") {
-          if (!("cornerRadius" in node)) {
-            throw new Error(`Node does not support cornerRadius: ${node.id}`);
+          // FigJam's SHAPE_WITH_TEXT and CONNECTOR expose `cornerRadius` as
+          // read-only, so having the property is not enough to set it.
+          if (
+            !("cornerRadius" in node) ||
+            node.type === "SHAPE_WITH_TEXT" ||
+            node.type === "CONNECTOR"
+          ) {
+            throw new Error(`Node does not support setting cornerRadius: ${nodeId}`);
           }
           node.cornerRadius = params.cornerRadius;
           applied.cornerRadius = node.cornerRadius;
@@ -1339,9 +1313,8 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
         }
 
         if (typeof params.strokeHex === "string") {
-          if (!("strokes" in node)) {
-            throw new Error(`Node does not support strokes: ${node.id}`);
-          }
+          // No `"strokes" in node` guard here: `node` is one of the ellipse,
+          // line, or rectangle created above, and all three have strokes.
           const strokeOpacity =
             typeof params.strokeOpacity === "number" ? params.strokeOpacity : undefined;
           setSolidFill(node, params.strokeHex, strokeOpacity, "stroke");
@@ -1835,6 +1808,24 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
           },
         };
       }
+      case "run_script": {
+        const code = request.params?.code;
+        if (typeof code !== "string") {
+          throw new Error("run_script requires a `code` string parameter.");
+        }
+        const outcome = await runScript(code);
+        // Surface failures on the response's `error` channel so the MCP layer
+        // marks the tool result as an error instead of a successful payload
+        // that happens to contain a failure.
+        if (!outcome.ok) {
+          throw new Error(outcome.error);
+        }
+        return {
+          type: request.type,
+          requestId: request.requestId,
+          data: outcome,
+        };
+      }
       default:
         throw new Error(`Unknown request type: ${request.type}`);
     }
@@ -1847,7 +1838,39 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
   }
 };
 
-figma.showUI(__html__, { width: 320, height: 180 });
+const UI_WIDTH = 320;
+const UI_EXPANDED_HEIGHT = 180;
+/** Just the status bar: the collapsed ("minimized") window. */
+const UI_COLLAPSED_HEIGHT = 36;
+const UI_COLLAPSED_KEY = "ui-collapsed";
+
+let uiCollapsed = false;
+
+const applyUiSize = () => {
+  figma.ui.resize(UI_WIDTH, uiCollapsed ? UI_COLLAPSED_HEIGHT : UI_EXPANDED_HEIGHT);
+};
+
+const postUiCollapseState = () => {
+  figma.ui.postMessage({ type: "ui-collapse-state", payload: { collapsed: uiCollapsed } });
+};
+
+// Start hidden so the window never flashes at full height before the stored
+// collapsed state is restored. The iframe still loads and runs while hidden.
+figma.showUI(__html__, { width: UI_WIDTH, height: UI_EXPANDED_HEIGHT, visible: false });
+
+figma.clientStorage
+  .getAsync(UI_COLLAPSED_KEY)
+  .then((stored) => {
+    uiCollapsed = stored === true;
+  })
+  .catch(() => {
+    uiCollapsed = false;
+  })
+  .then(() => {
+    applyUiSize();
+    postUiCollapseState();
+    figma.ui.show();
+  });
 sendStatus();
 
 figma.on("selectionchange", () => {
@@ -1857,6 +1880,20 @@ figma.on("selectionchange", () => {
 figma.ui.onmessage = async (message) => {
   if (message.type === "ui-ready") {
     sendStatus();
+    return;
+  }
+
+  if (message.type === "request-ui-state") {
+    postUiCollapseState();
+    return;
+  }
+
+  if (message.type === "set-ui-collapsed") {
+    uiCollapsed = message.collapsed === true;
+    applyUiSize();
+    figma.clientStorage.setAsync(UI_COLLAPSED_KEY, uiCollapsed).catch(() => {
+      // Persisting the preference is best-effort; the window is already resized.
+    });
     return;
   }
 

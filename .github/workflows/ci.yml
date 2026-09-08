@@ -1,0 +1,65 @@
+name: CI
+
+# Runs on every branch, not just main/dev, because upstream merges are resolved
+# on feature branches and then fast-forwarded -- a PR-only gate would never see
+# that work. `pull_request` additionally covers contributions from forks.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+# A burst of pushes to the same ref only needs the newest run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Type-check, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # ── Server ───────────────────────────────────────────────────────
+      # The server has no separate type-check step because its build *is*
+      # `tsc`, so building it type-checks it.
+
+      - name: Install server dependencies
+        working-directory: server
+        run: bun install --frozen-lockfile
+
+      - name: Server tests
+        working-directory: server
+        run: bun test
+
+      - name: Server build (tsc)
+        working-directory: server
+        run: bun run build
+
+      # ── Plugin ───────────────────────────────────────────────────────
+      # `vite build` uses esbuild, which strips types without checking them, so
+      # the type-check has to be its own step. `bun run build` also runs it, but
+      # running it first reports a type error as a type error rather than as a
+      # build failure.
+
+      - name: Install plugin dependencies
+        working-directory: plugin
+        run: bun install --frozen-lockfile
+
+      - name: Plugin type-check
+        working-directory: plugin
+        run: bun run typecheck
+
+      - name: Plugin tests
+        working-directory: plugin
+        run: bun test
+
+      - name: Plugin build
+        working-directory: plugin
+        run: bun run build

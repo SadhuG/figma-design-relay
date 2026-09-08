@@ -31,12 +31,33 @@ import {
   setTextPropertiesInput,
   toolInputSchemas,
 } from "./schema.js";
+import { LOOPBACK_HOST } from "./types.js";
 import type { BridgeResponse } from "./types.js";
 import { Follower } from "./follower.js";
 
 const MAX_IMAGE_BYTES = 32 * 1024 * 1024;
 const IMAGE_FETCH_TIMEOUT_MS = 15_000;
 const MAX_IMAGE_REDIRECTS = 5;
+
+const RUN_SCRIPT_DESCRIPTION = `Execute JavaScript against the Figma Plugin API inside the connected file. This is the escape hatch: anything the Plugin API can do — components, variants, instances, variables and modes, styles, boolean operations, vector edits, prototyping, per-segment text styling, arbitrary reads — is reachable here, and nowhere else in this server.
+
+Prefer a dedicated tool when one exists (create_frame, set_auto_layout, get_screenshot, ...); reach for run_script when none does.
+
+RULES — violating these is the usual cause of confusing failures:
+- \`return\` is your only output channel. console.log is discarded. Always return the ids of every node you create or mutate, e.g. \`return { createdNodeIds: [...], mutatedNodeIds: [...] }\`.
+- Top-level \`await\` and \`return\` are supported. Do NOT wrap your code in an async IIFE, and do NOT call figma.closePlugin().
+- The plugin runs with \`documentAccess: "dynamic-page"\`, so the SYNCHRONOUS lookups throw. Use \`await figma.getNodeByIdAsync(id)\`, \`await instance.getMainComponentAsync()\`, \`await figma.getStyleByIdAsync(id)\`, \`await figma.variables.getVariableByIdAsync(id)\`, and \`await page.loadAsync()\` before reading a page other than the current one.
+- Colors are 0-1, not 0-255: \`{ r: 1, g: 0, b: 0 }\` is red.
+- \`fills\`/\`strokes\` are read-only arrays — clone, modify, then reassign the whole array.
+- Before touching a text node (characters, appendChild, setBoundVariable), load its fonts: read \`node.getStyledTextSegments(['fontName'])\` and \`await figma.loadFontAsync(...)\` each one. Skipping this throws "Cannot write to node with unloaded font".
+- Switch pages with \`await figma.setCurrentPageAsync(page)\`. The sync setter throws. The switch PERSISTS: the plugin is one long-lived session, so the page you leave current stays current for every later call — including get_document, get_selection and get_screenshot — and it moves the user's viewport. Switch back when you are done, or read other pages with \`await page.loadAsync()\` and leave the current page alone.
+- \`await\` every promise. An unawaited \`loadFontAsync\` or \`setCurrentPageAsync\` fails silently.
+- Work incrementally: several small scripts that you validate between beat one large one.
+- SCRIPTS ARE NOT ATOMIC. The Plugin API has no rollback, so a script that throws halfway leaves its earlier mutations in the file. On an error, read the message, inspect the current state, and clean up before retrying — do not blindly re-run.
+
+RESULT SHAPE: \`{ ok: true, value }\` on success, or \`{ ok: true, truncated: true, valuePreview }\` when the serialised value exceeds 200000 characters. Figma nodes in the returned value collapse to \`{ id, name, type }\`; \`figma.mixed\` serialises as "mixed"; cycles become "[circular]". Return ids and read them back rather than returning whole node objects.
+
+LIMITS: 100000 characters of source; results capped at depth 12 and 500 items per array; the relay times out after 3 minutes. Requires the plugin to be open in Figma's design editor — Dev Mode is read-only and will reject this tool.`;
 
 type ToolResult = {
   content: Array<{ type: "text"; text: string }>;
@@ -98,7 +119,7 @@ export function registerTools(server: McpServer, node: Node, port: number): void
         let files = node.listConnectedFiles();
         if (files === undefined) {
           // Follower: fetch via RPC from leader
-          const follower = new Follower(`http://localhost:${port}`);
+          const follower = new Follower(`http://${LOOPBACK_HOST}:${port}`);
           files = await follower.listConnectedFiles();
         }
         return {
@@ -601,6 +622,15 @@ export function registerTools(server: McpServer, node: Node, port: number): void
           isError: true,
         };
       }
+    }
+  );
+
+  server.tool(
+    "run_script",
+    RUN_SCRIPT_DESCRIPTION,
+    toolInputSchemas.run_script.shape,
+    async ({ code, fileKey }): Promise<ToolResult> => {
+      return renderResponse(() => node.sendWithParams("run_script", undefined, { code }, fileKey));
     }
   );
 }

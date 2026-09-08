@@ -14,19 +14,44 @@ Figma plugin ──ws://localhost:1994/ws──> leader server ──stdio──
 
 ## Commands
 
-| Where     | Command                                   | Notes                                             |
-| --------- | ----------------------------------------- | ------------------------------------------------- |
-| root      | `bun install`                             | installs Husky's pre-commit hook                  |
-| root      | `bun run format` / `bun run format:check` | Prettier 3.9.6 over everything                    |
-| `server/` | `bun run build`                           | `tsc` → `dist/`                                   |
-| `plugin/` | `bun run build`                           | two Vite passes: UI, then `main`                  |
-| `plugin/` | `bunx tsc --noEmit -p tsconfig.json`      | the plugin has no build-time type-check otherwise |
+| Where     | Command                                   | Notes                                         |
+| --------- | ----------------------------------------- | --------------------------------------------- |
+| root      | `bun install`                             | installs Husky's pre-commit hook              |
+| root      | `bun run format` / `bun run format:check` | Prettier 3.9.6 over everything                |
+| `server/` | `bun run build`                           | `tsc` → `dist/`                               |
+| `plugin/` | `bun run build`                           | two Vite passes: UI, then `main`              |
+| `plugin/` | `bun run typecheck`                       | `tsc --noEmit`; `bun run build` runs it first |
+| `server/` | `bun test`                                | 13 tests: schema validation + the /rpc guards |
+| `plugin/` | `bun test`                                | 29 tests: script result, runner, editor gate  |
 
 **Bun everywhere — never `npm` or `yarn`.**
 
-There is **no `test` script in either package yet**. Phase 1, task 1 adds it (`"test": "bun test"`)
-plus `exclude: ["src/**/*.test.ts"]` in both tsconfigs. Until that lands, `bun run test` fails with
-`Script not found "test"` — that is expected, not a broken checkout.
+Both packages run tests with `bun test` (phase 1, task 1 added the script and the
+`exclude: ["src/**/*.test.ts"]` entry in both tsconfigs). Tests live beside the code they cover as
+`*.test.ts`.
+
+### Type-checking
+
+`vite build` compiles with esbuild, which strips types without checking them, so building the plugin
+proves nothing about its types on its own. `plugin/`'s `build` therefore runs `typecheck` first and
+aborts before Vite if it fails. The server needs no equivalent because its build command _is_ `tsc`.
+
+`.github/workflows/ci.yml` runs the plugin type-check, both test suites, and both builds on every
+push to any branch and on every pull request. Every branch, not just `main` and `dev`, because
+upstream merges get resolved on a feature branch and fast-forwarded onto `dev` without a PR — a
+gate that only watched PRs would never see them. `release.yml` is separate and still manual.
+
+**The plugin type-check passes with zero errors; keep it that way.** It sat at seven for a long
+while precisely because nothing enforced it. If a change makes `tsc` unhappy, the fix is the code,
+not the tsconfig.
+
+### Verifying against a real Figma document
+
+`server/.smoke/` drives real tool calls against a live file without touching your MCP client config.
+It runs on **port 1995** — `manifest.json` allows both 1994 and 1995 in
+`networkAccess.allowedDomains` so a test instance can run beside a stock relay. Start
+`node .smoke/hold-leader.mjs` and leave it running, or the plugin has nothing to connect to. See
+`server/.smoke/README.md`.
 
 ## Layout
 
@@ -37,10 +62,10 @@ server/src/
   leader.ts    HTTP + WebSocket host    follower.ts  proxies to leader over /rpc
   bridge.ts    socket registry keyed by fileKey; 180s per-request timeout
   election.ts  leader election
-  schema.ts    Zod input schemas + the RPC validation layer   (1008 lines)
-  tools.ts     all 39 MCP tool registrations                  (1159 lines)
+  schema.ts    Zod input schemas + the RPC validation layer   (1023 lines)
+  tools.ts     all 40 MCP tool registrations                  (1189 lines)
 plugin/src/
-  main/code.ts        request dispatcher, one switch case per tool  (1875 lines)
+  main/code.ts        request dispatcher, one switch case per tool  (1905 lines)
   main/serializer.ts  scene graph → JSON                             (372 lines)
   html-figma/         vendored html-to-figma importer
   ui/                 React panel
@@ -49,15 +74,23 @@ plugin/src/
 ### Landmarks worth knowing before editing
 
 - `server/src/schema.ts:593` — `toolInputSchemas`, the advertised MCP input shapes.
-- `server/src/schema.ts:910` — `rpcToArgs`, typed `Record<ToolName, …>`. **Adding a key to
+- `server/src/schema.ts:924` — `rpcToArgs`, typed `Record<ToolName, …>`. **Adding a key to
   `toolInputSchemas` without adding its mapper here is a compile error.** That is deliberate; do not
   work around it.
-- `server/src/schema.ts:989` — `validateRpc`, the follower→leader guard.
-- `server/src/tools.ts:92` — `registerTools`; `:662` — `renderResponse`, the shared handler wrapper
+- `server/src/schema.ts:1004` — `validateRpc`, the follower→leader guard.
+- `server/src/tools.ts:113` — `registerTools`; `:692` — `renderResponse`, the shared handler wrapper
   that turns a `BridgeResponse.error` into an MCP error result.
-- `plugin/src/main/code.ts:331` — `EDIT_REQUEST_TYPES`; `:359` — `requireEditorMode`. Phase 6
-  replaces both with a capability table.
+- `plugin/src/main/editor-gate.ts:7` — `EDIT_REQUEST_TYPES`; `:43` — `requireEditorMode`, which
+  takes `editorType` as a parameter rather than reading `figma.editorType`, so the Dev Mode gate is
+  unit-testable. Dispatch calls both at `plugin/src/main/code.ts:337`. Phase 6 replaces the pair with
+  a capability table.
 - `plugin/src/main/serializer.ts:349` — `serializeNode`. Phase 2 makes it async.
+- `plugin/src/main/code.ts:1834` — the UI-collapse block that closes the file: window sizing,
+  the `ui-collapsed` `figma.clientStorage` key, and the `request-ui-state` / `set-ui-collapsed`
+  messages the React panel exchanges with the main thread. Note `figma.showUI` runs with
+  `visible: false` and the panel is only shown once the stored state resolves — anything that
+  returns early before `figma.ui.show()` leaves the plugin window invisible. Came from upstream
+  `ef0cf04`; phase 6 edits this file heavily and should leave the tail alone.
 
 ## The plan set
 
@@ -112,11 +145,26 @@ Use `superpowers:subagent-driven-development` or `superpowers:executing-plans` t
   `realpath`. `import_html_layers` and `save_screenshots` already do this; every new file-touching
   tool must too.
 - **Dev Mode is read-only.** Write tools are rejected up front rather than failing at runtime. Phase 6
-  generalises this to a per-editor capability table.
+  generalises this to a per-editor capability table. **Dev Mode needs a paid Figma seat, which this
+  project does not have**, so the gate cannot be exercised by hand — verify it with
+  `plugin/src/main/editor-gate.test.ts` instead, and do not budget a manual Dev Mode step in a plan.
 - **Scripts are not atomic.** The Plugin API has no rollback, so a `run_script` that throws part-way
   leaves its earlier mutations. Say so in docs; do not paper over it.
+- **The leader binds `127.0.0.1`, never `0.0.0.0`.** `/rpc` runs every tool — `run_script`
+  included — with no authentication, so it must not be reachable off this machine. It also rejects
+  any request carrying an `Origin` header or a non-JSON content type, which is what stops a web
+  page the user happens to visit from driving the relay through the browser. `LOOPBACK_HOST` in
+  `server/src/types.ts` is the single source for the address; followers and the election dial the
+  same literal rather than `localhost`, because that name can resolve to `::1` first.
 - The bridge times out a request after **180 seconds**.
 - Prettier runs on commit via Husky + lint-staged. Don't fight it — `bun run format` from the root.
+- **Everything is LF, enforced by `.gitattributes` (`* text=auto eol=lf`).** Do not remove it and do
+  not commit CRLF. Windows clones default to `core.autocrlf=true`, which used to hand out CRLF
+  working copies: `format:check` then failed locally while passing in CI, `git status` showed dozens
+  of files as modified with empty content diffs, and `.husky/pre-commit` picked up a CR — harmless
+  only because it is one line with no shebang, since either would break it with
+  `bad interpreter: /bin/sh^M`. If a checkout ever comes back with CRLF, the attributes file is the
+  thing to check first.
 
 ## The docs site
 
@@ -148,6 +196,25 @@ reintroduce the old strings.
 | Plugin id      | `figma-design-relay`                                    |
 | MCP config key | `figma-design-relay`                                    |
 | Env vars       | `FIGMA_DESIGN_RELAY_PORT`, `VITE_FIGMA_DESIGN_RELAY_WS` |
+
+## Syncing with upstream
+
+This repo is a fork of `gethopp/figma-mcp-bridge`, wired up as the `upstream` remote (its push URL is
+set to `DISABLED` so nothing can be pushed there by accident). Sync with `git fetch upstream` then
+`git merge upstream/main` — a merge, never a cherry-pick or squash, so the next sync's merge base
+stays correct and the same commit never conflicts twice.
+
+Expect conflicts wherever the rename touched a file upstream also edits. They are almost always
+re-indentation colliding with a renamed string rather than a real disagreement: take upstream's
+structure and keep this fork's names. Afterwards run
+`git grep -n "figma-mcp-bridge\|FIGMA_BRIDGE\|Figma MCP Bridge" -- plugin server` — auto-merged hunks
+are the easy way for old strings to slip back in, and the naming table above is not negotiable.
+
+Upstream does not run our Prettier config, so its files usually arrive unformatted; the Husky hook
+normalizes whatever you stage. CI verifies a sync for you on push, but the same checks run locally:
+`bun run typecheck` and `bun test` in `plugin/`, `bun test` in `server/`, and a build of each. The
+plugin type-check is clean and expected to stay that way — **a non-zero count means the merge broke
+something**, so do not wave it through.
 
 ## Conventions
 

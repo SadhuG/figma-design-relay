@@ -148,7 +148,7 @@ export class Bridge {
     }
 
     if (this.connections.size === 0) {
-      throw new Error("No plugin connected. Open a Figma file and run the bridge plugin.");
+      throw new Error("No plugin connected. Open a Figma file and run the relay plugin.");
     }
 
     if (this.connections.size === 1) {
