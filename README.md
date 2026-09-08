@@ -179,6 +179,20 @@ bun run format        # format the whole repo
 bun run format:check  # verify formatting without writing (useful in CI)
 ```
 
+### Tests and type-checking
+
+```bash
+cd server && bun test       # schema validation and the /rpc guards
+cd plugin && bun test       # script result, script runner, editor gate
+cd plugin && bun run typecheck   # tsc --noEmit; also runs as part of `bun run build`
+```
+
+The plugin's Vite build compiles with esbuild, which strips types without checking them, so
+`bun run build` runs the type-check first and stops before Vite if it fails. The server needs no
+separate step, as its build command is `tsc`.
+
+GitHub Actions runs all of the above on every push and pull request.
+
 ## Structure
 
 ```

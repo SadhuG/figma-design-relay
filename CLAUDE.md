@@ -14,21 +14,36 @@ Figma plugin ──ws://localhost:1994/ws──> leader server ──stdio──
 
 ## Commands
 
-| Where     | Command                                   | Notes                                             |
-| --------- | ----------------------------------------- | ------------------------------------------------- |
-| root      | `bun install`                             | installs Husky's pre-commit hook                  |
-| root      | `bun run format` / `bun run format:check` | Prettier 3.9.6 over everything                    |
-| `server/` | `bun run build`                           | `tsc` → `dist/`                                   |
-| `plugin/` | `bun run build`                           | two Vite passes: UI, then `main`                  |
-| `plugin/` | `bunx tsc --noEmit -p tsconfig.json`      | the plugin has no build-time type-check otherwise |
-| `server/` | `bun test`                                | 13 tests: schema validation + the /rpc guards     |
-| `plugin/` | `bun test`                                | 29 tests: script result, runner, editor gate      |
+| Where     | Command                                   | Notes                                         |
+| --------- | ----------------------------------------- | --------------------------------------------- |
+| root      | `bun install`                             | installs Husky's pre-commit hook              |
+| root      | `bun run format` / `bun run format:check` | Prettier 3.9.6 over everything                |
+| `server/` | `bun run build`                           | `tsc` → `dist/`                               |
+| `plugin/` | `bun run build`                           | two Vite passes: UI, then `main`              |
+| `plugin/` | `bun run typecheck`                       | `tsc --noEmit`; `bun run build` runs it first |
+| `server/` | `bun test`                                | 13 tests: schema validation + the /rpc guards |
+| `plugin/` | `bun test`                                | 29 tests: script result, runner, editor gate  |
 
 **Bun everywhere — never `npm` or `yarn`.**
 
 Both packages run tests with `bun test` (phase 1, task 1 added the script and the
 `exclude: ["src/**/*.test.ts"]` entry in both tsconfigs). Tests live beside the code they cover as
 `*.test.ts`.
+
+### Type-checking
+
+`vite build` compiles with esbuild, which strips types without checking them, so building the plugin
+proves nothing about its types on its own. `plugin/`'s `build` therefore runs `typecheck` first and
+aborts before Vite if it fails. The server needs no equivalent because its build command _is_ `tsc`.
+
+`.github/workflows/ci.yml` runs the plugin type-check, both test suites, and both builds on every
+push to any branch and on every pull request. Every branch, not just `main` and `dev`, because
+upstream merges get resolved on a feature branch and fast-forwarded onto `dev` without a PR — a
+gate that only watched PRs would never see them. `release.yml` is separate and still manual.
+
+**The plugin type-check passes with zero errors; keep it that way.** It sat at seven for a long
+while precisely because nothing enforced it. If a change makes `tsc` unhappy, the fix is the code,
+not the tsconfig.
 
 ### Verifying against a real Figma document
 
@@ -189,10 +204,10 @@ structure and keep this fork's names. Afterwards run
 are the easy way for old strings to slip back in, and the naming table above is not negotiable.
 
 Upstream does not run our Prettier config, so its files usually arrive unformatted; the Husky hook
-normalizes whatever you stage. Verify a sync with the plugin type-check, both `bun test` suites, and
-both builds. Note the plugin type-check reports **7 pre-existing errors** (vendored `html-figma`,
-some `SceneNode` narrowing in `code.ts`, and `import.meta.env` in `App.tsx`) — compare against the
-pre-merge count rather than expecting zero.
+normalizes whatever you stage. CI verifies a sync for you on push, but the same checks run locally:
+`bun run typecheck` and `bun test` in `plugin/`, `bun test` in `server/`, and a build of each. The
+plugin type-check is clean and expected to stay that way — **a non-zero count means the merge broke
+something**, so do not wave it through.
 
 ## Conventions
 
