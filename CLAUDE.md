@@ -65,8 +65,11 @@ server/src/
   schema.ts    Zod input schemas + the RPC validation layer   (1023 lines)
   tools.ts     all 40 MCP tool registrations                  (1189 lines)
 plugin/src/
-  main/code.ts        request dispatcher, one switch case per tool  (1905 lines)
-  main/serializer.ts  scene graph → JSON                             (372 lines)
+  main/code.ts        request dispatcher, one switch case per tool  (1912 lines)
+  main/serializer.ts  scene graph → JSON; async since phase 2        (492 lines)
+  main/references.ts        variable + style ids → resolved names
+  main/component-identity.ts component and instance identity
+  main/intent.ts            layout intent, reactions, annotations, exports
   html-figma/         vendored html-to-figma importer
   ui/                 React panel
 ```
@@ -84,7 +87,11 @@ plugin/src/
   takes `editorType` as a parameter rather than reading `figma.editorType`, so the Dev Mode gate is
   unit-testable. Dispatch calls both at `plugin/src/main/code.ts:337`. Phase 6 replaces the pair with
   a capability table.
-- `plugin/src/main/serializer.ts:349` — `serializeNode`. Phase 2 makes it async.
+- `plugin/src/main/serializer.ts:451` — `serializeNode`, `async` since phase 2 and awaited at four
+  call sites in `code.ts`. Only `get_design_context` type-errors if you forget an `await` — the other
+  three sites type `data` as `unknown` and will happily ship an unresolved promise. The `figma`
+  lookups it feeds to `references.ts` live at `:396`; the three helper modules never name the global.
+  `docs/serialized-nodes.md` documents the emitted shape and, for every field, when it is omitted.
 - `plugin/src/main/code.ts:1834` — the UI-collapse block that closes the file: window sizing,
   the `ui-collapsed` `figma.clientStorage` key, and the `request-ui-state` / `set-ui-collapsed`
   messages the React panel exchanges with the main thread. Note `figma.showUI` runs with
@@ -98,14 +105,14 @@ One spec measures the gap; six plans close it. **Read `docs/superpowers/specs/20
 first** — it holds all 55 numbered requirements (R1–R55), and every plan task cites the ones it
 satisfies.
 
-| Phase | Plan (`docs/superpowers/plans/…`)                  | Reqs    | Tasks | Needs                  |
-| ----- | -------------------------------------------------- | ------- | ----- | ---------------------- |
-| 1     | `2026-09-01-run-script-plugin-api-escape-hatch.md` | R1–R10  | 7     | —                      |
-| 2     | `2026-09-01-serializer-enrichment.md`              | R11–R19 | 6     | phase 1's test harness |
-| 3     | `2026-09-01-design-context-v2.md`                  | R20–R27 | 7     | **phase 2** (R14, R15) |
-| 4     | `2026-09-01-code-connect.md`                       | R28–R35 | 8     | **phase 2** (R13)      |
-| 5     | `2026-09-01-library-reach.md`                      | R36–R42 | 7     | phase 1's test harness |
-| 6     | `2026-09-01-figjam-slides-diagrams.md`             | R43–R50 | 8     | phase 1's test harness |
+| Phase | Plan (`docs/superpowers/plans/…`)                  | Reqs    | Tasks | Needs                  | Status      |
+| ----- | -------------------------------------------------- | ------- | ----- | ---------------------- | ----------- |
+| 1     | `2026-09-01-run-script-plugin-api-escape-hatch.md` | R1–R10  | 7     | —                      | **done**    |
+| 2     | `2026-09-01-serializer-enrichment.md`              | R11–R19 | 6     | phase 1's test harness | in progress |
+| 3     | `2026-09-01-design-context-v2.md`                  | R20–R27 | 7     | **phase 2** (R14, R15) | not started |
+| 4     | `2026-09-01-code-connect.md`                       | R28–R35 | 8     | **phase 2** (R13)      | not started |
+| 5     | `2026-09-01-library-reach.md`                      | R36–R42 | 7     | phase 1's test harness | not started |
+| 6     | `2026-09-01-figjam-slides-diagrams.md`             | R43–R50 | 8     | phase 1's test harness | not started |
 
 R51–R55 are cross-cutting and apply to every tool any phase adds.
 
@@ -180,6 +187,11 @@ Use `superpowers:subagent-driven-development` or `superpowers:executing-plans` t
   `**Interfaces:**`, `- [ ] **Step N: …**`, `Run:` / `Expected:` lines). Run Prettier on the markdown
   **before** regenerating, then format the HTML — Prettier reflows markdown lists and the parser
   reads the reflowed shape.
+- **Checkbox state carries through.** A step written `- [x]` renders pre-checked and `is-done`; the
+  rail's per-task progress is then derived by `doc.js`. Mark a phase's progress in the markdown and
+  rebuild — never by hand-editing the HTML. Always confirm the reported step count matches the
+  markdown: the generator used to match only `- [ ]`, so checking a box silently dropped the step
+  from the page, and a suspiciously low count is the symptom.
 - After any docs change: `bun run format` then `npx prettier --check "docs/**/*"`.
 
 ## Naming
