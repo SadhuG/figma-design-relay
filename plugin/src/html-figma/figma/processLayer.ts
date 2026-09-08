@@ -7,7 +7,11 @@ import { LayerNode, PlainLayerNode, WithRef } from "../types";
 const processDefaultElement = (layer: LayerNode, node: SceneNode): SceneNode => {
   node.x = layer.x as number;
   node.y = layer.y as number;
-  node.resize(layer.width || 1, layer.height || 1);
+  // FigJam's StickyNode is a SceneNode with no `resize`, so having a node is not
+  // enough to size it. Local edit to vendored code -- reapply when re-vendoring.
+  if ("resize" in node) {
+    node.resize(layer.width || 1, layer.height || 1);
+  }
   assign(node, layer);
   // rects.push(frame);
   return node;

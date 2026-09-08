@@ -422,7 +422,7 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
       case "get_design_context": {
         const depth = typeof request.params?.depth === "number" ? request.params.depth : 2;
         const serializeWithDepth = async (
-          node: unknown,
+          node: SceneNode | PageNode,
           currentDepth: number
         ): Promise<ReturnType<typeof serializeNode>> => {
           const serialized = serializeNode(node);
@@ -432,8 +432,7 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
               ...serialized,
               children: undefined,
               childCount:
-                (node as ChildrenMixin & SceneNode).children?.filter((c) => c.visible !== false)
-                  .length ?? 0,
+                "children" in node ? node.children.filter((c) => c.visible !== false).length : 0,
             } as ReturnType<typeof serializeNode> & { childCount: number };
           }
           if (serialized.children) {
@@ -460,7 +459,7 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
         const contextNodes =
           selection.length > 0
             ? await Promise.all(selection.map((node) => serializeWithDepth(node, 0)))
-            : [await serializeWithDepth(figma.currentPage as unknown as SceneNode, 0)];
+            : [await serializeWithDepth(figma.currentPage, 0)];
 
         return {
           type: request.type,
@@ -771,8 +770,11 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
         }
 
         if (typeof params.x === "number" || typeof params.y === "number") {
+          // The typings say every SceneNode has x/y, so TS narrows `node` to
+          // `never` here -- hence `nodeId` rather than `node.id`. The check stays
+          // because the lookup is driven by a caller-supplied id.
           if (!("x" in node) || !("y" in node)) {
-            throw new Error(`Node does not support x/y positioning: ${node.id}`);
+            throw new Error(`Node does not support x/y positioning: ${nodeId}`);
           }
           positionNode(node, params.x, params.y);
           applied.x = node.x;
@@ -802,8 +804,14 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
         }
 
         if (typeof params.cornerRadius === "number") {
-          if (!("cornerRadius" in node)) {
-            throw new Error(`Node does not support cornerRadius: ${node.id}`);
+          // FigJam's SHAPE_WITH_TEXT and CONNECTOR expose `cornerRadius` as
+          // read-only, so having the property is not enough to set it.
+          if (
+            !("cornerRadius" in node) ||
+            node.type === "SHAPE_WITH_TEXT" ||
+            node.type === "CONNECTOR"
+          ) {
+            throw new Error(`Node does not support setting cornerRadius: ${nodeId}`);
           }
           node.cornerRadius = params.cornerRadius;
           applied.cornerRadius = node.cornerRadius;
@@ -1305,9 +1313,8 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
         }
 
         if (typeof params.strokeHex === "string") {
-          if (!("strokes" in node)) {
-            throw new Error(`Node does not support strokes: ${node.id}`);
-          }
+          // No `"strokes" in node` guard here: `node` is one of the ellipse,
+          // line, or rectangle created above, and all three have strokes.
           const strokeOpacity =
             typeof params.strokeOpacity === "number" ? params.strokeOpacity : undefined;
           setSolidFill(node, params.strokeHex, strokeOpacity, "stroke");
