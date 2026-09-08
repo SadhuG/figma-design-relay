@@ -158,6 +158,13 @@ Use `superpowers:subagent-driven-development` or `superpowers:executing-plans` t
   same literal rather than `localhost`, because that name can resolve to `::1` first.
 - The bridge times out a request after **180 seconds**.
 - Prettier runs on commit via Husky + lint-staged. Don't fight it — `bun run format` from the root.
+- **Everything is LF, enforced by `.gitattributes` (`* text=auto eol=lf`).** Do not remove it and do
+  not commit CRLF. Windows clones default to `core.autocrlf=true`, which used to hand out CRLF
+  working copies: `format:check` then failed locally while passing in CI, `git status` showed dozens
+  of files as modified with empty content diffs, and `.husky/pre-commit` picked up a CR — harmless
+  only because it is one line with no shebang, since either would break it with
+  `bad interpreter: /bin/sh^M`. If a checkout ever comes back with CRLF, the attributes file is the
+  thing to check first.
 
 ## The docs site
 
