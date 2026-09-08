@@ -22,6 +22,47 @@ const isFigmaNode = (value: object): boolean =>
   typeof (value as { type?: unknown }).type === "string" &&
   typeof (value as { setPluginData?: unknown }).setPluginData === "function";
 
+/**
+ * Property names worth reproducing for an object.
+ *
+ * Most values a script returns are plain objects, where own enumerable keys are
+ * the whole story. Plugin API objects that are *not* nodes — `Variable`,
+ * `VariableCollection`, `TextStyle`, `Effect` handles — instead expose
+ * everything through prototype getters and have no own keys at all, so a plain
+ * `Object.keys` walk would serialise them as `{}` with no error to explain it.
+ * Fall back to the prototype chain's getters in that case. Methods are skipped:
+ * they carry no state and would only add `"[function]"` noise.
+ */
+const readableKeys = (value: object): string[] => {
+  const own = Object.keys(value);
+  if (own.length > 0) return own;
+
+  const keys = new Set<string>();
+  for (
+    let proto: object | null = Object.getPrototypeOf(value) as object | null;
+    proto !== null && proto !== Object.prototype;
+    proto = Object.getPrototypeOf(proto) as object | null
+  ) {
+    for (const [key, descriptor] of Object.entries(Object.getOwnPropertyDescriptors(proto))) {
+      if (key !== "constructor" && typeof descriptor.get === "function") keys.add(key);
+    }
+  }
+  return [...keys];
+};
+
+/**
+ * Reads one property, tolerating a getter that throws. Plugin API getters do
+ * throw — reading almost anything off a removed node raises — and one such
+ * property must not cost the agent the rest of an otherwise good result.
+ */
+const readProperty = (value: object, key: string): unknown => {
+  try {
+    return (value as Record<string, unknown>)[key];
+  } catch {
+    return "[unreadable]";
+  }
+};
+
 const toJsonSafeInner = (value: unknown, depth: number, seen: WeakSet<object>): unknown => {
   // `figma.mixed` is a symbol, and so is every other "mixed" sentinel.
   if (typeof value === "symbol") return "mixed";
@@ -57,8 +98,8 @@ const toJsonSafeInner = (value: unknown, depth: number, seen: WeakSet<object>): 
     }
 
     const out: Record<string, unknown> = {};
-    for (const key of Object.keys(value)) {
-      out[key] = toJsonSafeInner((value as Record<string, unknown>)[key], depth + 1, seen);
+    for (const key of readableKeys(value)) {
+      out[key] = toJsonSafeInner(readProperty(value, key), depth + 1, seen);
     }
     return out;
   } finally {

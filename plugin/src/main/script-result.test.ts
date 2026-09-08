@@ -75,3 +75,61 @@ describe("toJsonSafe", () => {
     expect(toJsonSafe({ n: Number.POSITIVE_INFINITY })).toEqual({ n: "Infinity" });
   });
 });
+
+/**
+ * Plugin API objects that are not nodes — `Variable`, `VariableCollection`,
+ * `TextStyle`, … — expose everything through prototype getters and have no own
+ * enumerable properties, so a naive `Object.keys` walk sees an empty object.
+ */
+const fakeVariable = (id: string, name: string) => {
+  class Variable {
+    get id() {
+      return id;
+    }
+    get name() {
+      return name;
+    }
+    get resolvedType() {
+      return "COLOR";
+    }
+    get valuesByMode() {
+      return { "1:0": { r: 1, g: 0, b: 0 } };
+    }
+    getPublishStatusAsync() {
+      return Promise.resolve("UNPUBLISHED");
+    }
+  }
+  return new Variable();
+};
+
+describe("toJsonSafe on prototype-getter objects", () => {
+  test("serialises a Variable instead of returning an empty object", () => {
+    expect(toJsonSafe(fakeVariable("VariableID:1:2", "brand/primary"))).toEqual({
+      id: "VariableID:1:2",
+      name: "brand/primary",
+      resolvedType: "COLOR",
+      valuesByMode: { "1:0": { r: 1, g: 0, b: 0 } },
+    });
+  });
+
+  test("serialises an array of them, as getLocalVariablesAsync returns", () => {
+    const out = toJsonSafe([fakeVariable("VariableID:1:2", "a")]) as Array<Record<string, unknown>>;
+    expect(out[0].name).toBe("a");
+  });
+
+  test("reports a getter that throws rather than failing the whole result", () => {
+    class Broken {
+      get ok() {
+        return 1;
+      }
+      get boom(): number {
+        throw new Error("node removed");
+      }
+    }
+    expect(toJsonSafe(new Broken())).toEqual({ ok: 1, boom: "[unreadable]" });
+  });
+
+  test("leaves a genuinely empty object empty", () => {
+    expect(toJsonSafe({})).toEqual({});
+  });
+});
