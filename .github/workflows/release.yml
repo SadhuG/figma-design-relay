@@ -1,5 +1,13 @@
 name: Release
 
+# This fork does not publish to npm. The upstream project owns the `@gethopp`
+# scope, and claiming a name inside someone else's namespace is not ours to do,
+# so the GitHub Release is the only distribution channel: it carries both the
+# built plugin and the built server.
+#
+# `dry_run` defaults to true. A real release is an explicit opt-out, and the dry
+# run exercises every step except tagging, so the workflow can be verified on
+# real runners without publishing anything.
 on:
   workflow_dispatch:
     inputs:
@@ -7,10 +15,14 @@ on:
         description: "Version (semantic, e.g., 1.0.0)"
         required: true
         type: string
+      dry_run:
+        description: "Build and package only — do not create a GitHub Release"
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: write
-  id-token: write # Required for npm provenance (trusted publishing)
 
 jobs:
   release:
@@ -22,26 +34,34 @@ jobs:
             echo "Error: Version must be semantic (e.g., 1.0.0, 1.0.0-beta.1)"
             exit 1
           fi
+          echo "Version ${{ inputs.version }} accepted (dry_run=${{ inputs.dry_run }})"
 
       - name: Checkout repository
         uses: actions/checkout@v7
 
+      # Node is here only for `npm version`; nothing is published.
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
           node-version-file: ".nvmrc"
-          registry-url: "https://registry.npmjs.org"
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
-      # ── Server: install, build, publish ──────────────────────────────
+      # ── Server ───────────────────────────────────────────────────────
 
       - name: Install server dependencies
         working-directory: server
         run: bun install --frozen-lockfile
+
+      # `server/src/version.ts` reads package.json at runtime and the MCP server
+      # advertises that value, so this has to happen before the build is packaged
+      # even though nothing is published.
+      - name: Set server version
+        working-directory: server
+        run: npm version ${{ inputs.version }} --no-git-tag-version --allow-same-version
 
       - name: Transpile server (tsc)
         working-directory: server
@@ -55,51 +75,73 @@ jobs:
             || { echo "ERROR: dist/index.js is missing the node shebang"; exit 1; }
           echo "✓ Shebang present in dist/index.js"
 
-      - name: Bundle README for npm
-        run: cp README.md server/README.md
-
-      - name: Set package version
+      - name: Verify the server reports the release version
         working-directory: server
-        run: npm version ${{ inputs.version }} --no-git-tag-version
+        run: |
+          reported=$(node -e "console.log(require('./package.json').version)")
+          [ "$reported" = "${{ inputs.version }}" ] \
+            || { echo "ERROR: server reports $reported, expected ${{ inputs.version }}"; exit 1; }
+          echo "✓ Server reports ${{ inputs.version }}"
 
-      - name: Publish to npm (with provenance)
-        working-directory: server
-        run: npm publish --access public --provenance
-        # env:
-        #   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      # ── Figma plugin: install, build ─────────────────────────────────
+      # ── Plugin ───────────────────────────────────────────────────────
 
       - name: Install plugin dependencies
         working-directory: plugin
         run: bun install --frozen-lockfile
 
+      # Runs the type-check first, so a release cannot ship code that does not
+      # type-check.
       - name: Build Figma plugin
         working-directory: plugin
         run: bun run build
 
-      # ── Package GitHub release ───────────────────────────────────────
+      # ── Package ──────────────────────────────────────────────────────
 
       - name: Package release
         run: |
-          mkdir -p release/plugin
+          mkdir -p release/plugin release/server
 
-          # Copy built Figma plugin
+          # Built Figma plugin. manifest.json sits beside dist/ so its relative
+          # `dist/code.js` and `dist/index.html` paths resolve on import.
           cp -r plugin/dist release/plugin/
           cp plugin/manifest.json release/plugin/
 
-          # Copy other repo files
+          # Built MCP server. dist/ alone is not runnable -- the dependencies are
+          # not bundled -- so ship the manifest and lockfile for `bun install`.
+          cp -r server/dist release/server/
+          cp server/package.json release/server/
+          cp server/bun.lock release/server/
+
           cp README.md release/
           cp LICENSE.md release/
 
-          # Create zip
           cd release
           zip -r ../figma-design-relay-v${{ inputs.version }}.zip .
+          cd ..
+          echo "Packaged:"
+          unzip -l figma-design-relay-v${{ inputs.version }}.zip
+
+      # Uploaded on every run, so a dry run still produces something inspectable.
+      - name: Upload release archive as a build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: figma-design-relay-v${{ inputs.version }}
+          path: figma-design-relay-v${{ inputs.version }}.zip
+          if-no-files-found: error
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        if: ${{ !inputs.dry_run }}
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ inputs.version }}
           name: Release v${{ inputs.version }}
           generate_release_notes: true
           files: figma-design-relay-v${{ inputs.version }}.zip
+
+      - name: Dry run summary
+        if: ${{ inputs.dry_run }}
+        run: |
+          echo "### Dry run complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Built and packaged \`v${{ inputs.version }}\`. No tag, no release, nothing published." >> $GITHUB_STEP_SUMMARY
+          echo "The archive is attached to this run as a build artifact." >> $GITHUB_STEP_SUMMARY
