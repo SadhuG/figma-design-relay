@@ -1,0 +1,20 @@
+# Store and check out every text file as LF, on every platform.
+#
+# Without this, a Windows clone with core.autocrlf=true gets CRLF working
+# copies, which:
+#   * makes `bun run format:check` fail locally while passing in CI, since
+#     Prettier expects LF and Linux runners check out LF;
+#   * shows dozens of files as modified in `git status` whose content diff is
+#     empty, because git knows it would rewrite them on the next checkout;
+#   * puts a CR into `.husky/pre-commit`. That hook survives today only because
+#     it is a single line with no shebang -- add either and the shell fails with
+#     `bad interpreter: /bin/sh^M`.
+#
+# Every blob in this repository is already LF, so this changes checkout
+# behaviour only, never committed content. There are no .bat/.cmd/.ps1 files
+# that would legitimately want CRLF.
+* text=auto eol=lf
+
+# Never apply line-ending conversion to binaries. `text=auto` detects these
+# anyway; listing them is documentation, and insurance against a bad heuristic.
+*.png binary
