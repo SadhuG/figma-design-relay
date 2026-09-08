@@ -58,6 +58,8 @@ Open a Figma file, run the plugin, and start prompting your AI tool. The MCP ser
 
 To work across multiple files, just open the plugin in each Figma file. The bridge keeps all connections active and your AI agent can target any of them by `fileKey`.
 
+The panel collapses to a slim title bar via the chevron in its top-right corner, keeping the connection status visible while freeing up canvas space. The choice is remembered across sessions.
+
 If you want to know more about how it works, read the [How it works](#how-it-works) section.
 
 ## Available Tools

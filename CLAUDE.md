@@ -50,7 +50,7 @@ server/src/
   schema.ts    Zod input schemas + the RPC validation layer   (1023 lines)
   tools.ts     all 40 MCP tool registrations                  (1189 lines)
 plugin/src/
-  main/code.ts        request dispatcher, one switch case per tool  (1859 lines)
+  main/code.ts        request dispatcher, one switch case per tool  (1905 lines)
   main/serializer.ts  scene graph → JSON                             (372 lines)
   html-figma/         vendored html-to-figma importer
   ui/                 React panel
@@ -70,6 +70,12 @@ plugin/src/
   unit-testable. Dispatch calls both at `plugin/src/main/code.ts:337`. Phase 6 replaces the pair with
   a capability table.
 - `plugin/src/main/serializer.ts:349` — `serializeNode`. Phase 2 makes it async.
+- `plugin/src/main/code.ts:1834` — the UI-collapse block that closes the file: window sizing,
+  the `ui-collapsed` `figma.clientStorage` key, and the `request-ui-state` / `set-ui-collapsed`
+  messages the React panel exchanges with the main thread. Note `figma.showUI` runs with
+  `visible: false` and the panel is only shown once the stored state resolves — anything that
+  returns early before `figma.ui.show()` leaves the plugin window invisible. Came from upstream
+  `ef0cf04`; phase 6 edits this file heavily and should leave the tail alone.
 
 ## The plan set
 
@@ -168,6 +174,25 @@ reintroduce the old strings.
 | Plugin id      | `figma-design-relay`                                    |
 | MCP config key | `figma-design-relay`                                    |
 | Env vars       | `FIGMA_DESIGN_RELAY_PORT`, `VITE_FIGMA_DESIGN_RELAY_WS` |
+
+## Syncing with upstream
+
+This repo is a fork of `gethopp/figma-mcp-bridge`, wired up as the `upstream` remote (its push URL is
+set to `DISABLED` so nothing can be pushed there by accident). Sync with `git fetch upstream` then
+`git merge upstream/main` — a merge, never a cherry-pick or squash, so the next sync's merge base
+stays correct and the same commit never conflicts twice.
+
+Expect conflicts wherever the rename touched a file upstream also edits. They are almost always
+re-indentation colliding with a renamed string rather than a real disagreement: take upstream's
+structure and keep this fork's names. Afterwards run
+`git grep -n "figma-mcp-bridge\|FIGMA_BRIDGE\|Figma MCP Bridge" -- plugin server` — auto-merged hunks
+are the easy way for old strings to slip back in, and the naming table above is not negotiable.
+
+Upstream does not run our Prettier config, so its files usually arrive unformatted; the Husky hook
+normalizes whatever you stage. Verify a sync with the plugin type-check, both `bun test` suites, and
+both builds. Note the plugin type-check reports **7 pre-existing errors** (vendored `html-figma`,
+some `SceneNode` narrowing in `code.ts`, and `import.meta.env` in `App.tsx`) — compare against the
+pre-merge count rather than expecting zero.
 
 ## Conventions
 
