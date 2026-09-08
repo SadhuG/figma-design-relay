@@ -34,6 +34,7 @@ import {
 import { LOOPBACK_HOST } from "./types.js";
 import type { BridgeResponse } from "./types.js";
 import { Follower } from "./follower.js";
+import { imageBlock, textBlock, type ToolResult } from "./content.js";
 
 const MAX_IMAGE_BYTES = 32 * 1024 * 1024;
 const IMAGE_FETCH_TIMEOUT_MS = 15_000;
@@ -58,11 +59,6 @@ RULES — violating these is the usual cause of confusing failures:
 RESULT SHAPE: \`{ ok: true, value }\` on success, or \`{ ok: true, truncated: true, valuePreview }\` when the serialised value exceeds 200000 characters. Figma nodes in the returned value collapse to \`{ id, name, type }\`; \`figma.mixed\` serialises as "mixed"; cycles become "[circular]". Return ids and read them back rather than returning whole node objects.
 
 LIMITS: 100000 characters of source; results capped at depth 12 and 500 items per array; the relay times out after 3 minutes. Requires the plugin to be open in Figma's design editor — Dev Mode is read-only and will reject this tool.`;
-
-type ToolResult = {
-  content: Array<{ type: "text"; text: string }>;
-  isError?: boolean;
-};
 
 export type ExportFormat = "PNG" | "SVG" | "JPG" | "PDF";
 
