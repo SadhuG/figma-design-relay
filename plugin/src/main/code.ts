@@ -54,6 +54,7 @@ type ServerRequestParams = Record<string, unknown> & {
    */
   clip?: boolean;
   depth?: number;
+  nodeId?: string;
   styleId?: string;
   animationStyleId?: string;
   animationStyleData?: Record<string, unknown>;
@@ -455,9 +456,17 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
           return serialized;
         };
 
+        const requestedId = request.params?.nodeId;
+        const requested =
+          typeof requestedId === "string" ? await figma.getNodeByIdAsync(requestedId) : null;
+        if (typeof requestedId === "string" && !requested) {
+          throw new Error(`Node ${requestedId} not found in this file.`);
+        }
+
         const selection = figma.currentPage.selection;
-        const contextNodes =
-          selection.length > 0
+        const contextNodes = requested
+          ? [await serializeWithDepth(requested as SceneNode, 0)]
+          : selection.length > 0
             ? await Promise.all(selection.map((node) => serializeWithDepth(node, 0)))
             : [await serializeWithDepth(figma.currentPage, 0)];
 
