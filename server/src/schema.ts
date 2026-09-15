@@ -945,7 +945,7 @@ const rpcToArgs: Record<
   get_node: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
   get_styles: (_nodeIds, params) => ({ ...params }),
   get_metadata: (_nodeIds, params) => ({ ...params }),
-  get_design_context: (_nodeIds, params) => ({ ...params }),
+  get_design_context: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
   get_variable_defs: (_nodeIds, params) => ({ ...params }),
   get_screenshot: (nodeIds, params) => ({ nodeIds, ...params }),
   set_node_visibility: (_nodeIds, params) => ({ ...params }),

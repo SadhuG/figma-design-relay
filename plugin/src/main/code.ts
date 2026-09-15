@@ -54,7 +54,6 @@ type ServerRequestParams = Record<string, unknown> & {
    */
   clip?: boolean;
   depth?: number;
-  nodeId?: string;
   styleId?: string;
   animationStyleId?: string;
   animationStyleData?: Record<string, unknown>;
@@ -456,11 +455,21 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
           return serialized;
         };
 
-        const requestedId = request.params?.nodeId;
-        const requested =
-          typeof requestedId === "string" ? await figma.getNodeByIdAsync(requestedId) : null;
-        if (typeof requestedId === "string" && !requested) {
-          throw new Error(`Node ${requestedId} not found in this file.`);
+        const requestedId = request.nodeIds?.[0];
+        let requested: BaseNode | null = null;
+        if (typeof requestedId === "string") {
+          // Figma surfaces an unknown id in an unsaved file as a network error;
+          // say what the agent can act on instead.
+          try {
+            requested = await figma.getNodeByIdAsync(requestedId);
+          } catch {
+            requested = null;
+          }
+          if (!requested) {
+            throw new Error(
+              `Node ${requestedId} not found in this file. Check the id with get_document or get_selection, or omit nodeId to describe the selection.`
+            );
+          }
         }
 
         const selection = figma.currentPage.selection;

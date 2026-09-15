@@ -252,12 +252,13 @@ export function registerTools(server: McpServer, node: Node, port: number): void
     async ({ nodeId, depth, format, assetDir, fileKey }): Promise<ToolResult> => {
       try {
         const params: Record<string, unknown> = {};
-        if (nodeId !== undefined) params.nodeId = nodeId;
         if (depth !== undefined && depth > 0) params.depth = depth;
 
+        // The node id rides on the transport-level nodeIds, not inside params:
+        // validateRpc strips `nodeId` from params on the follower → leader hop.
         const response = await node.sendWithParams(
           "get_design_context",
-          undefined,
+          nodeId ? [nodeId] : undefined,
           params,
           fileKey
         );
