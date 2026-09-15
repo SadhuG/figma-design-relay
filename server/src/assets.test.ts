@@ -1,5 +1,8 @@
-import { describe, expect, test } from "bun:test";
-import { findExportableNodes } from "./assets.js";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { mkdtemp, rm, stat } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { exportAssets, findExportableNodes } from "./assets.js";
 import type { SerializedNode } from "./codegen/tokens.js";
 
 const tree = {
@@ -68,5 +71,60 @@ describe("findExportableNodes", () => {
     expect(
       findExportableNodes({ id: "2:1", name: "Plain", type: "FRAME" } as SerializedNode)
     ).toEqual([]);
+  });
+});
+
+describe("exportAssets", () => {
+  const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>').toString("base64");
+  const sender = {
+    sendWithParams: async (_tool: string, nodeIds?: string[]) => ({
+      type: "get_screenshot",
+      requestId: "r1",
+      data: {
+        exports: (nodeIds ?? []).map((nodeId) => ({
+          nodeId,
+          nodeName: "icon/search",
+          base64: svg,
+        })),
+      },
+    }),
+  };
+
+  let workspace: string;
+  let previousCwd: string;
+
+  beforeEach(async () => {
+    previousCwd = process.cwd();
+    workspace = await mkdtemp(path.join(tmpdir(), "relay-assets-"));
+    process.chdir(workspace);
+  });
+
+  afterEach(async () => {
+    process.chdir(previousCwd);
+    await rm(workspace, { recursive: true, force: true });
+    await rm(path.join(workspace, "..", "relay-leak"), { recursive: true, force: true });
+  });
+
+  test("writes each asset under the directory and reports a workspace-relative path", async () => {
+    const records = await exportAssets(sender, ["1:2"], "assets");
+    expect(records).toEqual([
+      {
+        nodeId: "1:2",
+        nodeName: "icon/search",
+        file: "assets/icon-search-12.svg",
+        format: "SVG",
+        bytes: Buffer.from(svg, "base64").length,
+      },
+    ]);
+    expect(await stat(path.join(workspace, "assets", "icon-search-12.svg"))).toBeTruthy();
+  });
+
+  // The guard has to run before anything touches the filesystem: refusing
+  // after mkdir still leaves an empty directory outside the workspace.
+  test("refuses a directory outside the workspace without creating it", async () => {
+    await expect(exportAssets(sender, ["1:2"], "../relay-leak")).rejects.toThrow(
+      /outside the MCP server working directory/
+    );
+    await expect(stat(path.join(workspace, "..", "relay-leak"))).rejects.toThrow();
   });
 });

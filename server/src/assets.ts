@@ -89,15 +89,23 @@ export const exportAssets = async (
   if (nodeIds.length === 0) return [];
 
   const root = await realpath(process.cwd());
-  const target = path.resolve(root, outputDir);
-  await mkdir(target, { recursive: true });
-  const resolved = await realpath(target);
-  if (resolved !== root && !resolved.startsWith(root + path.sep)) {
+  const escapes = (): never => {
     throw new Error(
       `assetDir "${outputDir}" resolves outside the MCP server working directory (${root}). ` +
         `Choose a directory inside the workspace.`
     );
-  }
+  };
+  const inside = (candidate: string): boolean =>
+    candidate === root || candidate.startsWith(root + path.sep);
+
+  // Check the lexical path before touching the filesystem — refusing after
+  // mkdir would still leave an empty directory outside the workspace — and the
+  // real path afterwards, which is what catches a symlink pointing out.
+  const target = path.resolve(root, outputDir);
+  if (!inside(target)) escapes();
+  await mkdir(target, { recursive: true });
+  const resolved = await realpath(target);
+  if (!inside(resolved)) escapes();
 
   const response = await sender.sendWithParams(
     "get_screenshot",
