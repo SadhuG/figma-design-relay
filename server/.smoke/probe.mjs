@@ -46,7 +46,9 @@ try {
   console.log(code.trim());
   console.log("--- result ---");
 
-  const result = await client.callTool({ name: "run_script", arguments: { code } });
+  const result = await client.callTool({ name: "run_script", arguments: { code } }, undefined, {
+    timeout: 180_000,
+  });
 
   // isError distinguishes R6's error channel from a success payload that merely
   // describes a failure. Print it explicitly so the distinction is visible.

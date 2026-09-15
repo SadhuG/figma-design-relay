@@ -29,10 +29,15 @@ node .smoke/hold-leader.mjs          # leave running
 
 node .smoke/probe.mjs .smoke/r2-figma-in-scope.js
 node .smoke/probe.mjs 'return figma.currentPage.name;'      # or an inline script
+
+node .smoke/call.mjs get_design_context                      # any tool, JSON args optional
+node .smoke/call.mjs get_design_context '{"format":"css","assetDir":"tmp-assets"}'
 ```
 
-`probe.mjs` prints `isError:` before the payload, which is what distinguishes a genuine MCP error
-result from a success payload that merely describes a failure.
+`probe.mjs` drives `run_script`; `call.mjs` drives any tool by name. Both print `isError:` before
+the payload, which is what distinguishes a genuine MCP error result from a success payload that
+merely describes a failure. `call.mjs` summarises image blocks as `[image <mime> <bytes>]` — seeing
+that line at all is the proof that the result carried a real image block rather than base64 text.
 
 ## Checking the wiring when it will not connect
 
