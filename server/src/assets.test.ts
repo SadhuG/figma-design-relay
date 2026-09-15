@@ -40,6 +40,30 @@ describe("findExportableNodes", () => {
     expect(ids).not.toContain("1:6");
   });
 
+  // Icons in a design system are instances of an icon component, so the same
+  // rule has to hold for an instance (or the component itself) whose children
+  // are all vectors — otherwise a logo comes out as a pile of `Vector` files.
+  test("exports an icon instance whole rather than its paths", () => {
+    const ids = findExportableNodes({
+      id: "3:1",
+      name: "Button",
+      type: "INSTANCE",
+      children: [
+        { id: "3:2", name: "Label", type: "TEXT" },
+        {
+          id: "3:3",
+          name: "google-logo-color",
+          type: "INSTANCE",
+          children: [
+            { id: "3:4", name: "Vector", type: "VECTOR" },
+            { id: "3:5", name: "Vector", type: "VECTOR" },
+          ],
+        },
+      ],
+    } as unknown as SerializedNode);
+    expect(ids).toEqual(["3:3"]);
+  });
+
   test("returns an empty list for a tree with nothing to export", () => {
     expect(
       findExportableNodes({ id: "2:1", name: "Plain", type: "FRAME" } as SerializedNode)

@@ -14,6 +14,13 @@ export interface AssetRecord {
 
 const VECTOR_TYPES = new Set(["VECTOR", "BOOLEAN_OPERATION", "STAR", "POLYGON", "LINE"]);
 
+/**
+ * Containers that count as one icon when everything inside them is a vector.
+ * INSTANCE and COMPONENT are here because that is how icons actually appear in
+ * a design system: `google-logo-color` is an instance of an icon component.
+ */
+const ICON_CONTAINER_TYPES = new Set(["GROUP", "FRAME", "INSTANCE", "COMPONENT"]);
+
 const hasImageFill = (node: SerializedNode): boolean => {
   const fills = (node.styles as { fills?: Array<{ type?: string }> } | undefined)?.fills;
   return Array.isArray(fills) && fills.some((fill) => fill.type === "IMAGE");
@@ -34,7 +41,7 @@ export const findExportableNodes = (root: SerializedNode): string[] => {
   const walk = (node: SerializedNode): void => {
     const children = node.children ?? [];
     const isVectorGroup =
-      (node.type === "GROUP" || node.type === "FRAME") &&
+      ICON_CONTAINER_TYPES.has(node.type) &&
       children.length > 0 &&
       children.every((child) => VECTOR_TYPES.has(child.type));
 
