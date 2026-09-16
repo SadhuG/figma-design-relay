@@ -35,12 +35,13 @@ const boundName = (node: SerializedNode, property: string): string | undefined =
 
 /** Prefers the bound token over the resolved value, always. */
 const paintValue = (node: SerializedNode): string | undefined => {
-  const fills = (node.styles as { fills?: Array<{ type?: string; hex?: string }> } | undefined)
+  // The serializer emits solid paints as { type: "SOLID", color: "#rrggbb" }.
+  const fills = (node.styles as { fills?: Array<{ type?: string; color?: string }> } | undefined)
     ?.fills;
   const first = fills?.[0];
   if (!first || first.type !== "SOLID") return undefined;
   const token = boundName(node, "fills[0]");
-  return token ? `var(${cssVarName(token)})` : first.hex;
+  return token ? `var(${cssVarName(token)})` : first.color;
 };
 
 const layoutClasses = (node: SerializedNode): string[] => {
@@ -92,6 +93,19 @@ const attributes = (node: SerializedNode): string => {
   return parts.length > 0 ? " " + parts.join(" ") : "";
 };
 
+/**
+ * Escapes text for a JSX or HTML text position. Entities are used for the
+ * braces too, rather than JSX's `{"{"}`, because the HTML generator derives
+ * its output from this one and entities are valid in both grammars.
+ */
+export const escapeText = (text: string): string =>
+  text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/{/g, "&#123;")
+    .replace(/}/g, "&#125;");
+
 const render = (node: SerializedNode, depth: number, indent: number): string[] => {
   const pad = " ".repeat(depth * indent);
   const lines: string[] = [];
@@ -108,7 +122,7 @@ const render = (node: SerializedNode, depth: number, indent: number): string[] =
     const style = node.design?.styles?.text;
     const styleName = style && style !== "mixed" ? style.name : undefined;
     if (styleName) lines.push(`${pad}{/* text style: ${styleName} */}`);
-    const characters = typeof node.characters === "string" ? node.characters : "";
+    const characters = typeof node.characters === "string" ? escapeText(node.characters) : "";
     lines.push(`${pad}<span${attributes(node)}>${characters}</span>`);
     return lines;
   }

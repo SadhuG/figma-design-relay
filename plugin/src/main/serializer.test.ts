@@ -135,3 +135,39 @@ describe("serializeNode", () => {
     expect(out.children?.map((child) => child.name)).toEqual(["A", "C"]);
   });
 });
+
+describe("serializeNode depth limit", () => {
+  const leaf = { ...rectangle, id: "3:3", name: "Leaf" };
+  const inner = { ...rectangle, id: "3:2", name: "Inner", type: "FRAME", children: [leaf] };
+  const root = {
+    ...rectangle,
+    id: "3:1",
+    name: "Root",
+    type: "FRAME",
+    children: [inner, { ...leaf, id: "3:4", visible: false }],
+  } as unknown as SceneNode;
+
+  // get_design_context bounds its output by depth. The cut has to happen inside
+  // the one walk — re-serializing every subtree and discarding it multiplied the
+  // async lookups by the depth, which is what timed out on library-heavy pages.
+  test("stops at maxDepth and reports the visible child count instead", async () => {
+    const out = await serializeNode(root, { maxDepth: 1 });
+    expect(out.children?.map((c) => c.id)).toEqual(["3:2"]);
+    const cut = out.children?.[0] as SerializedNodeWithCount;
+    expect(cut.children).toBeUndefined();
+    expect(cut.childCount).toBe(1);
+  });
+
+  test("counts only visible children at the cut", async () => {
+    const out = (await serializeNode(root, { maxDepth: 0 })) as SerializedNodeWithCount;
+    expect(out.children).toBeUndefined();
+    expect(out.childCount).toBe(1);
+  });
+
+  test("walks the whole tree when no depth is given", async () => {
+    const out = await serializeNode(root);
+    expect(out.children?.[0].children?.[0].id).toBe("3:3");
+  });
+});
+
+type SerializedNodeWithCount = Awaited<ReturnType<typeof serializeNode>> & { childCount?: number };

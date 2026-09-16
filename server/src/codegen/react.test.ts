@@ -27,7 +27,7 @@ describe("toReact", () => {
     expect(output).not.toContain("#101820");
   });
 
-  test("falls back to the raw hex where nothing is bound", () => {
+  test("falls back to the raw colour where nothing is bound", () => {
     expect(output).toContain("#FFFFFF");
   });
 
@@ -41,5 +41,20 @@ describe("toReact", () => {
 
   test("is stable across runs", () => {
     expect(toReact(card as unknown as SerializedNode)).toBe(output);
+  });
+});
+
+describe("toReact text escaping", () => {
+  // Reference code goes into a JSX or HTML file: braces and angle brackets in
+  // design copy would otherwise produce code that does not parse.
+  test("escapes JSX-significant characters in text content", () => {
+    const out = toReact({
+      id: "2:1",
+      name: "Copy",
+      type: "TEXT",
+      characters: "Total < 100 & {user}",
+    } as unknown as SerializedNode);
+    expect(out).toContain("Total &lt; 100 &amp; &#123;user&#125;");
+    expect(out).not.toContain("{user}");
   });
 });

@@ -19,8 +19,8 @@ target project's stack, component library and token system.
 | `assetDir` | string                                       | _none_ — no export           | Directory, relative to the MCP server's working directory, to export icons and images into. Must resolve inside that directory.        |
 | `fileKey`  | string                                       | the only connected file      | Which file to read when several have the plugin open. Use `list_files` to discover keys.                                               |
 
-Only the first node of a multi-node selection is described. Pass `nodeId` to
-be explicit.
+Only the first node of a multi-node selection is described, and the response
+opens by saying so and how many were selected. Pass `nodeId` to be explicit.
 
 ## Response shape
 
@@ -30,11 +30,13 @@ The result is a multi-part MCP result, always in this order:
 2. **An image block** — a 2× PNG screenshot of the node, clipped to its bounds,
    delivered as a real `image` content block so MCP clients render it rather
    than showing base64. It is omitted when the root is a page (pages cannot be
-   exported) or when the export fails; the text block is returned regardless.
+   exported) or when the export fails; in the latter case the text block opens
+   with `Screenshot unavailable: …` and the reason.
 
 ### Sections of the text block
 
-The text block is Markdown with up to three `##` sections, in this order.
+The text block is Markdown with up to three `##` sections, in this order,
+preceded by any caveats (partial selection, missing screenshot) as plain lines.
 Sections with nothing to say are omitted.
 
 **`## Reference code (<format>)`** — the generated code in a fenced block.
@@ -43,7 +45,9 @@ Sections with nothing to say are omitted.
   by a comment naming the main component
   (`{/* Figma component: Button — map with Code Connect */}`). The generator
   never invents a codebase component for an instance it has not been mapped to.
-- Text nodes name their text style in a comment when one is applied.
+- Text nodes name their text style in a comment when one is applied. Text
+  content is entity-escaped (`&lt;`, `&amp;`, `&#123;`) so copy containing
+  braces or angle brackets still yields code that parses as JSX and as HTML.
 - Auto-layout, padding, corner radius and fill/fill-sizing map to Tailwind
   classes in `react` and `html`, and to declarations in `css`.
 
@@ -84,16 +88,20 @@ replacing `/`, `_` and whitespace with `-`: `Color/Brand Primary` becomes
 Three kinds of node are exported, every one as SVG: vectors (`VECTOR`,
 `BOOLEAN_OPERATION`, `STAR`, `POLYGON`, `LINE`), nodes with an image fill (the
 SVG embeds the raster), and a container — group, frame, instance or component —
-whose children are all vectors. That last case is what keeps an icon whole: an
-icon in a design system is an instance of an icon component, and the walk
-stops at that instance rather than shattering it into a file per path.
+whose children are vectors, optionally mixed with plain rectangles and ellipses
+(a badge dot, a background plate). That last case is what keeps an icon whole:
+an icon in a design system is an instance of an icon component, and the walk
+stops at that instance rather than shattering it into a file per path. A
+container of nothing but rectangles is a layout, not an icon, and is walked
+into.
 
 Only the serialized tree is walked, so an icon deeper than `depth` is not
 exported. Raise `depth` when the asset list comes back shorter than the design
 suggests.
 
 Files are named `<layer-name>-<node-id>.svg` (`icon/search` on `12:34` becomes
-`icon-search-1234.svg`), land under `assetDir`, and the response lists them by
+`icon-search-12-34.svg`; the id's `:` becomes `-` and an instance path's `;`
+becomes `_`, so distinct ids never share a file), land under `assetDir`, and the response lists them by
 workspace-relative path. The text tells the agent to **reference those files and not hand-write
 `<svg>` markup**: the generated code has no vector data, and a same-named icon
 from the project is only a match when the glyph clearly is.

@@ -21,6 +21,12 @@ const VECTOR_TYPES = new Set(["VECTOR", "BOOLEAN_OPERATION", "STAR", "POLYGON", 
  */
 const ICON_CONTAINER_TYPES = new Set(["GROUP", "FRAME", "INSTANCE", "COMPONENT"]);
 
+/**
+ * Primitive shapes that may sit inside an icon beside its vectors — a badge
+ * dot, a background plate. They never make a container an icon on their own.
+ */
+const ICON_SHAPE_TYPES = new Set(["RECTANGLE", "ELLIPSE"]);
+
 const hasImageFill = (node: SerializedNode): boolean => {
   const fills = (node.styles as { fills?: Array<{ type?: string }> } | undefined)?.fills;
   return Array.isArray(fills) && fills.some((fill) => fill.type === "IMAGE");
@@ -42,8 +48,8 @@ export const findExportableNodes = (root: SerializedNode): string[] => {
     const children = node.children ?? [];
     const isVectorGroup =
       ICON_CONTAINER_TYPES.has(node.type) &&
-      children.length > 0 &&
-      children.every((child) => VECTOR_TYPES.has(child.type));
+      children.some((child) => VECTOR_TYPES.has(child.type)) &&
+      children.every((child) => VECTOR_TYPES.has(child.type) || ICON_SHAPE_TYPES.has(child.type));
 
     if (VECTOR_TYPES.has(node.type) || hasImageFill(node) || isVectorGroup) {
       ids.push(node.id);
@@ -57,7 +63,11 @@ export const findExportableNodes = (root: SerializedNode): string[] => {
   return ids;
 };
 
-/** Makes a filesystem-safe stem from a layer name. */
+/**
+ * Makes a filesystem-safe stem from a layer name and node id. The id's
+ * separators are mapped, not stripped: `1:234` and `12:34` must not both
+ * become `1234`, or the second export silently overwrites the first.
+ */
 const fileStem = (name: string, nodeId: string): string => {
   const base = name
     .trim()
@@ -65,7 +75,11 @@ const fileStem = (name: string, nodeId: string): string => {
     .replace(/[\s/_]+/g, "-")
     .replace(/[^a-z0-9-]/g, "")
     .replace(/-+/g, "-");
-  return base ? `${base}-${nodeId.replace(/[^a-z0-9]/gi, "")}` : nodeId.replace(/[^a-z0-9]/gi, "");
+  const id = nodeId
+    .replace(/:/g, "-")
+    .replace(/;/g, "_")
+    .replace(/[^a-z0-9_-]/gi, "");
+  return base ? `${base}-${id}` : id;
 };
 
 /**

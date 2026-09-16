@@ -6,7 +6,7 @@ const tree = {
   id: "1:1",
   name: "Card",
   type: "FRAME",
-  styles: { fills: [{ type: "SOLID", hex: "#101820" }] },
+  styles: { fills: [{ type: "SOLID", color: "#101820" }] },
   design: {
     boundVariables: [{ property: "fills[0]", variableId: "V:1", variableName: "color/surface" }],
   },
@@ -60,5 +60,30 @@ describe("composeDesignContext", () => {
       assets: [],
     });
     expect((first as { text: string }).text).toContain("[truncated");
+  });
+});
+
+describe("composeDesignContext notes", () => {
+  // Silence here is a defect: an agent that asked for "the selection" and got
+  // one of three nodes with no mention would build a third of the design.
+  test("says when only the first of several selected nodes is described", () => {
+    const [first] = composeDesignContext({
+      tree,
+      format: "react",
+      assets: [],
+      notes: ["3 nodes are selected; only Card (1:1) is described. Pass nodeId for the others."],
+    });
+    expect((first as { text: string }).text).toMatch(/^3 nodes are selected/);
+  });
+
+  test("says when the screenshot could not be taken", () => {
+    const blocks = composeDesignContext({
+      tree,
+      format: "react",
+      assets: [],
+      notes: ["Screenshot unavailable: export failed."],
+    });
+    expect(blocks.some((block) => block.type === "image")).toBe(false);
+    expect((blocks[0] as { text: string }).text).toContain("Screenshot unavailable");
   });
 });

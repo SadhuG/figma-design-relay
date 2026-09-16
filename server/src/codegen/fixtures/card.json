@@ -7,7 +7,7 @@
     "autoLayout": { "direction": "VERTICAL", "gap": 12 },
     "padding": { "top": 16, "right": 16, "bottom": 16, "left": 16 },
     "cornerRadius": 8,
-    "fills": [{ "type": "SOLID", "hex": "#101820" }]
+    "fills": [{ "type": "SOLID", "color": "#101820" }]
   },
   "design": {
     "boundVariables": [
@@ -20,7 +20,7 @@
       "name": "Title",
       "type": "TEXT",
       "characters": "Monthly report",
-      "styles": { "fills": [{ "type": "SOLID", "hex": "#FFFFFF" }] },
+      "styles": { "fills": [{ "type": "SOLID", "color": "#FFFFFF" }] },
       "design": { "styles": { "text": { "id": "S:1", "name": "Heading/M" } } }
     },
     {

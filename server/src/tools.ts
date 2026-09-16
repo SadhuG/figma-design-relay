@@ -115,6 +115,8 @@ export interface DesignContextInput {
   format: CodeFormat;
   assets: AssetRecord[];
   screenshot?: { base64: string; format: ExportFormat };
+  /** Caveats the agent must see first: partial selection, missing screenshot. */
+  notes?: string[];
 }
 
 /**
@@ -126,6 +128,11 @@ export interface DesignContextInput {
 export function composeDesignContext(input: DesignContextInput): ContentBlock[] {
   const tokens = collectTokens(input.tree);
   const sections: string[] = [];
+
+  // Caveats come first, unadorned, so they are the first thing the agent reads.
+  if (input.notes && input.notes.length > 0) {
+    sections.push(input.notes.join("\n"));
+  }
 
   sections.push(
     `## Reference code (${input.format})\n\nAdapt this to the target project's stack — it is a reference, not final code.\n\n\`\`\`\n${generateCode(input.tree, input.format)}\n\`\`\``
@@ -275,6 +282,14 @@ export function registerTools(server: McpServer, node: Node, port: number): void
           };
         }
 
+        const notes: string[] = [];
+        const selected = context.context?.length ?? 0;
+        if (selected > 1) {
+          notes.push(
+            `${selected} nodes are selected; only ${tree.name} (${tree.id}) is described. Pass nodeId for the others.`
+          );
+        }
+
         const assets = assetDir
           ? await exportAssets(node, findExportableNodes(tree), assetDir, fileKey)
           : [];
@@ -291,6 +306,9 @@ export function registerTools(server: McpServer, node: Node, port: number): void
               );
         const first = (shot?.data as { exports?: Array<{ base64: string }> } | undefined)
           ?.exports?.[0];
+        if (shot && !first) {
+          notes.push(`Screenshot unavailable: ${shot.error ?? "the export returned nothing"}.`);
+        }
 
         return {
           content: composeDesignContext({
@@ -298,6 +316,7 @@ export function registerTools(server: McpServer, node: Node, port: number): void
             format: format ?? "react",
             assets,
             screenshot: first ? { base64: first.base64, format: "PNG" } : undefined,
+            notes,
           }),
         };
       } catch (err) {

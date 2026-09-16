@@ -471,7 +471,20 @@ const serializeDesign = async (
   return Object.keys(design).length > 0 ? design : undefined;
 };
 
-export const serializeNode = async (node: SceneNode | PageNode): Promise<SerializedNode> => {
+export interface SerializeOptions {
+  /**
+   * How many levels of children to descend. A node at the limit reports
+   * `childCount` — visible children only — in place of `children`, so the
+   * walk is bounded without a second pass. Omit to walk the whole tree.
+   */
+  maxDepth?: number;
+}
+
+export const serializeNode = async (
+  node: SceneNode | PageNode,
+  options: SerializeOptions = {},
+  depth = 0
+): Promise<SerializedNode> => {
   const raw = node as unknown as Record<string, unknown>;
   const base: SerializedNode = {
     id: node.id,
@@ -505,9 +518,12 @@ export const serializeNode = async (node: SceneNode | PageNode): Promise<Seriali
 
   if ("children" in node) {
     const visible = node.children.filter((child) => child.visible !== false);
+    if (options.maxDepth !== undefined && depth >= options.maxDepth) {
+      return { ...base, childCount: visible.length };
+    }
     return {
       ...base,
-      children: await Promise.all(visible.map((child) => serializeNode(child))),
+      children: await Promise.all(visible.map((child) => serializeNode(child, options, depth + 1))),
     };
   }
 

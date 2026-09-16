@@ -421,39 +421,10 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
       }
       case "get_design_context": {
         const depth = typeof request.params?.depth === "number" ? request.params.depth : 2;
-        const serializeWithDepth = async (
-          node: SceneNode | PageNode,
-          currentDepth: number
-        ): Promise<SerializedNode> => {
-          const serialized = await serializeNode(node);
-          if (currentDepth >= depth && serialized.children) {
-            // Truncate children at depth limit, but show count
-            return {
-              ...serialized,
-              children: undefined,
-              childCount:
-                "children" in node ? node.children.filter((c) => c.visible !== false).length : 0,
-            } as SerializedNode & { childCount: number };
-          }
-          if (serialized.children) {
-            const childNodes = await Promise.all(
-              serialized.children.map((child) => figma.getNodeByIdAsync(child.id))
-            );
-            const serializedChildren = await Promise.all(
-              childNodes
-                .filter(
-                  (n): n is SceneNode =>
-                    n !== null && n.type !== "DOCUMENT" && "visible" in n && n.visible !== false
-                )
-                .map((n) => serializeWithDepth(n, currentDepth + 1))
-            );
-            return {
-              ...serialized,
-              children: serializedChildren,
-            };
-          }
-          return serialized;
-        };
+        // One bounded walk. Serializing every subtree in full and then discarding
+        // the levels past the limit multiplied the async lookups by the depth.
+        const serializeWithDepth = (node: SceneNode | PageNode, currentDepth: number) =>
+          serializeNode(node, { maxDepth: depth }, currentDepth);
 
         const requestedId = request.nodeIds?.[0];
         let requested: BaseNode | null = null;

@@ -13,7 +13,7 @@ const className = (name: string): string =>
 const declarations = (node: SerializedNode): string[] => {
   const styles = node.styles as
     | {
-        fills?: Array<{ type?: string; hex?: string }>;
+        fills?: Array<{ type?: string; color?: string }>;
         autoLayout?: { direction?: string; gap?: number };
         padding?: { top: number; right: number; bottom: number; left: number };
         cornerRadius?: number | string;
@@ -24,7 +24,7 @@ const declarations = (node: SerializedNode): string[] => {
   const fill = styles?.fills?.[0];
   if (fill?.type === "SOLID") {
     const token = node.design?.boundVariables?.find((b) => b.property === "fills[0]")?.variableName;
-    const value = token ? `var(${cssVarName(token)})` : fill.hex;
+    const value = token ? `var(${cssVarName(token)})` : fill.color;
     if (value) out.push(`${node.type === "TEXT" ? "color" : "background"}: ${value};`);
   }
 
