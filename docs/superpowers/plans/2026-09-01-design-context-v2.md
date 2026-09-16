@@ -39,7 +39,7 @@
 - Consumes: `ExportFormat` from `./tools.js`.
 - Produces: `ContentBlock`, `ToolResult`, `textBlock(text)`, `imageBlock(base64, format)` and `IMAGE_MIME_TYPES`. Tasks 5 and 6 import them from `./content.js`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 _server/src/content.test.ts — create_
 
@@ -77,12 +77,12 @@ describe("imageBlock", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `cd server && bun test src/content.test.ts`
 Expected: FAIL — `Cannot find module './content.js'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 _server/src/content.ts — create_
 
@@ -131,7 +131,7 @@ export const imageBlock = (base64: string, format: ExportFormat): ContentBlock |
 };
 ```
 
-- [ ] **Step 4: Adopt the shared type in tools.ts**
+- [x] **Step 4: Adopt the shared type in tools.ts**
 
 Delete the local `ToolResult` declaration near the top of `server/src/tools.ts` and import it instead. Every existing handler keeps compiling, because a text-only array still satisfies the wider type.
 
@@ -139,12 +139,12 @@ Delete the local `ToolResult` declaration near the top of `server/src/tools.ts` 
 import { imageBlock, textBlock, type ToolResult } from "./content.js";
 ```
 
-- [ ] **Step 5: Run the tests and verify the server builds**
+- [x] **Step 5: Run the tests and verify the server builds**
 
 Run: `cd server && bun run test && bun run build`
 Expected: PASS — 5 new tests pass and `tsc` reports no errors
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/content.ts server/src/content.test.ts server/src/tools.ts
@@ -167,7 +167,7 @@ Phase 2 put the token name on each node. This walks the tree and collects them i
 - Consumes: nothing.
 - Produces: `collectTokens(node): TokenUse[]` and the `SerializedNode`, `TokenUse` types. Tasks 3, 4 and 6 import them from `./codegen/tokens.js`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 _server/src/codegen/tokens.test.ts — create_
 
@@ -258,12 +258,12 @@ describe("collectTokens", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `cd server && bun test src/codegen/tokens.test.ts`
 Expected: FAIL — `Cannot find module './tokens.js'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 _server/src/codegen/tokens.ts — create_
 
@@ -358,12 +358,12 @@ export const collectTokens = (root: SerializedNode): TokenUse[] => {
 };
 ```
 
-- [ ] **Step 4: Run the tests and make sure they pass**
+- [x] **Step 4: Run the tests and make sure they pass**
 
 Run: `cd server && bun test src/codegen/tokens.test.ts`
 Expected: PASS — 5 pass, 0 fail
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/codegen/tokens.ts server/src/codegen/tokens.test.ts
@@ -389,7 +389,7 @@ Two rules make the difference between useful and misleading output: a bound prop
 - Consumes: `SerializedNode`, `TokenUse` from `./tokens.js`.
 - Produces: `toReact(node, options): string` and `cssVarName(tokenName): string`. Task 4 reuses `cssVarName`; task 6 calls `toReact`.
 
-- [ ] **Step 1: Write the fixture**
+- [x] **Step 1: Write the fixture**
 
 _server/src/codegen/fixtures/card.json — create_
 
@@ -430,7 +430,7 @@ _server/src/codegen/fixtures/card.json — create_
 }
 ```
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 _server/src/codegen/react.test.ts — create_
 
@@ -482,12 +482,12 @@ describe("toReact", () => {
 });
 ```
 
-- [ ] **Step 3: Run it to make sure it fails**
+- [x] **Step 3: Run it to make sure it fails**
 
 Run: `cd server && bun test src/codegen/react.test.ts`
 Expected: FAIL — `Cannot find module './react.js'`
 
-- [ ] **Step 4: Write the implementation**
+- [x] **Step 4: Write the implementation**
 
 _server/src/codegen/react.ts — create_
 
@@ -629,12 +629,12 @@ export const toReact = (node: SerializedNode, options: ReactOptions = {}): strin
   render(node, 0, options.indent ?? 2).join("\n");
 ```
 
-- [ ] **Step 5: Run the tests and make sure they pass**
+- [x] **Step 5: Run the tests and make sure they pass**
 
 Run: `cd server && bun test src/codegen/react.test.ts`
 Expected: PASS — 8 pass, 0 fail
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/codegen/react.ts server/src/codegen/react.test.ts server/src/codegen/fixtures/card.json
@@ -659,7 +659,7 @@ Three formats share one fixture, so a change that breaks structure breaks all th
 - Consumes: `toReact`, `cssVarName` from `./react.js`; `SerializedNode` from `./tokens.js`.
 - Produces: `generateCode(node, format): string` and the `CodeFormat = "react" | "html" | "css" | "json"` type. Task 6 imports both from `./codegen/index.js`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 _server/src/codegen/index.test.ts — create_
 
@@ -698,12 +698,12 @@ describe("generateCode", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `cd server && bun test src/codegen/index.test.ts`
 Expected: FAIL — `Cannot find module './index.js'`
 
-- [ ] **Step 3: Write the HTML generator**
+- [x] **Step 3: Write the HTML generator**
 
 _server/src/codegen/html.ts — create_
 
@@ -731,7 +731,7 @@ export const toHtml = (node: SerializedNode): string =>
     .replace(/\{\/\*\s*(.*?)\s*\*\/\}/g, "<!-- $1 -->");
 ```
 
-- [ ] **Step 4: Write the CSS generator**
+- [x] **Step 4: Write the CSS generator**
 
 _server/src/codegen/css.ts — create_
 
@@ -809,7 +809,7 @@ export const toCss = (root: SerializedNode): string => {
 };
 ```
 
-- [ ] **Step 5: Write the dispatcher**
+- [x] **Step 5: Write the dispatcher**
 
 _server/src/codegen/index.ts — create_
 
@@ -849,12 +849,12 @@ export const generateCode = (node: SerializedNode, format: CodeFormat): string =
 export { toCss, toHtml, toReact };
 ```
 
-- [ ] **Step 6: Run the tests and make sure they pass**
+- [x] **Step 6: Run the tests and make sure they pass**
 
 Run: `cd server && bun test src/codegen/`
 Expected: PASS — 18 pass, 0 fail across tokens, react and index
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add server/src/codegen/index.ts server/src/codegen/html.ts server/src/codegen/css.ts server/src/codegen/index.test.ts
@@ -877,7 +877,7 @@ The official server hands back asset URLs that expire in about a week. We write 
 - Consumes: `ScreenshotSender` from `./tools.js`; `SerializedNode` from `./codegen/tokens.js`.
 - Produces: `findExportableNodes(root): string[]` and `exportAssets(sender, nodeIds, outputDir, fileKey): Promise<AssetRecord[]>`, plus the `AssetRecord` type. Task 6 imports them from `./assets.js`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Only `findExportableNodes` is unit-tested here — it is the part with judgement in it. `exportAssets` is I/O over the bridge and is proven in task 7's manual pass.
 
@@ -934,12 +934,12 @@ describe("findExportableNodes", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `cd server && bun test src/assets.test.ts`
 Expected: FAIL — `Cannot find module './assets.js'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 _server/src/assets.ts — create_
 
@@ -1063,12 +1063,12 @@ export const exportAssets = async (
 };
 ```
 
-- [ ] **Step 4: Run the tests and make sure they pass**
+- [x] **Step 4: Run the tests and make sure they pass**
 
 Run: `cd server && bun test src/assets.test.ts`
 Expected: PASS — 4 pass, 0 fail
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/assets.ts server/src/assets.test.ts
@@ -1093,7 +1093,7 @@ Everything above is inert until the tool composes it. This is also where the res
 - Consumes: `generateCode`, `CODE_FORMATS` from `./codegen/index.js`; `collectTokens` from `./codegen/tokens.js`; `exportAssets`, `findExportableNodes` from `./assets.js`; `imageBlock`, `textBlock` from `./content.js`.
 - Produces: `composeDesignContext(input): ContentBlock[]` exported from `server/src/tools.ts` for testing.
 
-- [ ] **Step 1: Widen the input schema**
+- [x] **Step 1: Widen the input schema**
 
 In `server/src/schema.ts`, replace the `get_design_context` entry:
 
@@ -1124,7 +1124,7 @@ In `server/src/schema.ts`, replace the `get_design_context` entry:
 
 The existing `rpcToArgs.get_design_context` entry — `(_nodeIds, params) => ({ ...params })` — already forwards every field, so it needs no change. Confirm it is still there rather than assuming it.
 
-- [ ] **Step 2: Write the failing test for the composer**
+- [x] **Step 2: Write the failing test for the composer**
 
 _server/src/design-context.test.ts — create_
 
@@ -1195,7 +1195,7 @@ describe("composeDesignContext", () => {
 });
 ```
 
-- [ ] **Step 3: Write the composer**
+- [x] **Step 3: Write the composer**
 
 Add to `server/src/tools.ts`, above `registerTools`. Exported so the test can reach it without standing up a server.
 
@@ -1258,12 +1258,12 @@ export function composeDesignContext(input: DesignContextInput): ContentBlock[] 
 }
 ```
 
-- [ ] **Step 4: Run the composer tests**
+- [x] **Step 4: Run the composer tests**
 
 Run: `cd server && bun test src/design-context.test.ts`
 Expected: PASS — 4 pass, 0 fail
 
-- [ ] **Step 5: Honour nodeId in the plugin**
+- [x] **Step 5: Honour nodeId in the plugin**
 
 In `plugin/src/main/code.ts`, inside the `get_design_context` case, replace the selection lookup so an explicit node wins:
 
@@ -1285,7 +1285,7 @@ const contextNodes = requested
 
 Add `nodeId?: string;` to `ServerRequestParams` in the same file.
 
-- [ ] **Step 6: Rewrite the tool handler**
+- [x] **Step 6: Rewrite the tool handler**
 
 Replace the `get_design_context` registration in `server/src/tools.ts`:
 
@@ -1350,12 +1350,12 @@ server.tool(
 );
 ```
 
-- [ ] **Step 7: Verify the server builds and the suite is green**
+- [x] **Step 7: Verify the server builds and the suite is green**
 
 Run: `cd server && bun run build && bun run test`
 Expected: PASS — no `tsc` errors, all tests pass
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add server/src/schema.ts server/src/tools.ts server/src/design-context.test.ts plugin/src/main/code.ts
@@ -1378,7 +1378,7 @@ The composer is unit-tested against a fixture. What is not yet proven is that a 
 - Consumes: the shipped tool.
 - Produces: documentation only.
 
-- [ ] **Step 1: Build and load**
+- [x] **Step 1: Build and load**
 
 ```bash
 cd server && bun run build
@@ -1387,53 +1387,53 @@ cd ../plugin && bun run build
 
 Import `plugin/manifest.json` in Figma, open a design file with a real screen in it, and point your MCP client at `node /path/to/figma-design-relay/server/dist/index.js`.
 
-- [ ] **Step 2: Prove the one-call response**
+- [x] **Step 2: Prove the one-call response**
 
 Select a card or list item and call `get_design_context` with no arguments.
 
 Expected: one text block containing React reference code and a token list, plus a **rendered image** of the node — not a base64 string.
 
-- [ ] **Step 3: Prove tokens beat hexes**
+- [x] **Step 3: Prove tokens beat hexes**
 
 Pick a node whose fill is bound to a colour variable and call `get_design_context` on it by `nodeId`.
 
 Expected: the code contains `var(--…)` for that fill and the hex appears nowhere in the generated code.
 
-- [ ] **Step 4: Prove asset export**
+- [x] **Step 4: Prove asset export**
 
 Call `get_design_context` with `assetDir: "tmp-assets"` on a frame containing icons.
 
 Expected: `tmp-assets/` fills with `.svg` files, the response lists their workspace-relative paths, and the text tells the agent not to hand-write `<svg>`.
 
-- [ ] **Step 5: Prove containment**
+- [x] **Step 5: Prove containment**
 
 Call it again with `assetDir: "../escape"`.
 
 Expected: an error naming the working directory and refusing — no file is written outside the workspace.
 
-- [ ] **Step 6: Prove the formats**
+- [x] **Step 6: Prove the formats**
 
 Call the tool three more times with `format` set to `html`, `css` and `json`.
 
 Expected: each returns the corresponding output; an unknown format is rejected with a message listing the four supported ones.
 
-- [ ] **Step 7: Prove bounded degradation**
+- [x] **Step 7: Prove bounded degradation**
 
 Call it on a whole page with `depth: 6`.
 
 Expected: a response that either fits or ends in `[truncated at 200000 characters …]`. It must not hang or return an unusable wall.
 
-- [ ] **Step 8: Clean up**
+- [x] **Step 8: Clean up**
 
 ```bash
 rm -rf tmp-assets
 ```
 
-- [ ] **Step 9: Write the response contract**
+- [x] **Step 9: Write the response contract**
 
 Create `docs/design-context.md` covering: the parameters (`nodeId`, `depth`, `format`, `assetDir`, `fileKey`); the block order (text first, image second); the section order inside the text block; the hint priority from R25; the token-over-value rule; the asset contract and why local files are preferred to expiring URLs; and the limits (depth, 200000 characters, the bridge's three-minute timeout).
 
-- [ ] **Step 10: Update the README**
+- [x] **Step 10: Update the README**
 
 Replace the `get_design_context` row in the tool table:
 
@@ -1447,7 +1447,7 @@ And append to Editing Notes:
 - `get_design_context` exports icons and images as files under `assetDir` rather than returning expiring URLs, because a committed file is what code you keep actually needs. The path must stay inside the MCP server working directory.
 ```
 
-- [ ] **Step 11: Format and run everything**
+- [x] **Step 11: Format and run everything**
 
 ```bash
 bun run format
@@ -1457,7 +1457,7 @@ cd ../plugin && bun run test && bun run build
 
 Expected: PASS — Prettier reports no remaining changes on a second run, both suites green, both builds clean
 
-- [ ] **Step 12: Commit**
+- [x] **Step 12: Commit**
 
 ```bash
 git add README.md docs/design-context.md

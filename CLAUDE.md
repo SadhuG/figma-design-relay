@@ -14,15 +14,15 @@ Figma plugin ──ws://localhost:1994/ws──> leader server ──stdio──
 
 ## Commands
 
-| Where     | Command                                   | Notes                                         |
-| --------- | ----------------------------------------- | --------------------------------------------- |
-| root      | `bun install`                             | installs Husky's pre-commit hook              |
-| root      | `bun run format` / `bun run format:check` | Prettier 3.9.6 over everything                |
-| `server/` | `bun run build`                           | `tsc` → `dist/`                               |
-| `plugin/` | `bun run build`                           | two Vite passes: UI, then `main`              |
-| `plugin/` | `bun run typecheck`                       | `tsc --noEmit`; `bun run build` runs it first |
-| `server/` | `bun test`                                | 13 tests: schema validation + the /rpc guards |
-| `plugin/` | `bun test`                                | 29 tests: script result, runner, editor gate  |
+| Where     | Command                                   | Notes                                          |
+| --------- | ----------------------------------------- | ---------------------------------------------- |
+| root      | `bun install`                             | installs Husky's pre-commit hook               |
+| root      | `bun run format` / `bun run format:check` | Prettier 3.9.6 over everything                 |
+| `server/` | `bun run build`                           | `tsc` → `dist/`                                |
+| `plugin/` | `bun run build`                           | two Vite passes: UI, then `main`               |
+| `plugin/` | `bun run typecheck`                       | `tsc --noEmit`; `bun run build` runs it first  |
+| `server/` | `bun test`                                | 50 tests: schemas, rpc guards, codegen, assets |
+| `plugin/` | `bun test`                                | 69 tests: scripts, serializer, editor gate     |
 
 **Bun everywhere — never `npm` or `yarn`.**
 
@@ -50,8 +50,24 @@ not the tsconfig.
 `server/.smoke/` drives real tool calls against a live file without touching your MCP client config.
 It runs on **port 1995** — `manifest.json` allows both 1994 and 1995 in
 `networkAccess.allowedDomains` so a test instance can run beside a stock relay. Start
-`node .smoke/hold-leader.mjs` and leave it running, or the plugin has nothing to connect to. See
-`server/.smoke/README.md`.
+`node .smoke/hold-leader.mjs` and leave it running, or the plugin has nothing to connect to.
+`probe.mjs` drives `run_script`; `call.mjs` drives any tool by name. See `server/.smoke/README.md`.
+
+Three things that cost real time before they were understood:
+
+- **Relaunch the plugin after every plugin rebuild.** Figma desktop hot-reloads a dev plugin when
+  its files change, but a hot-reloaded sandbox cannot fetch library assets — every library style or
+  variable lookup takes ~11 s and throws, so tokens come back as bare ids. Close the panel and run
+  the plugin again from the Development menu; the same lookup then takes ~300 ms.
+- **Check which plugin Figma is actually running.** Several copies of the manifest exist on this
+  machine (the upstream `figma-mcp-bridge-v0.0.20` checkout, an old worktree) and they all share
+  the same name. `netstat -ano | grep 1994` shows which port Figma is attached to, and a probe with
+  a bogus `nodeId` tells old from new — the old builds ignore it.
+- **The follower → leader hop validates and strips.** `validateRpc` drops `nodeId` from params for
+  every tool, because for all the older tools it is a fold of `nodeIds`. A tool that wants a real
+  node id must send it on `nodeIds` and read `request.nodeIds[0]` in the plugin. Unit tests never
+  see this — only the direct leader path is exercised — so a new node-addressed tool needs one
+  live probe through a follower.
 
 ## Layout
 
@@ -109,7 +125,7 @@ satisfies.
 | ----- | -------------------------------------------------- | ------- | ----- | ---------------------- | ----------- |
 | 1     | `2026-09-01-run-script-plugin-api-escape-hatch.md` | R1–R10  | 7     | —                      | **done**    |
 | 2     | `2026-09-01-serializer-enrichment.md`              | R11–R19 | 6     | phase 1's test harness | in progress |
-| 3     | `2026-09-01-design-context-v2.md`                  | R20–R27 | 7     | **phase 2** (R14, R15) | not started |
+| 3     | `2026-09-01-design-context-v2.md`                  | R20–R27 | 7     | **phase 2** (R14, R15) | **done**    |
 | 4     | `2026-09-01-code-connect.md`                       | R28–R35 | 8     | **phase 2** (R13)      | not started |
 | 5     | `2026-09-01-library-reach.md`                      | R36–R42 | 7     | phase 1's test harness | not started |
 | 6     | `2026-09-01-figjam-slides-diagrams.md`             | R43–R50 | 8     | phase 1's test harness | not started |

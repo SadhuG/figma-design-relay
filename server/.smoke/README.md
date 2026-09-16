@@ -39,6 +39,16 @@ the payload, which is what distinguishes a genuine MCP error result from a succe
 merely describes a failure. `call.mjs` summarises image blocks as `[image <mime> <bytes>]` — seeing
 that line at all is the proof that the result carried a real image block rather than base64 text.
 
+## Relaunch the plugin after every plugin rebuild
+
+Figma desktop hot-reloads a development plugin when its files change — the leader logs a
+disconnect/connect pair with a fresh `unsaved-…` key — but a hot-reloaded sandbox cannot fetch
+library assets: every `getStyleByIdAsync` / `getVariableByIdAsync` on a library id takes ~11 s and
+throws "Unable to establish connection to Figma", so tokens come back as bare ids and a screen takes
+minutes. Closing the plugin panel and running it again from the Development menu fixes it
+instantly (the same lookup then takes ~300 ms). Do that after any `bun run build` in `plugin/`
+before trusting a probe's timing or token names.
+
 ## Checking the wiring when it will not connect
 
 `netstat -ano | grep 1995` answers most of it. `LISTENING` means the leader is up; a matching
