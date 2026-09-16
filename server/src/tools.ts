@@ -34,6 +34,10 @@ import {
 import { LOOPBACK_HOST } from "./types.js";
 import type { BridgeResponse } from "./types.js";
 import { Follower } from "./follower.js";
+import { imageBlock, textBlock, type ContentBlock, type ToolResult } from "./content.js";
+import { generateCode, type CodeFormat } from "./codegen/index.js";
+import { collectTokens, type SerializedNode } from "./codegen/tokens.js";
+import { exportAssets, findExportableNodes, type AssetRecord } from "./assets.js";
 
 const MAX_IMAGE_BYTES = 32 * 1024 * 1024;
 const IMAGE_FETCH_TIMEOUT_MS = 15_000;
@@ -59,18 +63,18 @@ RESULT SHAPE: \`{ ok: true, value }\` on success, or \`{ ok: true, truncated: tr
 
 LIMITS: 100000 characters of source; results capped at depth 12 and 500 items per array; the relay times out after 3 minutes. Requires the plugin to be open in Figma's design editor — Dev Mode is read-only and will reject this tool.`;
 
-type ToolResult = {
-  content: Array<{ type: "text"; text: string }>;
-  isError?: boolean;
-};
-
 export type ExportFormat = "PNG" | "SVG" | "JPG" | "PDF";
 
 export interface ScreenshotSender {
+  /**
+   * `fileKey` is optional because most callers pre-bind it into the wrapper, the
+   * way save_screenshots does; exportAssets forwards it per call instead.
+   */
   sendWithParams(
     requestType: string,
     nodeIds?: string[],
-    params?: Record<string, unknown>
+    params?: Record<string, unknown>,
+    fileKey?: string
   ): Promise<BridgeResponse>;
 }
 
@@ -102,6 +106,70 @@ interface SaveScreenshotItemResult {
   bytesWritten?: number;
   success: boolean;
   error?: string;
+}
+
+const MAX_CONTEXT_CHARS = 200_000;
+
+export interface DesignContextInput {
+  tree: SerializedNode;
+  format: CodeFormat;
+  assets: AssetRecord[];
+  screenshot?: { base64: string; format: ExportFormat };
+  /** Caveats the agent must see first: partial selection, missing screenshot. */
+  notes?: string[];
+}
+
+/**
+ * Assembles the design-context response: reference code, the tokens the design
+ * uses, the exported asset paths, and the screenshot.
+ * @param input - The serialized tree plus everything gathered around it.
+ * @returns MCP content blocks, text first.
+ */
+export function composeDesignContext(input: DesignContextInput): ContentBlock[] {
+  const tokens = collectTokens(input.tree);
+  const sections: string[] = [];
+
+  // Caveats come first, unadorned, so they are the first thing the agent reads.
+  if (input.notes && input.notes.length > 0) {
+    sections.push(input.notes.join("\n"));
+  }
+
+  sections.push(
+    `## Reference code (${input.format})\n\nAdapt this to the target project's stack — it is a reference, not final code.\n\n\`\`\`\n${generateCode(input.tree, input.format)}\n\`\`\``
+  );
+
+  if (tokens.length > 0) {
+    const rows = tokens
+      .map(
+        (token) =>
+          `- \`${token.name}\` (${token.kind}, ${token.property}) — used by ${token.usedBy.length} node(s)`
+      )
+      .join("\n");
+    sections.push(
+      `## Design tokens\n\nMap these to the project's token system. Values bound to a token are emitted as \`var(--token)\`; a raw value in the code means nothing was bound.\n\n${rows}`
+    );
+  }
+
+  if (input.assets.length > 0) {
+    const rows = input.assets
+      .map((asset) => `- \`${asset.file}\` — ${asset.nodeName} (${asset.nodeId})`)
+      .join("\n");
+    sections.push(
+      `## Exported assets\n\nThese files are the real vector data. Reference them; do not hand-write \`<svg>\` markup, and do not substitute a same-named icon from the project unless the glyph clearly matches.\n\n${rows}`
+    );
+  }
+
+  let text = sections.join("\n\n");
+  if (text.length > MAX_CONTEXT_CHARS) {
+    text = `${text.slice(0, MAX_CONTEXT_CHARS)}\n\n[truncated at ${MAX_CONTEXT_CHARS} characters — request a smaller node or a lower depth]`;
+  }
+
+  const blocks: ContentBlock[] = [textBlock(text)];
+  if (input.screenshot) {
+    const image = imageBlock(input.screenshot.base64, input.screenshot.format);
+    if (image) blocks.push(image);
+  }
+  return blocks;
 }
 
 /**
@@ -186,16 +254,77 @@ export function registerTools(server: McpServer, node: Node, port: number): void
 
   server.tool(
     "get_design_context",
-    "Get the design context for the current selection or page. Returns a summarized tree structure optimized for understanding the current design context. When multiple files are connected, specify fileKey.",
+    "Get everything needed to implement a Figma node as code: reference code in the requested format, the design tokens it uses, exported icon and image files, and a screenshot. Prefer this over get_document plus get_screenshot — one call returns the whole picture. Describes the given nodeId, else the current selection, else the current page. When multiple files are connected, specify fileKey.",
     toolInputSchemas.get_design_context.shape,
-    async ({ depth, fileKey }): Promise<ToolResult> => {
-      const params: Record<string, unknown> = {};
-      if (depth !== undefined && depth > 0) {
-        params.depth = depth;
+    async ({ nodeId, depth, format, assetDir, fileKey }): Promise<ToolResult> => {
+      try {
+        const params: Record<string, unknown> = {};
+        if (depth !== undefined && depth > 0) params.depth = depth;
+
+        // The node id rides on the transport-level nodeIds, not inside params:
+        // validateRpc strips `nodeId` from params on the follower → leader hop.
+        const response = await node.sendWithParams(
+          "get_design_context",
+          nodeId ? [nodeId] : undefined,
+          params,
+          fileKey
+        );
+        if (response.error) {
+          return { content: [textBlock(response.error)], isError: true };
+        }
+
+        const context = response.data as { context?: SerializedNode[] };
+        const tree = context.context?.[0];
+        if (!tree) {
+          return {
+            content: [textBlock("Nothing to describe — select a node in Figma, or pass nodeId.")],
+            isError: true,
+          };
+        }
+
+        const notes: string[] = [];
+        const selected = context.context?.length ?? 0;
+        if (selected > 1) {
+          notes.push(
+            `${selected} nodes are selected; only ${tree.name} (${tree.id}) is described. Pass nodeId for the others.`
+          );
+        }
+
+        const assets = assetDir
+          ? await exportAssets(node, findExportableNodes(tree), assetDir, fileKey)
+          : [];
+
+        // get_screenshot refuses page nodes, so only ask for one when the root is a scene node.
+        const shot =
+          tree.type === "PAGE"
+            ? undefined
+            : await node.sendWithParams(
+                "get_screenshot",
+                [tree.id],
+                { format: "PNG", scale: 2, clip: true },
+                fileKey
+              );
+        const first = (shot?.data as { exports?: Array<{ base64: string }> } | undefined)
+          ?.exports?.[0];
+        if (shot && !first) {
+          notes.push(`Screenshot unavailable: ${shot.error ?? "the export returned nothing"}.`);
+        }
+
+        return {
+          content: composeDesignContext({
+            tree,
+            format: format ?? "react",
+            assets,
+            screenshot: first ? { base64: first.base64, format: "PNG" } : undefined,
+            notes,
+          }),
+        };
+      } catch (err) {
+        return {
+          content: [textBlock(err instanceof Error ? err.message : String(err))],
+          isError: true,
+        };
       }
-      return renderResponse(() =>
-        node.sendWithParams("get_design_context", undefined, params, fileKey)
-      );
     }
   );
 
