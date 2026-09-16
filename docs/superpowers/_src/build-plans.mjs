@@ -352,21 +352,24 @@ const parsePlan = (md) => {
         }
       };
 
-      while (j < body.length && !/^- \[ \]/.test(body[j])) {
+      // A finished step is written `- [x]`. Every step boundary below matches
+      // both states: matching only `- [ ]` would silently drop each step an
+      // executor has checked off, which is exactly when the page matters most.
+      while (j < body.length && !/^- \[[ x]\]/.test(body[j])) {
         if (/^\*\*Files:\*\*/.test(body[j])) collectBullets(task.files);
         else if (/^\*\*Interfaces:\*\*/.test(body[j])) collectBullets(task.interfaces);
         else j++;
       }
       while (j < body.length) {
-        const step = body[j].match(/^- \[ \] \*\*Step (\d+):\s*(.*?)\*\*$/);
+        const step = body[j].match(/^- \[([ x])\] \*\*Step (\d+):\s*(.*?)\*\*$/);
         if (!step) {
           j++;
           continue;
         }
         const sBody = [];
         j++;
-        while (j < body.length && !/^- \[ \] \*\*Step /.test(body[j])) sBody.push(body[j++]);
-        task.steps.push({ no: step[1], label: step[2], body: sBody });
+        while (j < body.length && !/^- \[[ x]\] \*\*Step /.test(body[j])) sBody.push(body[j++]);
+        task.steps.push({ no: step[2], label: step[3], done: step[1] === "x", body: sBody });
       }
 
       plan.tasks.push(task);
@@ -400,9 +403,12 @@ const renderTask = (task, htmlSlug) => {
   const steps = task.steps
     .map((step) => {
       const id = `${htmlSlug}t${task.no}s${step.no}`;
-      return `              <li class="step">
+      // Pre-checked steps carry `is-done` from the start; doc.js only toggles
+      // that class on the boxes it sees change, so first paint needs it here.
+      const done = step.done ? { attr: " checked", cls: " is-done" } : { attr: "", cls: "" };
+      return `              <li class="step${done.cls}">
                 <div class="step__top">
-                  <input type="checkbox" id="${id}" />
+                  <input type="checkbox" id="${id}"${done.attr} />
                   <label class="step__label" for="${id}">${inline(step.label)}</label>
                 </div>
                 <div class="step__body">
