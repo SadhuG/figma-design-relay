@@ -1,7 +1,7 @@
 // Generic smoke probe: call any tool with JSON arguments.
 //
-// Same wiring as probe.mjs — spawns the built server on the isolated port so it
-// joins hold-leader.mjs as a follower — but takes a tool name and an arguments
+// Same wiring as probe.mjs — spawns the built server on the smoke-test port and
+// joins the leader there as a follower — but takes a tool name and an arguments
 // object instead of a script. Image blocks are summarised rather than printed,
 // since a base64 PNG is not something you can read in a terminal.
 //
@@ -12,10 +12,10 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
+import { PORT } from "./port.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const serverEntry = resolve(here, "../dist/index.js");
-const PORT = process.env.SMOKE_PORT ?? "1995";
 
 const [toolName, rawArgs] = process.argv.slice(2);
 if (!toolName) {
@@ -44,7 +44,7 @@ try {
     process.exit(1);
   }
 
-  console.log("--- call ---");
+  console.log(`--- call (port ${PORT}) ---`);
   console.log(toolName, JSON.stringify(args));
   console.log("--- result ---");
 

@@ -182,6 +182,18 @@ For local development, add the following to your AI tool's MCP config:
 }
 ```
 
+Keep exactly one such entry, pointing at the checkout you build. Two entries — or an entry left
+pointing at an old clone or worktree — is how you end up with a relay on 1994 that is not the code
+you just built, and the plugin will happily attach to whichever one wins.
+
+#### 6. Ports
+
+Everything uses **1994**: the server (`FIGMA_DESIGN_RELAY_PORT` to change it), the plugin (baked in
+at build time; `VITE_FIGMA_DESIGN_RELAY_WS` to change it), and the smoke-test probes in
+`server/.smoke/`. The plugin panel's **Relay:** row shows the address a running plugin is dialing,
+so a build for the wrong port is visible in Figma rather than a mysterious "Disconnected". Figma's
+Development menu lists plugins by name, so keep a single import of `plugin/manifest.json`.
+
 ### Code style
 
 The repo is formatted with [Prettier](https://prettier.io) (config in `.prettierrc`). A Husky pre-commit hook runs `lint-staged`, which formats only your staged files, so commits stay formatted automatically. You can also run it manually:
