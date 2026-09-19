@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { collectTokens } from "./tokens.js";
+import { collectTokens, type SerializedNode } from "./tokens.js";
 
 const tree = {
   id: "1:1",
@@ -80,5 +80,23 @@ describe("collectTokens", () => {
     expect(out).toEqual([
       { name: "V:9", kind: "variable", property: "opacity", usedBy: ["3:1"], resolved: false },
     ]);
+  });
+});
+
+describe("collectTokens identity", () => {
+  // A paint style and a text style can share a name; so can two variables at
+  // the same path in different collections. Merging them by name alone would
+  // report the second one with the first one's kind and property.
+  test("keeps a style and a variable of the same name apart", () => {
+    const tokens = collectTokens({
+      id: "1:1",
+      name: "Card",
+      type: "FRAME",
+      design: {
+        boundVariables: [{ property: "fills[0]", variableId: "V:1", variableName: "Primary" }],
+        styles: { text: { id: "S:1", name: "Primary" } },
+      },
+    } as unknown as SerializedNode);
+    expect(tokens.map((t) => `${t.kind}:${t.name}`)).toEqual(["variable:Primary", "style:Primary"]);
   });
 });

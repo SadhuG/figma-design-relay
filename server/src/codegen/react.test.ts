@@ -58,3 +58,19 @@ describe("toReact text escaping", () => {
     expect(out).not.toContain("{user}");
   });
 });
+
+describe("toReact instances", () => {
+  // The placeholder must not invent a codebase component, but hiding the
+  // instance's content would hide the button label the agent has to render.
+  test("renders an instance's children inside the placeholder", () => {
+    const out = toReact({
+      id: "4:1",
+      name: "Confirm",
+      type: "INSTANCE",
+      design: { mainComponent: { id: "9:1", key: "btn", name: "Button/Primary" } },
+      children: [{ id: "4:2", name: "Label", type: "TEXT", characters: "Save changes" }],
+    } as unknown as SerializedNode);
+    expect(out).toContain("Figma component: Button/Primary");
+    expect(out).toContain("Save changes");
+  });
+});

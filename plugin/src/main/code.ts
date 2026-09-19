@@ -1,4 +1,4 @@
-import { serializeNode, type SerializedNode } from "./serializer";
+import { serializeNode } from "./serializer";
 import { addLayersToFrame } from "../html-figma/figma";
 import { runScript } from "./script-runner";
 import { EDIT_REQUEST_TYPES, requireEditorMode } from "./editor-gate";
@@ -440,6 +440,16 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
             throw new Error(
               `Node ${requestedId} not found in this file. Check the id with get_document or get_selection, or omit nodeId to describe the selection.`
             );
+          }
+          if (requested.type === "DOCUMENT") {
+            throw new Error(
+              `${requestedId} is the document root. Pass a page id (see get_metadata) or a node id instead.`
+            );
+          }
+          // Under dynamic-page access a page other than the current one has no
+          // readable children until it is loaded.
+          if (requested.type === "PAGE") {
+            await (requested as PageNode).loadAsync();
           }
         }
 

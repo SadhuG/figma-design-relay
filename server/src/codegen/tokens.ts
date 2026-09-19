@@ -10,6 +10,8 @@ export interface SerializedNode {
   id: string;
   name: string;
   type: string;
+  /** Present, in place of `children`, on a container the serializer cut at its depth limit. */
+  childCount?: number;
   design?: {
     boundVariables?: Array<{
       property: string;
@@ -44,15 +46,18 @@ export interface TokenUse {
  * @returns One entry per distinct token.
  */
 export const collectTokens = (root: SerializedNode): TokenUse[] => {
-  const byName = new Map<string, TokenUse>();
+  // Keyed by kind as well as name: a paint style and a text style can share a
+  // name, and so can a variable and a style.
+  const byIdentity = new Map<string, TokenUse>();
 
   const record = (token: Omit<TokenUse, "usedBy">, nodeId: string): void => {
-    const existing = byName.get(token.name);
+    const key = `${token.kind}:${token.name}`;
+    const existing = byIdentity.get(key);
     if (existing) {
       if (!existing.usedBy.includes(nodeId)) existing.usedBy.push(nodeId);
       return;
     }
-    byName.set(token.name, { ...token, usedBy: [nodeId] });
+    byIdentity.set(key, { ...token, usedBy: [nodeId] });
   };
 
   const walk = (node: SerializedNode): void => {
@@ -84,5 +89,5 @@ export const collectTokens = (root: SerializedNode): TokenUse[] => {
   };
 
   walk(root);
-  return [...byName.values()];
+  return [...byIdentity.values()];
 };

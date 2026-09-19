@@ -21,8 +21,8 @@ Figma plugin ──ws://localhost:1994/ws──> leader server ──stdio──
 | `server/` | `bun run build`                           | `tsc` → `dist/`                                |
 | `plugin/` | `bun run build`                           | two Vite passes: UI, then `main`               |
 | `plugin/` | `bun run typecheck`                       | `tsc --noEmit`; `bun run build` runs it first  |
-| `server/` | `bun test`                                | 50 tests: schemas, rpc guards, codegen, assets |
-| `plugin/` | `bun test`                                | 69 tests: scripts, serializer, editor gate     |
+| `server/` | `bun test`                                | 64 tests: schemas, rpc guards, codegen, assets |
+| `plugin/` | `bun test`                                | 73 tests: scripts, serializer, editor gate     |
 
 **Bun everywhere — never `npm` or `yarn`.**
 

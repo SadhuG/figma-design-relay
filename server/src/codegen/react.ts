@@ -110,11 +110,21 @@ const render = (node: SerializedNode, depth: number, indent: number): string[] =
   const pad = " ".repeat(depth * indent);
   const lines: string[] = [];
 
+  // An instance is a placeholder for a codebase component the generator must
+  // not invent — but its content (the button label, the nested icon) is still
+  // what the agent has to render, so the children are emitted inside it.
   if (node.type === "INSTANCE" && node.design?.mainComponent?.name) {
     lines.push(
       `${pad}{/* Figma component: ${node.design.mainComponent.name} — map with Code Connect */}`
     );
-    lines.push(`${pad}<div${attributes(node)} data-figma-node="${node.id}" />`);
+    const inner = node.children ?? [];
+    if (inner.length === 0) {
+      lines.push(`${pad}<div${attributes(node)} data-figma-node="${node.id}" />`);
+      return lines;
+    }
+    lines.push(`${pad}<div${attributes(node)} data-figma-node="${node.id}">`);
+    for (const child of inner) lines.push(...render(child, depth + 1, indent));
+    lines.push(`${pad}</div>`);
     return lines;
   }
 

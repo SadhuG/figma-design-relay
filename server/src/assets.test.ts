@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtemp, rm, stat } from "node:fs/promises";
+import { mkdtemp, rm, stat, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { exportAssets, findExportableNodes } from "./assets.js";
@@ -158,6 +158,23 @@ describe("exportAssets", () => {
     ]);
   });
 
+  // A link inside the workspace that points outside passes the lexical check;
+  // mkdir would then follow it and create directories out there before the
+  // real-path check refuses. The existing part of the path has to be resolved
+  // first. (A junction is the privilege-free directory link on Windows.)
+  test("refuses a path through a link that points outside, without creating anything", async () => {
+    const outside = await mkdtemp(path.join(tmpdir(), "relay-outside-"));
+    try {
+      await symlink(outside, path.join(workspace, "link"), "junction");
+      await expect(exportAssets(sender, ["1:2"], "link/assets")).rejects.toThrow(
+        /outside the MCP server working directory/
+      );
+      await expect(stat(path.join(outside, "assets"))).rejects.toThrow();
+    } finally {
+      await rm(outside, { recursive: true, force: true });
+    }
+  });
+
   // The guard has to run before anything touches the filesystem: refusing
   // after mkdir still leaves an empty directory outside the workspace.
   test("refuses a directory outside the workspace without creating it", async () => {
@@ -165,5 +182,56 @@ describe("exportAssets", () => {
       /outside the MCP server working directory/
     );
     await expect(stat(path.join(workspace, "..", "relay-leak"))).rejects.toThrow();
+  });
+});
+
+describe("findExportableNodes containers", () => {
+  // A hero frame with a background image is a layout, not an asset: exporting
+  // it whole bakes its headline into the SVG and hides the icons inside it.
+  test("walks into an image-filled container instead of exporting it", () => {
+    const ids = findExportableNodes({
+      id: "6:1",
+      name: "Hero",
+      type: "FRAME",
+      styles: { fills: [{ type: "IMAGE", imageHash: "bg" }] },
+      children: [
+        { id: "6:2", name: "Headline", type: "TEXT" },
+        { id: "6:3", name: "icon/play", type: "VECTOR" },
+      ],
+    } as unknown as SerializedNode);
+    expect(ids).toEqual(["6:3"]);
+  });
+
+  test("still exports an image-filled leaf", () => {
+    const ids = findExportableNodes({
+      id: "6:4",
+      name: "Photo",
+      type: "RECTANGLE",
+      styles: { fills: [{ type: "IMAGE", imageHash: "p" }] },
+    } as unknown as SerializedNode);
+    expect(ids).toEqual(["6:4"]);
+  });
+
+  // Icons are frequently a group of paths beside a lone vector; the group is
+  // part of the icon, not a reason to shatter it.
+  test("treats nested vector groups as part of one icon", () => {
+    const ids = findExportableNodes({
+      id: "7:1",
+      name: "icon/layers",
+      type: "INSTANCE",
+      children: [
+        { id: "7:2", name: "base", type: "VECTOR" },
+        {
+          id: "7:3",
+          name: "stack",
+          type: "GROUP",
+          children: [
+            { id: "7:4", name: "a", type: "VECTOR" },
+            { id: "7:5", name: "b", type: "ELLIPSE" },
+          ],
+        },
+      ],
+    } as unknown as SerializedNode);
+    expect(ids).toEqual(["7:1"]);
   });
 });

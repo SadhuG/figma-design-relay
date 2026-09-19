@@ -41,10 +41,12 @@ Sections with nothing to say are omitted.
 
 **`## Reference code (<format>)`** — the generated code in a fenced block.
 
-- Instances are emitted as a placeholder `<div data-figma-node="…" />` preceded
+- Instances are emitted as a placeholder `<div data-figma-node="…">` preceded
   by a comment naming the main component
-  (`{/* Figma component: Button — map with Code Connect */}`). The generator
-  never invents a codebase component for an instance it has not been mapped to.
+  (`{/* Figma component: Button — map with Code Connect */}`), with the
+  instance's own children — the label, the nested icon — rendered inside it.
+  The generator never invents a codebase component for an instance it has not
+  been mapped to, but it does not hide what the instance contains.
 - Text nodes name their text style in a comment when one is applied. Text
   content is entity-escaped (`&lt;`, `&amp;`, `&#123;`) so copy containing
   braces or angle brackets still yields code that parses as JSX and as HTML.
@@ -53,7 +55,14 @@ Sections with nothing to say are omitted.
 
 **`## Design tokens`** — one row per distinct variable or style used anywhere
 in the subtree, with the property it binds, and how many nodes use it. The
-agent maps these onto the project's own token system.
+agent maps these onto the project's own token system. A variable and a style
+that share a name are listed separately.
+
+**`## Unresolved references`** — bindings whose name could not be fetched
+(usually a library that is unreachable or not enabled for this file), listed by
+id. The code falls back to the raw value for these, so they are kept out of the
+token list: there, a raw value means nothing was bound; here, it means the
+binding's name is unknown.
 
 **`## Exported assets`** — one row per file written under `assetDir`, with the
 Figma node it came from. Present only when `assetDir` was given and the
@@ -86,18 +95,21 @@ replacing `/`, `_` and whitespace with `-`: `Color/Brand Primary` becomes
 ## Assets
 
 Three kinds of node are exported, every one as SVG: vectors (`VECTOR`,
-`BOOLEAN_OPERATION`, `STAR`, `POLYGON`, `LINE`), nodes with an image fill (the
-SVG embeds the raster), and a container — group, frame, instance or component —
-whose children are vectors, optionally mixed with plain rectangles and ellipses
-(a badge dot, a background plate). That last case is what keeps an icon whole:
-an icon in a design system is an instance of an icon component, and the walk
-stops at that instance rather than shattering it into a file per path. A
-container of nothing but rectangles is a layout, not an icon, and is walked
-into.
+`BOOLEAN_OPERATION`, `STAR`, `POLYGON`, `LINE`), childless nodes with an image
+fill (the SVG embeds the raster), and a container — group, frame, instance or
+component — whose descendants are all vectors, plain rectangles and ellipses,
+or nested groups of the same, with at least one real vector among them. That
+last case is what keeps an icon whole: an icon in a design system is an
+instance of an icon component, and the walk stops at that instance rather than
+shattering it into a file per path. A container of nothing but rectangles is a
+layout, not an icon, and is walked into — as is a frame with a background
+image, whose headline would otherwise be baked into the export. A container's
+background image is therefore not exported; use `save_screenshots` for it.
 
 Only the serialized tree is walked, so an icon deeper than `depth` is not
-exported. Raise `depth` when the asset list comes back shorter than the design
-suggests.
+exported — and cannot be recognised, since a container cut at the limit has no
+children to inspect. When `assetDir` was given and the tree contains such
+containers, the response opens by saying how many were collapsed.
 
 Files are named `<layer-name>-<node-id>.svg` (`icon/search` on `12:34` becomes
 `icon-search-12-34.svg`; the id's `:` becomes `-` and an instance path's `;`

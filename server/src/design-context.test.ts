@@ -87,3 +87,48 @@ describe("composeDesignContext notes", () => {
     expect((blocks[0] as { text: string }).text).toContain("Screenshot unavailable");
   });
 });
+
+describe("composeDesignContext honesty", () => {
+  // A reference whose name never resolved is not a token the agent can map;
+  // listing it beside real tokens makes "a raw value means nothing was bound"
+  // false, because the code did fall back to the raw value for it.
+  test("lists unresolved references apart from tokens", () => {
+    const [first] = composeDesignContext({
+      tree: {
+        ...tree,
+        design: {
+          boundVariables: [
+            { property: "fills[0]", variableId: "VariableID:abc/1:2" },
+            { property: "strokes[0]", variableId: "V:2", variableName: "color/border" },
+          ],
+        },
+      } as unknown as SerializedNode,
+      format: "react",
+      assets: [],
+    });
+    const text = (first as { text: string }).text;
+    expect(text).toContain("## Unresolved references");
+    expect(text.indexOf("VariableID:abc/1:2")).toBeGreaterThan(text.indexOf("## Unresolved"));
+    const tokenSection = text.slice(
+      text.indexOf("## Design tokens"),
+      text.indexOf("## Unresolved")
+    );
+    expect(tokenSection).toContain("color/border");
+    expect(tokenSection).not.toContain("VariableID:abc/1:2");
+  });
+
+  // Containers cut off at `depth` cannot be classified as icons. When assets
+  // were asked for, silence would read as "there were no icons".
+  test("says when collapsed containers may hide assets", () => {
+    const [first] = composeDesignContext({
+      tree: {
+        ...tree,
+        children: [{ id: "1:9", name: "Button", type: "INSTANCE", childCount: 2 }],
+      } as unknown as SerializedNode,
+      format: "react",
+      assets: [],
+      assetDir: "assets",
+    });
+    expect((first as { text: string }).text).toMatch(/1 container.*collapsed at depth/);
+  });
+});

@@ -27,6 +27,34 @@ const ICON_CONTAINER_TYPES = new Set(["GROUP", "FRAME", "INSTANCE", "COMPONENT"]
  */
 const ICON_SHAPE_TYPES = new Set(["RECTANGLE", "ELLIPSE"]);
 
+/**
+ * True when every descendant is vector-ish — vectors, primitive shapes, or
+ * nested containers of the same — and at least one is a real vector. Nested
+ * groups are the norm inside icons, so the rule recurses rather than treating
+ * a group beside a vector as a reason to shatter the icon.
+ */
+const isIcon = (node: SerializedNode): boolean => {
+  if (!ICON_CONTAINER_TYPES.has(node.type)) return false;
+  const children = node.children ?? [];
+  if (children.length === 0) return false;
+
+  let sawVector = false;
+  const vectorOnly = (part: SerializedNode): boolean => {
+    if (VECTOR_TYPES.has(part.type)) {
+      sawVector = true;
+      return true;
+    }
+    if (ICON_SHAPE_TYPES.has(part.type)) return true;
+    if (ICON_CONTAINER_TYPES.has(part.type)) {
+      const inner = part.children ?? [];
+      return inner.length > 0 && inner.every(vectorOnly);
+    }
+    return false;
+  };
+
+  return children.every(vectorOnly) && sawVector;
+};
+
 const hasImageFill = (node: SerializedNode): boolean => {
   const fills = (node.styles as { fills?: Array<{ type?: string }> } | undefined)?.fills;
   return Array.isArray(fills) && fills.some((fill) => fill.type === "IMAGE");
@@ -44,23 +72,40 @@ const hasImageFill = (node: SerializedNode): boolean => {
 export const findExportableNodes = (root: SerializedNode): string[] => {
   const ids: string[] = [];
 
-  const walk = (node: SerializedNode): void => {
-    const children = node.children ?? [];
-    const isVectorGroup =
-      ICON_CONTAINER_TYPES.has(node.type) &&
-      children.some((child) => VECTOR_TYPES.has(child.type)) &&
-      children.every((child) => VECTOR_TYPES.has(child.type) || ICON_SHAPE_TYPES.has(child.type));
+  // An image-filled container (a hero with a background photo) is a layout,
+  // not an asset: exporting it whole would bake its text into the SVG and hide
+  // the icons inside it. Only an image-filled leaf is exported as an image.
+  const isImageLeaf = (node: SerializedNode): boolean =>
+    hasImageFill(node) && (node.children ?? []).length === 0;
 
-    if (VECTOR_TYPES.has(node.type) || hasImageFill(node) || isVectorGroup) {
+  const walk = (node: SerializedNode): void => {
+    if (VECTOR_TYPES.has(node.type) || isImageLeaf(node) || isIcon(node)) {
       ids.push(node.id);
       return;
     }
-
-    for (const child of children) walk(child);
+    for (const child of node.children ?? []) walk(child);
   };
 
   walk(root);
   return ids;
+};
+
+/**
+ * Counts containers the serializer cut off at its depth limit. Nothing inside
+ * them was walked, so an icon there is neither exported nor recognised.
+ * @param root - The serialized root.
+ * @returns How many nodes carry a `childCount` in place of children.
+ */
+export const countCollapsedContainers = (root: SerializedNode): number => {
+  let count = 0;
+  const walk = (node: SerializedNode): void => {
+    if (node.children === undefined && typeof node.childCount === "number" && node.childCount > 0) {
+      count += 1;
+    }
+    for (const child of node.children ?? []) walk(child);
+  };
+  walk(root);
+  return count;
 };
 
 /**
@@ -80,6 +125,23 @@ const fileStem = (name: string, nodeId: string): string => {
     .replace(/;/g, "_")
     .replace(/[^a-z0-9_-]/gi, "");
   return base ? `${base}-${id}` : id;
+};
+
+/**
+ * Real path of the nearest ancestor of `target` that already exists — the
+ * directory `mkdir -p` would start creating from.
+ */
+const realpathOfExistingAncestor = async (target: string): Promise<string> => {
+  let current = target;
+  for (;;) {
+    try {
+      return await realpath(current);
+    } catch {
+      const parent = path.dirname(current);
+      if (parent === current) return current;
+      current = parent;
+    }
+  }
 };
 
 /**
@@ -112,11 +174,14 @@ export const exportAssets = async (
   const inside = (candidate: string): boolean =>
     candidate === root || candidate.startsWith(root + path.sep);
 
-  // Check the lexical path before touching the filesystem — refusing after
-  // mkdir would still leave an empty directory outside the workspace — and the
-  // real path afterwards, which is what catches a symlink pointing out.
+  // Nothing may be created until the path is known to land inside the
+  // workspace. The lexical check catches `../x`; resolving the deepest existing
+  // ancestor catches a link inside the workspace that points out, which mkdir
+  // would otherwise follow and create directories through. The final realpath
+  // is the belt to those braces.
   const target = path.resolve(root, outputDir);
   if (!inside(target)) escapes();
+  if (!inside(await realpathOfExistingAncestor(target))) escapes();
   await mkdir(target, { recursive: true });
   const resolved = await realpath(target);
   if (!inside(resolved)) escapes();

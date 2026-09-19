@@ -36,8 +36,13 @@ import type { BridgeResponse } from "./types.js";
 import { Follower } from "./follower.js";
 import { imageBlock, textBlock, type ContentBlock, type ToolResult } from "./content.js";
 import { generateCode, type CodeFormat } from "./codegen/index.js";
-import { collectTokens, type SerializedNode } from "./codegen/tokens.js";
-import { exportAssets, findExportableNodes, type AssetRecord } from "./assets.js";
+import { collectTokens, type SerializedNode, type TokenUse } from "./codegen/tokens.js";
+import {
+  countCollapsedContainers,
+  exportAssets,
+  findExportableNodes,
+  type AssetRecord,
+} from "./assets.js";
 
 const MAX_IMAGE_BYTES = 32 * 1024 * 1024;
 const IMAGE_FETCH_TIMEOUT_MS = 15_000;
@@ -117,7 +122,12 @@ export interface DesignContextInput {
   screenshot?: { base64: string; format: ExportFormat };
   /** Caveats the agent must see first: partial selection, missing screenshot. */
   notes?: string[];
+  /** Set when the caller asked for assets, so a depth-limited tree can say what it may have missed. */
+  assetDir?: string;
 }
+
+const tokenRow = (token: TokenUse): string =>
+  `- \`${token.name}\` (${token.kind}, ${token.property}) — used by ${token.usedBy.length} node(s)`;
 
 /**
  * Assembles the design-context response: reference code, the tokens the design
@@ -126,27 +136,40 @@ export interface DesignContextInput {
  * @returns MCP content blocks, text first.
  */
 export function composeDesignContext(input: DesignContextInput): ContentBlock[] {
-  const tokens = collectTokens(input.tree);
+  const all = collectTokens(input.tree);
+  const tokens = all.filter((token) => token.resolved !== false);
+  const unresolved = all.filter((token) => token.resolved === false);
   const sections: string[] = [];
 
   // Caveats come first, unadorned, so they are the first thing the agent reads.
-  if (input.notes && input.notes.length > 0) {
-    sections.push(input.notes.join("\n"));
+  const notes = [...(input.notes ?? [])];
+  if (input.assetDir) {
+    const collapsed = countCollapsedContainers(input.tree);
+    if (collapsed > 0) {
+      const plural = collapsed === 1 ? "container was" : "containers were";
+      notes.push(
+        `${collapsed} ${plural} collapsed at depth; icons inside were not exported. Raise depth if the asset list looks short.`
+      );
+    }
   }
+  if (notes.length > 0) sections.push(notes.join("\n"));
 
   sections.push(
     `## Reference code (${input.format})\n\nAdapt this to the target project's stack — it is a reference, not final code.\n\n\`\`\`\n${generateCode(input.tree, input.format)}\n\`\`\``
   );
 
   if (tokens.length > 0) {
-    const rows = tokens
-      .map(
-        (token) =>
-          `- \`${token.name}\` (${token.kind}, ${token.property}) — used by ${token.usedBy.length} node(s)`
-      )
-      .join("\n");
     sections.push(
-      `## Design tokens\n\nMap these to the project's token system. Values bound to a token are emitted as \`var(--token)\`; a raw value in the code means nothing was bound.\n\n${rows}`
+      `## Design tokens\n\nMap these to the project's token system. Values bound to a token are emitted as \`var(--token)\`; a raw value in the code means nothing was bound.\n\n${tokens.map(tokenRow).join("\n")}`
+    );
+  }
+
+  // A reference whose name never resolved is not a token the agent can map,
+  // and the code fell back to the raw value for it — so it must not sit in the
+  // list that promises "a raw value means nothing was bound".
+  if (unresolved.length > 0) {
+    sections.push(
+      `## Unresolved references\n\nThese are bound to a variable or style whose name could not be fetched — usually a library that is unreachable or not enabled for this file. The code falls back to the raw value for them; treat that value as a token whose name is unknown, not as an unbound literal.\n\n${unresolved.map(tokenRow).join("\n")}`
     );
   }
 
@@ -317,6 +340,7 @@ export function registerTools(server: McpServer, node: Node, port: number): void
             assets,
             screenshot: first ? { base64: first.base64, format: "PNG" } : undefined,
             notes,
+            assetDir,
           }),
         };
       } catch (err) {
