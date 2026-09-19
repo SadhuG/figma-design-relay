@@ -28,7 +28,7 @@ absent.
 | `boundVariables`      | At least one property is bound to a variable                         | Nothing is bound                                 |
 | `styles`              | At least one of the five `*StyleId` properties is set                | The node uses no named styles                    |
 
-`mainComponent` is `{ id, key, name }`. `componentProperties` maps a property name to
+`mainComponent` is `{ id, key, name, setName? }` — `setName` is the component set's name when the main component is a variant, since a variant's own `name` is its property string. `componentProperties` maps a property name to
 `{ type, value }`, so an instance of `Button/Primary` is recognisable as one.
 
 ### `propertyOwnerId` and the variant trap

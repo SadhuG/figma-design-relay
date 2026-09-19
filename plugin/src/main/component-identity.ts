@@ -20,6 +20,12 @@ export interface ComponentRef {
   id: string;
   key?: string;
   name?: string;
+  /**
+   * The component set's name when the main component is a variant. A variant's
+   * own `name` is its property string ("Size=M, Type=Primary"); the set's name
+   * ("Button") is the one an agent needs.
+   */
+  setName?: string;
 }
 
 export interface ComponentIdentity {
@@ -29,8 +35,15 @@ export interface ComponentIdentity {
   propertyOwnerId?: string;
 }
 
+export interface MainComponentLike {
+  id: string;
+  key?: string;
+  name?: string;
+  parent?: { type: string; name?: string } | null;
+}
+
 export interface InstanceLike {
-  getMainComponentAsync: () => Promise<ComponentRef | null>;
+  getMainComponentAsync: () => Promise<MainComponentLike | null>;
   componentProperties?: Record<string, { type: string; value: unknown }>;
 }
 
@@ -85,7 +98,12 @@ export const serializeInstanceIdentity = async (
   if (!main && !hasProperties) return undefined;
 
   const identity: InstanceIdentity = {};
-  if (main) identity.mainComponent = { id: main.id, key: main.key, name: main.name };
+  if (main) {
+    identity.mainComponent = { id: main.id, key: main.key, name: main.name };
+    if (main.parent?.type === "COMPONENT_SET" && typeof main.parent.name === "string") {
+      identity.mainComponent.setName = main.parent.name;
+    }
+  }
   if (hasProperties) identity.componentProperties = properties;
   return identity;
 };

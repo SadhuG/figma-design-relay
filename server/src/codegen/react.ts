@@ -12,7 +12,25 @@ import type { SerializedNode } from "./tokens.js";
 export interface ReactOptions {
   /** Spaces per indent level. */
   indent?: number;
+  /**
+   * Node id → workspace-relative file for nodes that were exported as assets.
+   * Such a node renders as an image reference; its paths are not emitted.
+   */
+  assets?: Record<string, string>;
 }
+
+/**
+ * Formats a length for CSS. Figma stores geometry as floats and
+ * 13.333333969116211 is noise, not intent; two decimals is what a designer
+ * would have typed.
+ * @param value - A length in Figma units.
+ * @returns e.g. `13.33px`, `28px`.
+ */
+export const px = (value: number): string => `${Math.round(value * 100) / 100}px`;
+
+/** The name an agent needs for a main component: the set's, with the variant as detail. */
+export const componentLabel = (ref: { name?: string; setName?: string }): string =>
+  ref.setName && ref.name ? `${ref.setName} (${ref.name})` : (ref.setName ?? ref.name ?? "");
 
 /**
  * Converts a Figma token path into a CSS custom property name.
@@ -56,7 +74,7 @@ const layoutClasses = (node: SerializedNode): string[] => {
 
   if (styles?.autoLayout) {
     classes.push("flex", styles.autoLayout.direction === "VERTICAL" ? "flex-col" : "flex-row");
-    if (styles.autoLayout.gap) classes.push(`gap-[${styles.autoLayout.gap}px]`);
+    if (styles.autoLayout.gap) classes.push(`gap-[${px(styles.autoLayout.gap)}]`);
   }
 
   const padding = styles?.padding;
@@ -67,13 +85,13 @@ const layoutClasses = (node: SerializedNode): string[] => {
       padding.bottom === padding.left;
     classes.push(
       uniform
-        ? `p-[${padding.top}px]`
-        : `pt-[${padding.top}px] pr-[${padding.right}px] pb-[${padding.bottom}px] pl-[${padding.left}px]`
+        ? `p-[${px(padding.top)}]`
+        : `pt-[${px(padding.top)}] pr-[${px(padding.right)}] pb-[${px(padding.bottom)}] pl-[${px(padding.left)}]`
     );
   }
 
   if (typeof styles?.cornerRadius === "number" && styles.cornerRadius > 0) {
-    classes.push(`rounded-[${styles.cornerRadius}px]`);
+    classes.push(`rounded-[${px(styles.cornerRadius)}]`);
   }
 
   const sizing = node.layout as { sizingHorizontal?: string; sizingVertical?: string } | undefined;
@@ -106,16 +124,31 @@ export const escapeText = (text: string): string =>
     .replace(/{/g, "&#123;")
     .replace(/}/g, "&#125;");
 
-const render = (node: SerializedNode, depth: number, indent: number): string[] => {
+const render = (
+  node: SerializedNode,
+  depth: number,
+  indent: number,
+  assets: Record<string, string>
+): string[] => {
   const pad = " ".repeat(depth * indent);
   const lines: string[] = [];
+
+  // An exported node is a file on disk. Emitting its paths as coloured divs
+  // would be exactly the hand-drawn markup the asset contract forbids.
+  const file = assets[node.id];
+  if (file) {
+    lines.push(
+      `${pad}<img src="${file}" alt="${escapeText(node.name)}" data-figma-node="${node.id}" />`
+    );
+    return lines;
+  }
 
   // An instance is a placeholder for a codebase component the generator must
   // not invent — but its content (the button label, the nested icon) is still
   // what the agent has to render, so the children are emitted inside it.
   if (node.type === "INSTANCE" && node.design?.mainComponent?.name) {
     lines.push(
-      `${pad}{/* Figma component: ${node.design.mainComponent.name} — map with Code Connect */}`
+      `${pad}{/* Figma component: ${componentLabel(node.design.mainComponent)} — map with Code Connect */}`
     );
     const inner = node.children ?? [];
     if (inner.length === 0) {
@@ -123,7 +156,7 @@ const render = (node: SerializedNode, depth: number, indent: number): string[] =
       return lines;
     }
     lines.push(`${pad}<div${attributes(node)} data-figma-node="${node.id}">`);
-    for (const child of inner) lines.push(...render(child, depth + 1, indent));
+    for (const child of inner) lines.push(...render(child, depth + 1, indent, assets));
     lines.push(`${pad}</div>`);
     return lines;
   }
@@ -144,7 +177,7 @@ const render = (node: SerializedNode, depth: number, indent: number): string[] =
   }
 
   lines.push(`${pad}<div${attributes(node)}>`);
-  for (const child of children) lines.push(...render(child, depth + 1, indent));
+  for (const child of children) lines.push(...render(child, depth + 1, indent, assets));
   lines.push(`${pad}</div>`);
   return lines;
 };
@@ -152,8 +185,8 @@ const render = (node: SerializedNode, depth: number, indent: number): string[] =
 /**
  * Renders a serialized tree as React reference code.
  * @param node - The serialized root.
- * @param options - Indent width.
+ * @param options - Indent width and the exported-asset map.
  * @returns A JSX string, deterministic for a given tree.
  */
 export const toReact = (node: SerializedNode, options: ReactOptions = {}): string =>
-  render(node, 0, options.indent ?? 2).join("\n");
+  render(node, 0, options.indent ?? 2, options.assets ?? {}).join("\n");

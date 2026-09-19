@@ -1,4 +1,4 @@
-import { cssVarName } from "./react.js";
+import { cssVarName, px } from "./react.js";
 import type { SerializedNode } from "./tokens.js";
 
 /** Turns a Figma layer name into a stable class selector. */
@@ -31,16 +31,18 @@ const declarations = (node: SerializedNode): string[] => {
   if (styles?.autoLayout) {
     out.push("display: flex;");
     out.push(`flex-direction: ${styles.autoLayout.direction === "VERTICAL" ? "column" : "row"};`);
-    if (styles.autoLayout.gap) out.push(`gap: ${styles.autoLayout.gap}px;`);
+    if (styles.autoLayout.gap) out.push(`gap: ${px(styles.autoLayout.gap)};`);
   }
 
   const padding = styles?.padding;
   if (padding) {
-    out.push(`padding: ${padding.top}px ${padding.right}px ${padding.bottom}px ${padding.left}px;`);
+    out.push(
+      `padding: ${px(padding.top)} ${px(padding.right)} ${px(padding.bottom)} ${px(padding.left)};`
+    );
   }
 
   if (typeof styles?.cornerRadius === "number" && styles.cornerRadius > 0) {
-    out.push(`border-radius: ${styles.cornerRadius}px;`);
+    out.push(`border-radius: ${px(styles.cornerRadius)};`);
   }
 
   return out;

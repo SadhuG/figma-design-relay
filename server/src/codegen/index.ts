@@ -7,19 +7,29 @@ export type CodeFormat = "react" | "html" | "css" | "json";
 
 export const CODE_FORMATS: CodeFormat[] = ["react", "html", "css", "json"];
 
+export interface CodegenOptions {
+  /** Node id → workspace-relative file for nodes exported as assets. */
+  assets?: Record<string, string>;
+}
+
 /**
  * Renders a serialized tree in the requested reference format.
  * @param node - The serialized root.
  * @param format - One of `CODE_FORMATS`.
+ * @param options - The exported-asset map, so code references files rather than redrawing them.
  * @returns The rendered string.
  * @throws When the format is not supported, naming both the request and the alternatives.
  */
-export const generateCode = (node: SerializedNode, format: CodeFormat): string => {
+export const generateCode = (
+  node: SerializedNode,
+  format: CodeFormat,
+  options: CodegenOptions = {}
+): string => {
   switch (format) {
     case "react":
-      return toReact(node);
+      return toReact(node, options);
     case "html":
-      return toHtml(node);
+      return toHtml(node, options);
     case "css":
       return toCss(node);
     case "json":
