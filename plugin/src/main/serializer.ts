@@ -394,22 +394,39 @@ const STYLE_FIELDS = {
   text: "textStyleId",
 } as const;
 
-const lookupVariable = async (id: string) => {
-  const variable = await figma.variables.getVariableByIdAsync(id);
-  return variable
-    ? { name: variable.name, variableCollectionId: variable.variableCollectionId }
-    : null;
+/**
+ * Library variables, styles and components are fetched from Figma's servers on
+ * first use, and that fetch can fail ("Unable to establish connection to
+ * Figma"). A failed lookup is treated as unresolved — the reference keeps its
+ * bare id — so one unreachable library token cannot fail a whole document read.
+ */
+const orNull = async <T>(lookup: () => Promise<T | null>): Promise<T | null> => {
+  try {
+    return await lookup();
+  } catch {
+    return null;
+  }
 };
 
-const lookupCollection = async (id: string) => {
-  const collection = await figma.variables.getVariableCollectionByIdAsync(id);
-  return collection ? { name: collection.name } : null;
-};
+const lookupVariable = (id: string) =>
+  orNull(async () => {
+    const variable = await figma.variables.getVariableByIdAsync(id);
+    return variable
+      ? { name: variable.name, variableCollectionId: variable.variableCollectionId }
+      : null;
+  });
 
-const lookupStyle = async (id: string) => {
-  const style = await figma.getStyleByIdAsync(id);
-  return style ? { name: style.name } : null;
-};
+const lookupCollection = (id: string) =>
+  orNull(async () => {
+    const collection = await figma.variables.getVariableCollectionByIdAsync(id);
+    return collection ? { name: collection.name } : null;
+  });
+
+const lookupStyle = (id: string) =>
+  orNull(async () => {
+    const style = await figma.getStyleByIdAsync(id);
+    return style ? { name: style.name } : null;
+  });
 
 /**
  * Collects everything that ties a node to the design system: its component
@@ -424,7 +441,7 @@ const serializeDesign = async (
   const design: SerializedDesign = {};
 
   if (node.type === "INSTANCE") {
-    const identity = await serializeInstanceIdentity(node as never);
+    const identity = await orNull(() => serializeInstanceIdentity(node as never));
     if (identity) Object.assign(design, identity);
   } else if (node.type === "COMPONENT" || node.type === "COMPONENT_SET") {
     const identity = serializeComponentIdentity(node as never);
@@ -438,9 +455,15 @@ const serializeDesign = async (
   );
   if (bound) design.boundVariables = bound;
 
+  // Resolved concurrently: a library style that is slow or unreachable then costs
+  // one round-trip per node rather than one per style field.
   const styles: Record<string, StyleRef | "mixed"> = {};
-  for (const [name, field] of Object.entries(STYLE_FIELDS)) {
-    const ref = await resolveStyleRef(raw[field], lookupStyle);
+  const resolved = await Promise.all(
+    Object.entries(STYLE_FIELDS).map(
+      async ([name, field]) => [name, await resolveStyleRef(raw[field], lookupStyle)] as const
+    )
+  );
+  for (const [name, ref] of resolved) {
     if (ref) styles[name] = ref;
   }
   if (Object.keys(styles).length > 0) design.styles = styles;
@@ -448,7 +471,20 @@ const serializeDesign = async (
   return Object.keys(design).length > 0 ? design : undefined;
 };
 
-export const serializeNode = async (node: SceneNode | PageNode): Promise<SerializedNode> => {
+export interface SerializeOptions {
+  /**
+   * How many levels of children to descend. A node at the limit reports
+   * `childCount` — visible children only — in place of `children`, so the
+   * walk is bounded without a second pass. Omit to walk the whole tree.
+   */
+  maxDepth?: number;
+}
+
+export const serializeNode = async (
+  node: SceneNode | PageNode,
+  options: SerializeOptions = {},
+  depth = 0
+): Promise<SerializedNode> => {
   const raw = node as unknown as Record<string, unknown>;
   const base: SerializedNode = {
     id: node.id,
@@ -482,9 +518,12 @@ export const serializeNode = async (node: SceneNode | PageNode): Promise<Seriali
 
   if ("children" in node) {
     const visible = node.children.filter((child) => child.visible !== false);
+    if (options.maxDepth !== undefined && depth >= options.maxDepth) {
+      return { ...base, childCount: visible.length };
+    }
     return {
       ...base,
-      children: await Promise.all(visible.map((child) => serializeNode(child))),
+      children: await Promise.all(visible.map((child) => serializeNode(child, options, depth + 1))),
     };
   }
 

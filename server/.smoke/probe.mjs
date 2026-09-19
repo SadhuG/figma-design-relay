@@ -1,8 +1,8 @@
 // Smoke-test harness for run_script (Task 7, R2/R3/R6/R7).
 //
-// Spawns the worktree server on an isolated port so it wins its own leader
-// election instead of joining the stock relay's on 1994, then drives it over
-// stdio exactly the way an MCP client would.
+// Spawns the built server on the smoke-test port (see port.mjs) and drives it
+// over stdio exactly the way an MCP client would. It joins whatever leader
+// holds that port as a follower — the MCP client's relay, or hold-leader.mjs.
 //
 // Usage: node .smoke/probe.mjs <script-file-or-literal>
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -10,10 +10,10 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
+import { PORT } from "./port.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const serverEntry = resolve(here, "../dist/index.js");
-const PORT = process.env.SMOKE_PORT ?? "1995";
 
 const arg = process.argv[2];
 if (!arg) {
@@ -42,11 +42,13 @@ try {
     process.exit(1);
   }
 
-  console.log("--- script ---");
+  console.log(`--- script (port ${PORT}) ---`);
   console.log(code.trim());
   console.log("--- result ---");
 
-  const result = await client.callTool({ name: "run_script", arguments: { code } });
+  const result = await client.callTool({ name: "run_script", arguments: { code } }, undefined, {
+    timeout: 180_000,
+  });
 
   // isError distinguishes R6's error channel from a success payload that merely
   // describes a failure. Print it explicitly so the distinction is visible.

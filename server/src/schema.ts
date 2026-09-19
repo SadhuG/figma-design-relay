@@ -615,10 +615,25 @@ export const toolInputSchemas = {
   }),
 
   get_design_context: z.object({
+    nodeId: createFigmaNodeIdSchema()
+      .optional()
+      .describe(
+        "Node to describe. When omitted, uses the current selection, falling back to the current page."
+      ),
     depth: z
       .number()
       .optional()
       .describe("How many levels deep to traverse the node tree (default 2)"),
+    format: z
+      .enum(["react", "html", "css", "json"])
+      .optional()
+      .describe("Reference code format (default react)"),
+    assetDir: z
+      .string()
+      .optional()
+      .describe(
+        "Directory, relative to the MCP server working directory, to export icons and images into. Omit to skip asset export."
+      ),
     fileKey: fileKeyField,
   }),
 
@@ -930,7 +945,7 @@ const rpcToArgs: Record<
   get_node: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
   get_styles: (_nodeIds, params) => ({ ...params }),
   get_metadata: (_nodeIds, params) => ({ ...params }),
-  get_design_context: (_nodeIds, params) => ({ ...params }),
+  get_design_context: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
   get_variable_defs: (_nodeIds, params) => ({ ...params }),
   get_screenshot: (nodeIds, params) => ({ nodeIds, ...params }),
   set_node_visibility: (_nodeIds, params) => ({ ...params }),

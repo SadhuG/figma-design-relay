@@ -56,6 +56,16 @@ type PluginStatus = {
 // networkAccess.allowedDomains or Figma will block the connection.
 const WS_BASE_URL = import.meta.env.VITE_FIGMA_DESIGN_RELAY_WS || "ws://localhost:1994/ws";
 
+// Shown in the panel so a running plugin says which relay it dials. The port is
+// baked in at build time, and a build for another port looks identical otherwise.
+const RELAY_ADDRESS = (() => {
+  try {
+    return new URL(WS_BASE_URL).host;
+  } catch {
+    return WS_BASE_URL;
+  }
+})();
+
 export default function App() {
   const [connected, setConnected] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -75,7 +85,7 @@ export default function App() {
   // One definition, rendered either in the collapsed bar or in the footer --
   // never both at once, since .body is hidden while collapsed.
   const statusBadge = (
-    <div className={`badge ${connected ? "connected" : "disconnected"}`}>
+    <div className={`badge ${connected ? "connected" : "disconnected"}`} title={WS_BASE_URL}>
       <span className="dot" />
       <span className="badge-text">{statusLabel}</span>
     </div>
@@ -226,6 +236,10 @@ export default function App() {
           <div className="info-row">
             <span className="info-label">Selection:</span>
             <span className="info-value">{status.selectionCount} node(s)</span>
+          </div>
+          <div className="info-row">
+            <span className="info-label">Relay:</span>
+            <span className="info-value">{RELAY_ADDRESS}</span>
           </div>
         </div>
 

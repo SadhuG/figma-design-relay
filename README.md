@@ -82,7 +82,7 @@ If you want to know more about how it works, read the [How it works](#how-it-wor
 | `get_node`                     | Get a specific Figma node by ID (colon format, e.g. `4029:12345`)                                                                          |
 | `get_styles`                   | Get all local paint, text, effect, and grid styles                                                                                         |
 | `get_metadata`                 | Get file name, pages, and current page info                                                                                                |
-| `get_design_context`           | Get a depth-limited tree optimized for understanding design context                                                                        |
+| `get_design_context`           | Reference code, design tokens, exported assets and a screenshot for a node — one call ([guide](docs/design-context.md))                    |
 | `get_variable_defs`            | Get all variable collections, modes, and values (design tokens)                                                                            |
 | `get_screenshot`               | Export nodes as PNG/SVG/JPG/PDF (base64-encoded)                                                                                           |
 | `save_screenshots`             | Export and save screenshots directly to the local filesystem                                                                               |
@@ -131,6 +131,7 @@ All tools accept an optional `fileKey` parameter when multiple Figma files are c
 - `create_page` returns the new page's ID — pass it as `parentId` to `create_frame` / `create_text` / `create_shape` / `create_image` to author content on that page without switching the editor.
 - `run_script` executes agent-authored JavaScript with the full Plugin API in scope. It is the escape hatch for components, variables, styles, boolean operations, prototyping, and any other API the dedicated tools do not cover. Unlike the dedicated tools it is **not atomic** — a script that throws part-way leaves its earlier mutations in the file, because the Plugin API has no rollback. See [docs/run-script.md](docs/run-script.md) for the full contract, limits, and gotchas.
 - Serialized nodes carry design-system identity, not just geometry: instances report their main component and set properties, fills bound to variables report the token name, named styles report the style name, and auto-layout children report hug/fill intent. Fields are omitted when a node carries nothing for them, so plain nodes serialize exactly as before. See [docs/serialized-nodes.md](docs/serialized-nodes.md).
+- `get_design_context` exports icons and images as files under `assetDir` rather than returning expiring URLs, because a committed file is what code you keep actually needs. The path must stay inside the MCP server working directory. See [docs/design-context.md](docs/design-context.md) for the response contract.
 
 ### What You Can Build
 
@@ -180,6 +181,18 @@ For local development, add the following to your AI tool's MCP config:
   }
 }
 ```
+
+Keep exactly one such entry, pointing at the checkout you build. Two entries — or an entry left
+pointing at an old clone or worktree — is how you end up with a relay on 1994 that is not the code
+you just built, and the plugin will happily attach to whichever one wins.
+
+#### 6. Ports
+
+Everything uses **1994**: the server (`FIGMA_DESIGN_RELAY_PORT` to change it), the plugin (baked in
+at build time; `VITE_FIGMA_DESIGN_RELAY_WS` to change it), and the smoke-test probes in
+`server/.smoke/`. The plugin panel's **Relay:** row shows the address a running plugin is dialing,
+so a build for the wrong port is visible in Figma rather than a mysterious "Disconnected". Figma's
+Development menu lists plugins by name, so keep a single import of `plugin/manifest.json`.
 
 ### Code style
 

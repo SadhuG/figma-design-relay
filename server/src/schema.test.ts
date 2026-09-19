@@ -18,6 +18,31 @@ describe("validateRpc", () => {
   });
 });
 
+describe("validateRpc get_design_context", () => {
+  // The node to describe travels as transport-level nodeIds, like every other
+  // tool that names a node. validateRpc strips `nodeId` from params, so a
+  // nodeId placed inside params would never reach the plugin from a follower.
+  test("validates the node id carried on nodeIds", () => {
+    const result = validateRpc("get_design_context", ["4029-12345"], { depth: 1 });
+    expect(result.error).toContain("colon format");
+  });
+
+  test("forwards depth, format and assetDir untouched", () => {
+    const result = validateRpc("get_design_context", ["4029:12345"], {
+      depth: 3,
+      format: "css",
+      assetDir: "assets",
+    });
+    expect(result.error).toBeNull();
+    expect(result.params).toEqual({ depth: 3, format: "css", assetDir: "assets" });
+  });
+
+  test("rejects an unknown format", () => {
+    const result = validateRpc("get_design_context", undefined, { format: "vue" });
+    expect(result.error).not.toBeNull();
+  });
+});
+
 describe("validateRpc run_script", () => {
   test("accepts a script", () => {
     const result = validateRpc("run_script", undefined, { code: "return figma.root.name" });
