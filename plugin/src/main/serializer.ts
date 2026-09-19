@@ -1,3 +1,27 @@
+import {
+  resolveBoundVariables,
+  resolveStyleRef,
+  type StyleRef,
+  type VariableRef,
+} from "./references";
+import {
+  serializeComponentIdentity,
+  serializeInstanceIdentity,
+  type ComponentRef,
+} from "./component-identity";
+import {
+  serializeAnnotations,
+  serializeExportSettings,
+  serializeLayoutIntent,
+  serializeReactions,
+  serializeRenderBounds,
+  type AnnotationSummary,
+  type Box,
+  type ExportSummary,
+  type LayoutIntent,
+  type ReactionSummary,
+} from "./intent";
+
 // --- Serialized paint types (discriminated union) ---
 type SerializedSolidPaint = {
   type: "SOLID";
@@ -85,7 +109,17 @@ type SerializedBounds = {
   height: number;
 };
 
-type SerializedNode = {
+export interface SerializedDesign {
+  mainComponent?: ComponentRef;
+  componentProperties?: Record<string, { type: string; value: unknown }>;
+  key?: string;
+  propertyDefinitions?: Record<string, unknown>;
+  propertyOwnerId?: string;
+  boundVariables?: VariableRef[];
+  styles?: Record<string, StyleRef | "mixed">;
+}
+
+export type SerializedNode = {
   id: string;
   name: string;
   type: string;
@@ -94,6 +128,12 @@ type SerializedNode = {
   styles?: SerializedStyles;
   children?: SerializedNode[];
   childCount?: number;
+  design?: SerializedDesign;
+  layout?: LayoutIntent;
+  reactions?: ReactionSummary[];
+  annotations?: AnnotationSummary[];
+  exportSettings?: ExportSummary[];
+  renderBounds?: Box;
 };
 
 const isMixed = (value: unknown): value is symbol => typeof value === "symbol";
@@ -346,7 +386,70 @@ const serializeStyles = (node: SceneNode | PageNode): SerializedStyles => {
   return styles;
 };
 
-export const serializeNode = (node: SceneNode | PageNode): SerializedNode => {
+const STYLE_FIELDS = {
+  fill: "fillStyleId",
+  stroke: "strokeStyleId",
+  effect: "effectStyleId",
+  grid: "gridStyleId",
+  text: "textStyleId",
+} as const;
+
+const lookupVariable = async (id: string) => {
+  const variable = await figma.variables.getVariableByIdAsync(id);
+  return variable
+    ? { name: variable.name, variableCollectionId: variable.variableCollectionId }
+    : null;
+};
+
+const lookupCollection = async (id: string) => {
+  const collection = await figma.variables.getVariableCollectionByIdAsync(id);
+  return collection ? { name: collection.name } : null;
+};
+
+const lookupStyle = async (id: string) => {
+  const style = await figma.getStyleByIdAsync(id);
+  return style ? { name: style.name } : null;
+};
+
+/**
+ * Collects everything that ties a node to the design system: its component
+ * identity, the variables bound to its properties, and the named styles it uses.
+ * @param node - The scene node.
+ * @returns The design block, or undefined when the node references nothing.
+ */
+const serializeDesign = async (
+  node: SceneNode | PageNode
+): Promise<SerializedDesign | undefined> => {
+  const raw = node as unknown as Record<string, unknown>;
+  const design: SerializedDesign = {};
+
+  if (node.type === "INSTANCE") {
+    const identity = await serializeInstanceIdentity(node as never);
+    if (identity) Object.assign(design, identity);
+  } else if (node.type === "COMPONENT" || node.type === "COMPONENT_SET") {
+    const identity = serializeComponentIdentity(node as never);
+    if (identity) Object.assign(design, identity);
+  }
+
+  const bound = await resolveBoundVariables(
+    raw.boundVariables as Record<string, unknown> | undefined,
+    lookupVariable,
+    lookupCollection
+  );
+  if (bound) design.boundVariables = bound;
+
+  const styles: Record<string, StyleRef | "mixed"> = {};
+  for (const [name, field] of Object.entries(STYLE_FIELDS)) {
+    const ref = await resolveStyleRef(raw[field], lookupStyle);
+    if (ref) styles[name] = ref;
+  }
+  if (Object.keys(styles).length > 0) design.styles = styles;
+
+  return Object.keys(design).length > 0 ? design : undefined;
+};
+
+export const serializeNode = async (node: SceneNode | PageNode): Promise<SerializedNode> => {
+  const raw = node as unknown as Record<string, unknown>;
   const base: SerializedNode = {
     id: node.id,
     name: node.name,
@@ -355,16 +458,33 @@ export const serializeNode = (node: SceneNode | PageNode): SerializedNode => {
     styles: serializeStyles(node),
   };
 
+  const design = await serializeDesign(node);
+  if (design) base.design = design;
+
+  const layout = serializeLayoutIntent(raw);
+  if (layout) base.layout = layout;
+
+  const reactions = serializeReactions(raw);
+  if (reactions) base.reactions = reactions;
+
+  const annotations = serializeAnnotations(raw);
+  if (annotations) base.annotations = annotations;
+
+  const exportSettings = serializeExportSettings(raw);
+  if (exportSettings) base.exportSettings = exportSettings;
+
+  const renderBounds = serializeRenderBounds(raw);
+  if (renderBounds) base.renderBounds = renderBounds;
+
   if (node.type === "TEXT") {
     return serializeText(node, base);
   }
 
   if ("children" in node) {
+    const visible = node.children.filter((child) => child.visible !== false);
     return {
       ...base,
-      children: node.children
-        .filter((child) => child.visible !== false)
-        .map((child) => serializeNode(child)),
+      children: await Promise.all(visible.map((child) => serializeNode(child))),
     };
   }
 

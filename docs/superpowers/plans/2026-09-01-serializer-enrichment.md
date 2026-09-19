@@ -37,7 +37,7 @@ A node points at design-system objects by id — a fill bound to a variable, a p
 - Consumes: nothing.
 - Produces: `resolveBoundVariables(boundVariables, lookupVariable, lookupCollection): Promise<VariableRef[] | undefined>` and `resolveStyleRef(styleId, lookupStyle): Promise<StyleRef | "mixed" | undefined>`, plus the `VariableRef`, `StyleRef`, `VariableLookup`, `CollectionLookup` and `StyleLookup` types. Task 4 imports all of them from `./references`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 _plugin/src/main/references.test.ts — create_
 
@@ -132,12 +132,12 @@ describe("resolveStyleRef", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `cd plugin && bun test src/main/references.test.ts`
 Expected: FAIL — `Cannot find module './references'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 _plugin/src/main/references.ts — create_
 
@@ -248,12 +248,12 @@ export const resolveStyleRef = async (
 };
 ```
 
-- [ ] **Step 4: Run the tests and make sure they pass**
+- [x] **Step 4: Run the tests and make sure they pass**
 
 Run: `cd plugin && bun test src/main/references.test.ts`
 Expected: PASS — 9 pass, 0 fail
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add plugin/src/main/references.ts plugin/src/main/references.test.ts
@@ -276,7 +276,7 @@ Without this an instance of `Button/Primary` serializes as an anonymous frame. T
 - Consumes: nothing.
 - Produces: `componentPropertyOwner(node): NodeLike | null`, `serializeInstanceIdentity(instance): Promise<InstanceIdentity | undefined>` and `serializeComponentIdentity(node): ComponentIdentity | undefined`, plus the `NodeLike`, `InstanceLike`, `InstanceIdentity` and `ComponentIdentity` types. Task 4 imports them from `./component-identity`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 _plugin/src/main/component-identity.test.ts — create_
 
@@ -375,12 +375,12 @@ describe("serializeInstanceIdentity", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `cd plugin && bun test src/main/component-identity.test.ts`
 Expected: FAIL — `Cannot find module './component-identity'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 _plugin/src/main/component-identity.ts — create_
 
@@ -478,12 +478,12 @@ export const serializeInstanceIdentity = async (
 };
 ```
 
-- [ ] **Step 4: Run the tests and make sure they pass**
+- [x] **Step 4: Run the tests and make sure they pass**
 
 Run: `cd plugin && bun test src/main/component-identity.test.ts`
 Expected: PASS — 10 pass, 0 fail
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add plugin/src/main/component-identity.ts plugin/src/main/component-identity.test.ts
@@ -506,7 +506,7 @@ Geometry says what a node currently measures. Intent says what it is for — hug
 - Consumes: nothing.
 - Produces: `serializeLayoutIntent(node)`, `serializeReactions(node)`, `serializeAnnotations(node)`, `serializeExportSettings(node)` and `serializeRenderBounds(node)`, each taking a `Record<string, unknown>` and returning its shape or `undefined`. Task 4 imports all five from `./intent`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 _plugin/src/main/intent.test.ts — create_
 
@@ -621,12 +621,12 @@ describe("serializeRenderBounds", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `cd plugin && bun test src/main/intent.test.ts`
 Expected: FAIL — `Cannot find module './intent'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 _plugin/src/main/intent.ts — create_
 
@@ -818,12 +818,12 @@ export const serializeRenderBounds = (node: Raw): Box | undefined => {
 };
 ```
 
-- [ ] **Step 4: Run the tests and make sure they pass**
+- [x] **Step 4: Run the tests and make sure they pass**
 
 Run: `cd plugin && bun test src/main/intent.test.ts`
 Expected: PASS — 11 pass, 0 fail
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add plugin/src/main/intent.ts plugin/src/main/intent.test.ts
@@ -848,7 +848,7 @@ Note the ordering constraint that makes that test possible: the resolvers short-
 - Consumes: `resolveBoundVariables`, `resolveStyleRef` from `./references`; `serializeComponentIdentity`, `serializeInstanceIdentity` from `./component-identity`; `serializeLayoutIntent`, `serializeReactions`, `serializeAnnotations`, `serializeExportSettings`, `serializeRenderBounds` from `./intent`.
 - Produces: `serializeNode(node: SceneNode): Promise<SerializedNode>` — the same name, now returning a promise, with optional `design`, `layout`, `reactions`, `annotations`, `exportSettings` and `renderBounds` fields. Task 5 awaits it at every call site.
 
-- [ ] **Step 1: Write the baseline regression test first**
+- [x] **Step 1: Write the baseline regression test first**
 
 This is the test that stops enrichment from bloating every payload. Write it before touching the serializer.
 
@@ -954,12 +954,12 @@ describe("serializeNode", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `cd plugin && bun test src/main/serializer.test.ts`
 Expected: FAIL — `serializeNode(...).then is not a function`, because the serializer is still synchronous
 
-- [ ] **Step 3: Extend the SerializedNode interface**
+- [x] **Step 3: Extend the SerializedNode interface**
 
 At the top of `plugin/src/main/serializer.ts`, add the imports and widen the exported node shape. Add these fields to the existing `SerializedNode` interface — do not remove anything already there.
 
@@ -1010,7 +1010,7 @@ Then, inside `SerializedNode`:
   renderBounds?: Box;
 ```
 
-- [ ] **Step 4: Add the design-system resolver**
+- [x] **Step 4: Add the design-system resolver**
 
 Still in `serializer.ts`, above `serializeNode`. The `figma` lookups live here and nowhere else, which is what keeps the three new modules testable.
 
@@ -1076,7 +1076,7 @@ const serializeDesign = async (node: SceneNode): Promise<SerializedDesign | unde
 };
 ```
 
-- [ ] **Step 5: Make serializeNode async**
+- [x] **Step 5: Make serializeNode async**
 
 Replace the existing `serializeNode` export at the bottom of `serializer.ts`. Children are awaited with `Promise.all` so a wide frame does not serialize one child at a time.
 
@@ -1125,17 +1125,17 @@ export const serializeNode = async (node: SceneNode): Promise<SerializedNode> =>
 };
 ```
 
-- [ ] **Step 6: Run the tests and make sure they pass**
+- [x] **Step 6: Run the tests and make sure they pass**
 
 Run: `cd plugin && bun test src/main/serializer.test.ts`
 Expected: PASS — 6 pass, 0 fail. If the first test fails with extra keys, a helper is returning an empty object instead of `undefined`; fix the helper rather than filtering here.
 
-- [ ] **Step 7: Run the whole plugin suite**
+- [x] **Step 7: Run the whole plugin suite**
 
 Run: `cd plugin && bun run test`
 Expected: PASS — 36 pass, 0 fail (9 references, 10 component identity, 11 intent, 6 serializer, plus phase 1's 19 if that plan has landed)
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add plugin/src/main/serializer.ts plugin/src/main/serializer.test.ts
@@ -1157,12 +1157,12 @@ git commit -m "feat(plugin): serialize design-system identity and layout intent"
 - Consumes: `serializeNode(node): Promise<SerializedNode>` from task 4.
 - Produces: no new exports. Every read tool returns the enriched shape.
 
-- [ ] **Step 1: Find every call site**
+- [x] **Step 1: Find every call site**
 
 Run: `cd plugin && bunx tsc --noEmit -p tsconfig.json`
 Expected: FAIL — four errors of the form `Type 'Promise<SerializedNode>' is not assignable to type 'SerializedNode'`, one per call site. Use them as the worklist.
 
-- [ ] **Step 2: Await in get_document**
+- [x] **Step 2: Await in get_document**
 
 ```ts
       case "get_document":
@@ -1173,7 +1173,7 @@ Expected: FAIL — four errors of the form `Type 'Promise<SerializedNode>' is no
         };
 ```
 
-- [ ] **Step 3: Await in get_selection**
+- [x] **Step 3: Await in get_selection**
 
 A bare `.map(serializeNode)` here would return an array of promises and serialize as `[{},{}]`. Use `Promise.all`.
 
@@ -1188,7 +1188,7 @@ A bare `.map(serializeNode)` here would return an array of promises and serializ
         };
 ```
 
-- [ ] **Step 4: Await in get_node**
+- [x] **Step 4: Await in get_node**
 
 ```ts
 return {
@@ -1198,7 +1198,7 @@ return {
 };
 ```
 
-- [ ] **Step 5: Await inside get_design_context**
+- [x] **Step 5: Await inside get_design_context**
 
 `serializeWithDepth` is already `async`, so only the one call changes:
 
@@ -1210,12 +1210,12 @@ return {
           const serialized = await serializeNode(node as SceneNode);
 ```
 
-- [ ] **Step 6: Verify the plugin type-checks and builds**
+- [x] **Step 6: Verify the plugin type-checks and builds**
 
 Run: `cd plugin && bunx tsc --noEmit -p tsconfig.json && bun run build`
 Expected: PASS — no `tsc` output, and a clean bundle
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add plugin/src/main/code.ts
@@ -1273,6 +1273,8 @@ Expected: the text node has `design.styles.text` with the style's name; the auto
 
 Select the annotated node and call `get_selection`.
 
+Authoring an annotation needs Dev Mode, which needs a paid Figma seat this project does not have. If that is your situation, skip this step and rely on `serializeAnnotations`' unit tests in `plugin/src/main/intent.test.ts` instead — the same trade-off the repo already makes for the Dev Mode editor gate.
+
 Expected: `annotations[0].label` matches the note as typed in Dev Mode.
 
 - [ ] **Step 7: Prove the payload has not bloated**
@@ -1281,11 +1283,11 @@ Call `get_document` on a page with a few hundred nodes, before and after this ph
 
 Expected: nodes with no component, variable, style or annotation carry none of the new keys. If plain nodes have grown, a helper is returning an empty object; fix it at the source.
 
-- [ ] **Step 8: Write the field reference**
+- [x] **Step 8: Write the field reference**
 
 Create `docs/serialized-nodes.md` documenting the enriched shape: the `design` block (`mainComponent`, `componentProperties`, `key`, `propertyDefinitions`, `propertyOwnerId`, `boundVariables`, `styles`), then `layout`, `reactions`, `annotations`, `exportSettings` and `renderBounds`. For each, state when it is present and when it is omitted — the omission rules are the part readers will get wrong.
 
-- [ ] **Step 9: Document the change in the README**
+- [x] **Step 9: Document the change in the README**
 
 Append to the Editing Notes bullet list in `README.md`:
 
@@ -1293,7 +1295,7 @@ Append to the Editing Notes bullet list in `README.md`:
 - Serialized nodes carry design-system identity, not just geometry: instances report their main component and set properties, fills bound to variables report the token name, named styles report the style name, and auto-layout children report hug/fill intent. Fields are omitted when a node carries nothing for them, so plain nodes serialize exactly as before. See [docs/serialized-nodes.md](docs/serialized-nodes.md).
 ```
 
-- [ ] **Step 10: Format and run everything**
+- [x] **Step 10: Format and run everything**
 
 ```bash
 bun run format
@@ -1302,7 +1304,7 @@ cd plugin && bun run test && bunx tsc --noEmit -p tsconfig.json && bun run build
 
 Expected: PASS — Prettier reports no remaining changes on a second run, tests green, clean build
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add README.md docs/serialized-nodes.md

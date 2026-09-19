@@ -1,4 +1,4 @@
-import { serializeNode } from "./serializer";
+import { serializeNode, type SerializedNode } from "./serializer";
 import { addLayersToFrame } from "../html-figma/figma";
 import { runScript } from "./script-runner";
 import { EDIT_REQUEST_TYPES, requireEditorMode } from "./editor-gate";
@@ -342,13 +342,13 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
         return {
           type: request.type,
           requestId: request.requestId,
-          data: serializeNode(figma.currentPage),
+          data: await serializeNode(figma.currentPage),
         };
       case "get_selection":
         return {
           type: request.type,
           requestId: request.requestId,
-          data: figma.currentPage.selection.map((node) => serializeNode(node)),
+          data: await Promise.all(figma.currentPage.selection.map((node) => serializeNode(node))),
         };
       case "get_node": {
         const nodeId = request.nodeIds && request.nodeIds[0];
@@ -362,7 +362,7 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
         return {
           type: request.type,
           requestId: request.requestId,
-          data: serializeNode(node as SceneNode),
+          data: await serializeNode(node as SceneNode),
         };
       }
       case "get_styles": {
@@ -424,8 +424,8 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
         const serializeWithDepth = async (
           node: SceneNode | PageNode,
           currentDepth: number
-        ): Promise<ReturnType<typeof serializeNode>> => {
-          const serialized = serializeNode(node);
+        ): Promise<SerializedNode> => {
+          const serialized = await serializeNode(node);
           if (currentDepth >= depth && serialized.children) {
             // Truncate children at depth limit, but show count
             return {
@@ -433,7 +433,7 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
               children: undefined,
               childCount:
                 "children" in node ? node.children.filter((c) => c.visible !== false).length : 0,
-            } as ReturnType<typeof serializeNode> & { childCount: number };
+            } as SerializedNode & { childCount: number };
           }
           if (serialized.children) {
             const childNodes = await Promise.all(
