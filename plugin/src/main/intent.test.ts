@@ -12,6 +12,17 @@ describe("serializeLayoutIntent", () => {
     expect(serializeLayoutIntent({ layoutGrow: 0, layoutAlign: "INHERIT" })).toBeUndefined();
   });
 
+  // Every layout-capable node reports FIXED sizing by default, so emitting it
+  // would put a layout block on essentially every node in a file.
+  test("treats FIXED sizing as the default and omits it", () => {
+    expect(
+      serializeLayoutIntent({ layoutSizingHorizontal: "FIXED", layoutSizingVertical: "FIXED" })
+    ).toBeUndefined();
+    expect(
+      serializeLayoutIntent({ layoutSizingHorizontal: "FILL", layoutSizingVertical: "FIXED" })
+    ).toEqual({ sizingHorizontal: "FILL" });
+  });
+
   test("emits hug and fill sizing", () => {
     expect(
       serializeLayoutIntent({ layoutSizingHorizontal: "FILL", layoutSizingVertical: "HUG" })

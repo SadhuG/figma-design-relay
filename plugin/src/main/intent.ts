@@ -45,6 +45,7 @@ export interface ExportSummary {
 type Raw = Record<string, unknown>;
 
 const LAYOUT_DEFAULTS = {
+  layoutSizing: "FIXED",
   layoutGrow: 0,
   layoutAlign: "INHERIT",
   layoutPositioning: "AUTO",
@@ -60,10 +61,16 @@ const MEASURES = ["minWidth", "maxWidth", "minHeight", "maxHeight"] as const;
 export const serializeLayoutIntent = (node: Raw): LayoutIntent | undefined => {
   const intent: LayoutIntent = {};
 
-  if (typeof node.layoutSizingHorizontal === "string") {
+  if (
+    typeof node.layoutSizingHorizontal === "string" &&
+    node.layoutSizingHorizontal !== LAYOUT_DEFAULTS.layoutSizing
+  ) {
     intent.sizingHorizontal = node.layoutSizingHorizontal;
   }
-  if (typeof node.layoutSizingVertical === "string") {
+  if (
+    typeof node.layoutSizingVertical === "string" &&
+    node.layoutSizingVertical !== LAYOUT_DEFAULTS.layoutSizing
+  ) {
     intent.sizingVertical = node.layoutSizingVertical;
   }
   if (typeof node.layoutGrow === "number" && node.layoutGrow !== LAYOUT_DEFAULTS.layoutGrow) {

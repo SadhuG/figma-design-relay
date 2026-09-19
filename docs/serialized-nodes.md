@@ -62,14 +62,14 @@ omitted entirely when its style id is unset.
 Hug/fill intent and the sizing constraints. Without these an agent sees only current pixel
 measurements and emits fixed sizes where the designer meant "fill container".
 
-| Field                                            | Present when                           | Omitted when                 |
-| ------------------------------------------------ | -------------------------------------- | ---------------------------- |
-| `sizingHorizontal`, `sizingVertical`             | The node is an auto-layout participant | The property is not a string |
-| `grow`                                           | `layoutGrow` is not `0`                | At the default `0`           |
-| `align`                                          | `layoutAlign` is not `"INHERIT"`       | At the default `"INHERIT"`   |
-| `positioning`                                    | `layoutPositioning` is not `"AUTO"`    | At the default `"AUTO"`      |
-| `reverseZIndex`                                  | `itemReverseZIndex` is `true`          | `false` or absent            |
-| `minWidth`, `maxWidth`, `minHeight`, `maxHeight` | The constraint is set to a number      | The constraint is `null`     |
+| Field                                            | Present when                        | Omitted when                                                      |
+| ------------------------------------------------ | ----------------------------------- | ----------------------------------------------------------------- |
+| `sizingHorizontal`, `sizingVertical`             | The sizing is `HUG` or `FILL`       | The property is absent or `FIXED`, Figma's default for every node |
+| `grow`                                           | `layoutGrow` is not `0`             | At the default `0`                                                |
+| `align`                                          | `layoutAlign` is not `"INHERIT"`    | At the default `"INHERIT"`                                        |
+| `positioning`                                    | `layoutPositioning` is not `"AUTO"` | At the default `"AUTO"`                                           |
+| `reverseZIndex`                                  | `itemReverseZIndex` is `true`       | `false` or absent                                                 |
+| `minWidth`, `maxWidth`, `minHeight`, `maxHeight` | The constraint is set to a number   | The constraint is `null`                                          |
 
 The whole `layout` block is omitted when every one of these is at its default — which is the common
 case, and the reason a page of plain frames does not grow.
