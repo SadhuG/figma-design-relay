@@ -1,4 +1,4 @@
-import { toReact } from "./react.js";
+import { toReact, type ReactOptions } from "./react.js";
 import type { SerializedNode } from "./tokens.js";
 
 /**
@@ -8,10 +8,11 @@ import type { SerializedNode } from "./tokens.js";
  * deriving one from the other keeps a single structural code path — and means
  * a structural bug shows up in both tests, not one.
  * @param node - The serialized root.
+ * @param options - Passed through to the React generator.
  * @returns An HTML string.
  */
-export const toHtml = (node: SerializedNode): string =>
-  toReact(node)
+export const toHtml = (node: SerializedNode, options: ReactOptions = {}): string =>
+  toReact(node, options)
     .replace(/className=/g, "class=")
     .replace(
       /style=\{\{\s*([a-zA-Z]+):\s*"([^"]*)"\s*\}\}/g,

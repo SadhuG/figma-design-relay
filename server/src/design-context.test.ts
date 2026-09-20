@@ -132,3 +132,34 @@ describe("composeDesignContext honesty", () => {
     expect((first as { text: string }).text).toMatch(/1 container.*collapsed at depth/);
   });
 });
+
+describe("composeDesignContext assets in code", () => {
+  test("references an exported node by file in the reference code", () => {
+    const [first] = composeDesignContext({
+      tree: {
+        ...tree,
+        children: [
+          {
+            id: "1:2",
+            name: "icon/search",
+            type: "VECTOR",
+            styles: { fills: [{ type: "SOLID", color: "#123456" }] },
+          },
+        ],
+      } as unknown as SerializedNode,
+      format: "react",
+      assets: [
+        {
+          nodeId: "1:2",
+          nodeName: "icon/search",
+          file: "assets/icon-search-1-2.svg",
+          format: "SVG",
+          bytes: 1,
+        },
+      ],
+    });
+    const text = (first as { text: string }).text;
+    expect(text).toContain('<img src="assets/icon-search-1-2.svg"');
+    expect(text).not.toContain("#123456");
+  });
+});

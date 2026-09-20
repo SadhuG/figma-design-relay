@@ -154,8 +154,10 @@ export function composeDesignContext(input: DesignContextInput): ContentBlock[] 
   }
   if (notes.length > 0) sections.push(notes.join("\n"));
 
+  // Exported nodes render as file references, so the code never redraws an icon.
+  const assetsById = Object.fromEntries(input.assets.map((asset) => [asset.nodeId, asset.file]));
   sections.push(
-    `## Reference code (${input.format})\n\nAdapt this to the target project's stack — it is a reference, not final code.\n\n\`\`\`\n${generateCode(input.tree, input.format)}\n\`\`\``
+    `## Reference code (${input.format})\n\nAdapt this to the target project's stack — it is a reference, not final code.\n\n\`\`\`\n${generateCode(input.tree, input.format, { assets: assetsById })}\n\`\`\``
   );
 
   if (tokens.length > 0) {

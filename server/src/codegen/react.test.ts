@@ -74,3 +74,69 @@ describe("toReact instances", () => {
     expect(out).toContain("Save changes");
   });
 });
+
+describe("toReact real-data hygiene", () => {
+  test("names the component set for a variant instance", () => {
+    const out = toReact({
+      id: "5:1",
+      name: "Sign up",
+      type: "INSTANCE",
+      design: {
+        mainComponent: { id: "9:1", key: "k", name: "Size=lg, Type=Secondary", setName: "Button" },
+      },
+    } as unknown as SerializedNode);
+    expect(out).toContain("Figma component: Button (Size=lg, Type=Secondary)");
+  });
+
+  // Figma stores geometry as floats; 13.333333969116211px is noise, not intent.
+  test("rounds pixel values to two decimals", () => {
+    const out = toReact({
+      id: "5:2",
+      name: "Row",
+      type: "FRAME",
+      styles: {
+        autoLayout: { direction: "HORIZONTAL", gap: 13.333333969116211 },
+        padding: { top: 12, right: 28.000001, bottom: 12, left: 28.000001 },
+        cornerRadius: 5.333333492279053,
+      },
+    } as unknown as SerializedNode);
+    expect(out).toContain("gap-[13.33px]");
+    expect(out).toContain("pr-[28px]");
+    expect(out).toContain("rounded-[5.33px]");
+    expect(out).not.toContain("13.333333");
+  });
+
+  // An exported icon is a file; rendering its paths as coloured divs is
+  // exactly the hand-drawn markup the asset contract tells the agent to avoid.
+  test("renders an exported node as an image reference instead of its paths", () => {
+    const out = toReact(
+      {
+        id: "5:3",
+        name: "Button",
+        type: "FRAME",
+        children: [
+          {
+            id: "5:4",
+            name: "google-logo-color",
+            type: "INSTANCE",
+            design: { mainComponent: { id: "9:2", key: "g", name: "google-logo-color" } },
+            children: [
+              {
+                id: "5:5",
+                name: "Vector",
+                type: "VECTOR",
+                styles: { fills: [{ type: "SOLID", color: "#ffc107" }] },
+              },
+            ],
+          },
+        ],
+      } as unknown as SerializedNode,
+      { assets: { "5:4": "assets/google-logo-color-5-4.svg" } }
+    );
+    expect(out).toContain(
+      '<img src="assets/google-logo-color-5-4.svg" alt="google-logo-color" data-figma-node="5:4" />'
+    );
+    expect(out).not.toContain("#ffc107");
+    expect(out).not.toContain("Figma component: google-logo-color");
+  });
+});

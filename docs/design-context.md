@@ -42,16 +42,21 @@ Sections with nothing to say are omitted.
 **`## Reference code (<format>)`** — the generated code in a fenced block.
 
 - Instances are emitted as a placeholder `<div data-figma-node="…">` preceded
-  by a comment naming the main component
-  (`{/* Figma component: Button — map with Code Connect */}`), with the
-  instance's own children — the label, the nested icon — rendered inside it.
+  by a comment naming the main component — the component set's name with the
+  variant as detail (`{/* Figma component: Button (Size=lg, Type=Secondary) —
+map with Code Connect */}`) — with the instance's own children, the label
+  and the nested icon, rendered inside it.
   The generator never invents a codebase component for an instance it has not
   been mapped to, but it does not hide what the instance contains.
 - Text nodes name their text style in a comment when one is applied. Text
   content is entity-escaped (`&lt;`, `&amp;`, `&#123;`) so copy containing
   braces or angle brackets still yields code that parses as JSX and as HTML.
 - Auto-layout, padding, corner radius and fill/fill-sizing map to Tailwind
-  classes in `react` and `html`, and to declarations in `css`.
+  classes in `react` and `html`, and to declarations in `css`. Lengths are
+  rounded to two decimals; Figma's `13.333333969116211` is noise, not intent.
+- A node that was exported as an asset renders as
+  `<img src="assets/…svg" alt="…" data-figma-node="…" />` in place of its
+  paths, so the code references the file rather than redrawing the icon.
 
 **`## Design tokens`** — one row per distinct variable or style used anywhere
 in the subtree, with the property it binds, and how many nodes use it. The

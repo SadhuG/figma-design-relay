@@ -85,6 +85,26 @@ describe("serializeInstanceIdentity", () => {
     });
   });
 
+  // A variant's own name is its property string ("Size=M, Type=Primary"); the
+  // name an agent needs is the component set's — "Button" — with the variant
+  // kept as detail.
+  test("names the component set when the main component is a variant", async () => {
+    const out = await serializeInstanceIdentity({
+      getMainComponentAsync: async () => ({
+        id: "1:2",
+        key: "variantkey",
+        name: "Size=M, Type=Primary",
+        parent: { type: "COMPONENT_SET", name: "Button" },
+      }),
+    });
+    expect(out?.mainComponent).toEqual({
+      id: "1:2",
+      key: "variantkey",
+      name: "Size=M, Type=Primary",
+      setName: "Button",
+    });
+  });
+
   test("returns undefined for a detached instance with no properties", async () => {
     const out = await serializeInstanceIdentity({ getMainComponentAsync: async () => null });
     expect(out).toBeUndefined();
