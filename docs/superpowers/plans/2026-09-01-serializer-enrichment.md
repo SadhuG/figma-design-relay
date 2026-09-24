@@ -1238,7 +1238,7 @@ Unit tests prove the shapes. They cannot prove that `getMainComponentAsync`, `ge
 - Consumes: the shipped serializer.
 - Produces: documentation only.
 
-- [ ] **Step 1: Build and load**
+- [x] **Step 1: Build and load**
 
 ```bash
 cd server && bun run build
@@ -1247,29 +1247,55 @@ cd ../plugin && bun run build
 
 Then in Figma: _Plugins → Development → Import plugin from manifest_, select `plugin/manifest.json`, and open a **design** file that has at least one published component, one variable collection and one text style.
 
-- [ ] **Step 2: Build the fixture frame**
+**Done on 2026-09-24** against _Temp: LeadFlow_, a real product file whose `Designs` page carries
+the TailwindCSS, Primitives and Typography variable collections, 62 text styles and the `Button`,
+`Input` and `Logo` component sets. Both packages were rebuilt from `9ecaffd`. Every call below went
+through `server/.smoke/call.mjs` as a follower of the client's leader on 1994, so the follower →
+leader hop was exercised too.
+
+- [x] **Step 2: Build the fixture frame**
 
 In the file, make a frame containing: an instance of a component with at least one variant property; a rectangle whose fill is bound to a colour variable; a text node using a named text style; an auto-layout child set to `Fill container`; and a node carrying a Dev Mode annotation.
 
-- [ ] **Step 3: Prove instance identity**
+**Done differently: no fixture frame was built.** The file already had a real node for every case
+except the annotation, and real nodes prove more than hand-built ones. The nodes used: instance
+`47:627` (`Button`), frame `1:2` (`Signup Page - Desktop`) for a bound fill, text `11:4`
+(`Welcome to LeadFlow`) and auto-layout child `11:45` (`Header`). The annotation case is covered in
+Step 6.
+
+- [x] **Step 3: Prove instance identity**
 
 Select the instance and call `get_selection`.
 
 Expected: the node carries `design.mainComponent` with `id`, `key` and `name`, and `design.componentProperties` listing the variant property.
 
-- [ ] **Step 4: Prove token resolution**
+Result: `design.mainComponent` was
+`{ id: "47:635", key: "6496f6ca…", name: "Size=lg, Type=Secondary, Icon=Leading, Text=Dark", setName: "Button" }`,
+and `design.componentProperties` listed all four variant properties (`Size`, `Type`, `Icon`, `Text`)
+with their values.
+
+- [x] **Step 4: Prove token resolution**
 
 Select the variable-bound rectangle and call `get_selection`.
 
 Expected: `design.boundVariables` contains an entry whose `property` is `fills[0]` and whose `variableName` is the token's full path — not a hex string.
 
-- [ ] **Step 5: Prove style and layout intent**
+Result: `{ property: "fills[0]", variableName: "color/neutral/50", collectionName: "TailwindCSS" }`,
+plus the frame's four padding bindings (`spacing/40`, `spacing/0`). A **library** variable resolved
+too: the text node's `fontSize[0]` came back as `Text Sizes/Heading 3` from the `Typography`
+collection, even though its id was a library key rather than a local one.
+
+- [x] **Step 5: Prove style and layout intent**
 
 Select the styled text node and the fill-sizing child, and call `get_selection` for each.
 
 Expected: the text node has `design.styles.text` with the style's name; the auto-layout child has `layout.sizingHorizontal` of `"FILL"`.
 
-- [ ] **Step 6: Prove the annotation survives**
+Result: the text node had `design.styles.text.name` `Heading/H3` and `design.styles.fill.name`
+`Scheme/Heading`, and `Header` had
+`layout: { sizingHorizontal: "FILL", sizingVertical: "HUG", align: "STRETCH" }`.
+
+- [x] **Step 6: Prove the annotation survives**
 
 Select the annotated node and call `get_selection`.
 
@@ -1277,11 +1303,26 @@ Authoring an annotation needs Dev Mode, which needs a paid Figma seat this proje
 
 Expected: `annotations[0].label` matches the note as typed in Dev Mode.
 
-- [ ] **Step 7: Prove the payload has not bloated**
+**Done without Dev Mode.** The paragraph above is only half right. The Dev Mode _UI_ is the only
+place a person can type an annotation, but the Plugin API accepts `node.annotations = [...]` in the
+design editor. A `run_script` created a scratch rectangle and set `annotations` to
+`[{ label: "Phase 2 probe: keep 16px gutter" }]`. `get_selection` then returned
+`annotations: [{ label: "Phase 2 probe: keep 16px gutter" }]`, and the rectangle was deleted. The
+same rectangle serialized with only `id`, `name`, `type`, `bounds`, `styles` and `annotations`:
+nothing else was added.
+
+- [x] **Step 7: Prove the payload has not bloated**
 
 Call `get_document` on a page with a few hundred nodes, before and after this phase if you still have the old build.
 
 Expected: nodes with no component, variable, style or annotation carry none of the new keys. If plain nodes have grown, a helper is returning an empty object; fix it at the source.
+
+**Done without the before/after comparison**, since no pre-phase-2 build was loaded. Instead,
+`get_document` on the `Designs` page (3,735 nodes, a 3.1 MB response in about 9 s) was checked node
+by node. `design` appeared on 2,681 nodes, `layout` on 2,201, `renderBounds` on 1,821 and
+`reactions` on 65. **None** of those, and none of the `design.*` sub-keys, was an empty object,
+empty array or null. A key appears only when the node has something to put in it, which is the
+property this step exists to prove.
 
 - [x] **Step 8: Write the field reference**
 

@@ -21,8 +21,8 @@ Figma plugin ──ws://localhost:1994/ws──> leader server ──stdio──
 | `server/` | `bun run build`                           | `tsc` → `dist/`                                |
 | `plugin/` | `bun run build`                           | two Vite passes: UI, then `main`               |
 | `plugin/` | `bun run typecheck`                       | `tsc --noEmit`; `bun run build` runs it first  |
-| `server/` | `bun test`                                | 64 tests: schemas, rpc guards, codegen, assets |
-| `plugin/` | `bun test`                                | 73 tests: scripts, serializer, editor gate     |
+| `server/` | `bun test`                                | 68 tests: schemas, rpc guards, codegen, assets |
+| `plugin/` | `bun test`                                | 74 tests: scripts, serializer, editor gate     |
 
 **Bun everywhere — never `npm` or `yarn`.**
 
@@ -140,7 +140,7 @@ satisfies.
 | Phase | Plan (`docs/superpowers/plans/…`)                  | Reqs    | Tasks | Needs                  | Status      |
 | ----- | -------------------------------------------------- | ------- | ----- | ---------------------- | ----------- |
 | 1     | `2026-09-01-run-script-plugin-api-escape-hatch.md` | R1–R10  | 7     | —                      | **done**    |
-| 2     | `2026-09-01-serializer-enrichment.md`              | R11–R19 | 6     | phase 1's test harness | in progress |
+| 2     | `2026-09-01-serializer-enrichment.md`              | R11–R19 | 6     | phase 1's test harness | **done**    |
 | 3     | `2026-09-01-design-context-v2.md`                  | R20–R27 | 7     | **phase 2** (R14, R15) | **done**    |
 | 4     | `2026-09-01-code-connect.md`                       | R28–R35 | 8     | **phase 2** (R13)      | not started |
 | 5     | `2026-09-01-library-reach.md`                      | R36–R42 | 7     | phase 1's test harness | not started |
@@ -187,6 +187,9 @@ Use `superpowers:subagent-driven-development` or `superpowers:executing-plans` t
   generalises this to a per-editor capability table. **Dev Mode needs a paid Figma seat, which this
   project does not have**, so the gate cannot be exercised by hand — verify it with
   `plugin/src/main/editor-gate.test.ts` instead, and do not budget a manual Dev Mode step in a plan.
+  Not everything that looks Dev-Mode-only needs the seat, though: **annotations can be written from
+  the design editor** with `node.annotations = [{ label: "…" }]` in a `run_script`, even though only
+  Dev Mode lets a person type one. Phase 2's live check of the annotation field was done that way.
 - **Scripts are not atomic.** The Plugin API has no rollback, so a `run_script` that throws part-way
   leaves its earlier mutations. Say so in docs; do not paper over it.
 - **The leader binds `127.0.0.1`, never `0.0.0.0`.** `/rpc` runs every tool — `run_script`

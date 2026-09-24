@@ -1781,9 +1781,9 @@ git commit -m "refactor(plugin): await the async serializer at every call site"<
             </dl>
 
             <ol class="steps">
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="serializert6s1" />
+                  <input type="checkbox" id="serializert6s1" checked />
                   <label class="step__label" for="serializert6s1">Build and load</label>
                 </div>
                 <div class="step__body">
@@ -1795,12 +1795,21 @@ cd ../plugin &amp;&amp; bun run build</code></pre>
                     has at least one published component, one variable collection and one text
                     style.
                   </p>
+                  <p>
+                    <strong>Done on 2026-09-24</strong> against _Temp: LeadFlow_, a real product
+                    file whose <code>Designs</code> page carries the TailwindCSS, Primitives and
+                    Typography variable collections, 62 text styles and the <code>Button</code>,
+                    <code>Input</code> and <code>Logo</code> component sets. Both packages were
+                    rebuilt from <code>9ecaffd</code>. Every call below went through
+                    <code>server/.smoke/call.mjs</code> as a follower of the client's leader on
+                    1994, so the follower → leader hop was exercised too.
+                  </p>
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="serializert6s2" />
+                  <input type="checkbox" id="serializert6s2" checked />
                   <label class="step__label" for="serializert6s2">Build the fixture frame</label>
                 </div>
                 <div class="step__body">
@@ -1810,12 +1819,22 @@ cd ../plugin &amp;&amp; bun run build</code></pre>
                     text node using a named text style; an auto-layout child set to
                     <code>Fill container</code>; and a node carrying a Dev Mode annotation.
                   </p>
+                  <p>
+                    <strong>Done differently: no fixture frame was built.</strong> The file already
+                    had a real node for every case except the annotation, and real nodes prove more
+                    than hand-built ones. The nodes used: instance
+                    <code>47:627</code> (<code>Button</code>), frame <code>1:2</code> (<code
+                      >Signup Page - Desktop</code
+                    >) for a bound fill, text <code>11:4</code> (<code>Welcome to LeadFlow</code>)
+                    and auto-layout child <code>11:45</code> (<code>Header</code>). The annotation
+                    case is covered in Step 6.
+                  </p>
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="serializert6s3" />
+                  <input type="checkbox" id="serializert6s3" checked />
                   <label class="step__label" for="serializert6s3">Prove instance identity</label>
                 </div>
                 <div class="step__body">
@@ -1825,12 +1844,21 @@ cd ../plugin &amp;&amp; bun run build</code></pre>
                     <code>id</code>, <code>key</code> and <code>name</code>, and
                     <code>design.componentProperties</code> listing the variant property.
                   </p>
+                  <p>
+                    Result: <code>design.mainComponent</code> was
+                    <code
+                      >{ id: "47:635", key: "6496f6ca…", name: "Size=lg, Type=Secondary,
+                      Icon=Leading, Text=Dark", setName: "Button" }</code
+                    >, and <code>design.componentProperties</code> listed all four variant
+                    properties (<code>Size</code>, <code>Type</code>, <code>Icon</code>,
+                    <code>Text</code>) with their values.
+                  </p>
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="serializert6s4" />
+                  <input type="checkbox" id="serializert6s4" checked />
                   <label class="step__label" for="serializert6s4">Prove token resolution</label>
                 </div>
                 <div class="step__body">
@@ -1840,12 +1868,23 @@ cd ../plugin &amp;&amp; bun run build</code></pre>
                     <code>property</code> is <code>fills[0]</code> and whose
                     <code>variableName</code> is the token's full path — not a hex string.
                   </p>
+                  <p>
+                    Result:
+                    <code
+                      >{ property: "fills[0]", variableName: "color/neutral/50", collectionName:
+                      "TailwindCSS" }</code
+                    >, plus the frame's four padding bindings (<code>spacing/40</code>,
+                    <code>spacing/0</code>). A <strong>library</strong> variable resolved too: the
+                    text node's <code>fontSize[0]</code> came back as
+                    <code>Text Sizes/Heading 3</code> from the <code>Typography</code> collection,
+                    even though its id was a library key rather than a local one.
+                  </p>
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="serializert6s5" />
+                  <input type="checkbox" id="serializert6s5" checked />
                   <label class="step__label" for="serializert6s5"
                     >Prove style and layout intent</label
                   >
@@ -1860,12 +1899,21 @@ cd ../plugin &amp;&amp; bun run build</code></pre>
                     name; the auto-layout child has <code>layout.sizingHorizontal</code> of
                     <code>"FILL"</code>.
                   </p>
+                  <p>
+                    Result: the text node had <code>design.styles.text.name</code>
+                    <code>Heading/H3</code> and <code>design.styles.fill.name</code>
+                    <code>Scheme/Heading</code>, and <code>Header</code> had
+                    <code
+                      >layout: { sizingHorizontal: "FILL", sizingVertical: "HUG", align: "STRETCH"
+                      }</code
+                    >.
+                  </p>
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="serializert6s6" />
+                  <input type="checkbox" id="serializert6s6" checked />
                   <label class="step__label" for="serializert6s6"
                     >Prove the annotation survives</label
                   >
@@ -1883,12 +1931,25 @@ cd ../plugin &amp;&amp; bun run build</code></pre>
                     <b>Expect</b> <code>annotations[0].label</code> matches the note as typed in Dev
                     Mode.
                   </p>
+                  <p>
+                    <strong>Done without Dev Mode.</strong> The paragraph above is only half right.
+                    The Dev Mode _UI_ is the only place a person can type an annotation, but the
+                    Plugin API accepts <code>node.annotations = [...]</code> in the design editor. A
+                    <code>run_script</code> created a scratch rectangle and set
+                    <code>annotations</code> to
+                    <code>[{ label: "Phase 2 probe: keep 16px gutter" }]</code>.
+                    <code>get_selection</code> then returned
+                    <code>annotations: [{ label: "Phase 2 probe: keep 16px gutter" }]</code>, and
+                    the rectangle was deleted. The same rectangle serialized with only
+                    <code>id</code>, <code>name</code>, <code>type</code>, <code>bounds</code>,
+                    <code>styles</code> and <code>annotations</code>: nothing else was added.
+                  </p>
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="serializert6s7" />
+                  <input type="checkbox" id="serializert6s7" checked />
                   <label class="step__label" for="serializert6s7"
                     >Prove the payload has not bloated</label
                   >
@@ -1902,6 +1963,17 @@ cd ../plugin &amp;&amp; bun run build</code></pre>
                     <b>Expect</b> nodes with no component, variable, style or annotation carry none
                     of the new keys. If plain nodes have grown, a helper is returning an empty
                     object; fix it at the source.
+                  </p>
+                  <p>
+                    <strong>Done without the before/after comparison</strong>, since no pre-phase-2
+                    build was loaded. Instead, <code>get_document</code> on the
+                    <code>Designs</code> page (3,735 nodes, a 3.1 MB response in about 9 s) was
+                    checked node by node. <code>design</code> appeared on 2,681 nodes,
+                    <code>layout</code> on 2,201, <code>renderBounds</code> on 1,821 and
+                    <code>reactions</code> on 65. <strong>None</strong> of those, and none of the
+                    <code>design.*</code> sub-keys, was an empty object, empty array or null. A key
+                    appears only when the node has something to put in it, which is the property
+                    this step exists to prove.
                   </p>
                 </div>
               </li>
