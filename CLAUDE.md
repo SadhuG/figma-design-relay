@@ -94,15 +94,15 @@ server/src/
   leader.ts    HTTP + WebSocket host    follower.ts  proxies to leader over /rpc
   bridge.ts    socket registry keyed by fileKey; 180s per-request timeout
   election.ts  leader election
-  schema.ts    Zod input schemas + the RPC validation layer   (1038 lines)
-  tools.ts     all 40 MCP tool registrations                  (1344 lines)
+  schema.ts    Zod input schemas + the RPC validation layer
+  tools.ts     all 40 MCP tool registrations
   content.ts   typed MCP content blocks (text + image) for tool results
   assets.ts    writes exported design assets inside the working directory
   codegen/     tokens, then React / HTML / CSS reference code behind index.ts's dispatcher
   types.ts     shared types; LOOPBACK_HOST lives here
 plugin/src/
-  main/code.ts        request dispatcher, one switch case per tool  (1911 lines)
-  main/serializer.ts  scene graph → JSON; async since phase 2        (531 lines)
+  main/code.ts        request dispatcher, one switch case per tool
+  main/serializer.ts  scene graph → JSON; async since phase 2
   main/references.ts        variable + style ids → resolved names
   main/component-identity.ts component and instance identity
   main/intent.ts            layout intent, reactions, annotations, exports
@@ -319,7 +319,7 @@ commit.
 | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | run `bun test` in either package                              | the test counts in the Commands table — use the `Ran N tests` line, not an estimate                                                     |
 | edit a file named under "Landmarks"                           | that landmark's line number (`grep -n` the symbol it names) and any claim beside it, such as "awaited at four call sites"               |
-| add, remove or split a source module                          | the Layout tree here **and** README's Structure tree; the line counts in Layout (`wc -l`)                                               |
+| add, remove or split a source module                          | the Layout tree here **and** README's Structure tree                                                                                    |
 | add or remove an MCP tool                                     | "all N MCP tool registrations" in Layout, and README's Available Tools table                                                            |
 | add a test file or a new kind of test                         | README's "Tests and type-checking" comments, which say what each suite covers                                                           |
 | finish or start a plan task                                   | its checkboxes in the plan markdown, then rebuild the HTML (see "The docs site")                                                        |
@@ -327,5 +327,8 @@ commit.
 | learn something a probe, a live check or a failure taught you | the constraint or gotcha list it belongs in — a surprise that cost time goes under "Things that cost real time", with the symptom first |
 
 Get every number from a command run in this session, never from memory or from an older copy of
-this file. If a check shows nothing changed, leave the file alone; there is no "last verified"
+this file. And add as few of these facts as you can: before writing down a number, ask what a
+reader would do differently knowing it. Line counts once lived in Layout and failed that test —
+they changed with nearly every edit to four busy files and told nobody anything the tools don't
+already show — so they were removed. If a check shows nothing changed, leave the file alone; there is no "last verified"
 stamp to bump.
