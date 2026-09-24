@@ -206,8 +206,8 @@ bun run format:check  # verify formatting without writing (useful in CI)
 ### Tests and type-checking
 
 ```bash
-cd server && bun test       # schema validation and the /rpc guards
-cd plugin && bun test       # script result, script runner, editor gate
+cd server && bun test       # schemas, /rpc guards, codegen, content blocks, asset export
+cd plugin && bun test       # run_script, serializer and its helpers, editor gate
 cd plugin && bun run typecheck   # tsc --noEmit; also runs as part of `bun run build`
 ```
 
@@ -230,7 +230,11 @@ Figma-Design-Relay/
         ├── follower.ts   # Follower: proxies to leader via HTTP
         ├── node.ts       # Dynamic leader/follower role switching
         ├── election.ts   # Leader election & health monitoring
+        ├── schema.ts     # Tool input schemas & /rpc validation
         ├── tools.ts      # MCP tool definitions
+        ├── content.ts    # Text and image blocks for tool results
+        ├── assets.ts     # Exports design assets into the workspace
+        ├── codegen/      # Tokens and React / HTML / CSS reference code
         └── types.ts      # Shared types
 ```
 

@@ -94,14 +94,20 @@ server/src/
   leader.ts    HTTP + WebSocket host    follower.ts  proxies to leader over /rpc
   bridge.ts    socket registry keyed by fileKey; 180s per-request timeout
   election.ts  leader election
-  schema.ts    Zod input schemas + the RPC validation layer   (1023 lines)
-  tools.ts     all 40 MCP tool registrations                  (1189 lines)
+  schema.ts    Zod input schemas + the RPC validation layer   (1038 lines)
+  tools.ts     all 40 MCP tool registrations                  (1344 lines)
+  content.ts   typed MCP content blocks (text + image) for tool results
+  assets.ts    writes exported design assets inside the working directory
+  codegen/     tokens, then React / HTML / CSS reference code behind index.ts's dispatcher
+  types.ts     shared types; LOOPBACK_HOST lives here
 plugin/src/
-  main/code.ts        request dispatcher, one switch case per tool  (1912 lines)
-  main/serializer.ts  scene graph → JSON; async since phase 2        (492 lines)
+  main/code.ts        request dispatcher, one switch case per tool  (1911 lines)
+  main/serializer.ts  scene graph → JSON; async since phase 2        (531 lines)
   main/references.ts        variable + style ids → resolved names
   main/component-identity.ts component and instance identity
   main/intent.ts            layout intent, reactions, annotations, exports
+  main/editor-gate.ts       Dev Mode write gate
+  main/script-runner.ts     run_script; eval-direct.ts + script-result.ts beside it
   html-figma/         vendored html-to-figma importer
   ui/                 React panel
 ```
@@ -109,22 +115,22 @@ plugin/src/
 ### Landmarks worth knowing before editing
 
 - `server/src/schema.ts:593` — `toolInputSchemas`, the advertised MCP input shapes.
-- `server/src/schema.ts:924` — `rpcToArgs`, typed `Record<ToolName, …>`. **Adding a key to
+- `server/src/schema.ts:939` — `rpcToArgs`, typed `Record<ToolName, …>`. **Adding a key to
   `toolInputSchemas` without adding its mapper here is a compile error.** That is deliberate; do not
   work around it.
-- `server/src/schema.ts:1004` — `validateRpc`, the follower→leader guard.
-- `server/src/tools.ts:113` — `registerTools`; `:692` — `renderResponse`, the shared handler wrapper
+- `server/src/schema.ts:1019` — `validateRpc`, the follower→leader guard.
+- `server/src/tools.ts:206` — `registerTools`; `:847` — `renderResponse`, the shared handler wrapper
   that turns a `BridgeResponse.error` into an MCP error result.
 - `plugin/src/main/editor-gate.ts:7` — `EDIT_REQUEST_TYPES`; `:43` — `requireEditorMode`, which
   takes `editorType` as a parameter rather than reading `figma.editorType`, so the Dev Mode gate is
-  unit-testable. Dispatch calls both at `plugin/src/main/code.ts:337`. Phase 6 replaces the pair with
+  unit-testable. Dispatch calls both at `plugin/src/main/code.ts:338`. Phase 6 replaces the pair with
   a capability table.
-- `plugin/src/main/serializer.ts:451` — `serializeNode`, `async` since phase 2 and awaited at four
+- `plugin/src/main/serializer.ts:483` — `serializeNode`, `async` since phase 2 and awaited at four
   call sites in `code.ts`. Only `get_design_context` type-errors if you forget an `await` — the other
   three sites type `data` as `unknown` and will happily ship an unresolved promise. The `figma`
-  lookups it feeds to `references.ts` live at `:396`; the three helper modules never name the global.
+  lookups it feeds to `references.ts` live at `:413`; the three helper modules never name the global.
   `docs/serialized-nodes.md` documents the emitted shape and, for every field, when it is omitted.
-- `plugin/src/main/code.ts:1834` — the UI-collapse block that closes the file: window sizing,
+- `plugin/src/main/code.ts:1840` — the UI-collapse block that closes the file: window sizing,
   the `ui-collapsed` `figma.clientStorage` key, and the `request-ui-state` / `set-ui-collapsed`
   messages the React panel exchanges with the main thread. Note `figma.showUI` runs with
   `visible: false` and the panel is only shown once the stored state resolves — anything that
@@ -298,3 +304,28 @@ something**, so do not wave it through.
   README, or the `docs/superpowers/` spec and plans — as part of finishing the work, not afterwards.
   These docs are the source of truth that future sessions and executor agents rely on; anything left
   only in a conversation is lost.
+  The next section lists the facts that go stale on their own.
+
+## Keeping this file current
+
+Some facts here describe the code rather than a decision about it, so they drift with every commit
+that nobody thinks of as a docs change. Phase 2 finished with this file still calling it "in
+progress", quoting test counts two commits old and pointing seven landmarks at the wrong line. So
+**refreshing them is part of finishing any task, and nobody has to ask.** Before the task's last
+commit, check whichever of the triggers below the task touched, and fix what has moved in that same
+commit.
+
+| When you…                                                     | Re-check                                                                                                                                |
+| ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| run `bun test` in either package                              | the test counts in the Commands table — use the `Ran N tests` line, not an estimate                                                     |
+| edit a file named under "Landmarks"                           | that landmark's line number (`grep -n` the symbol it names) and any claim beside it, such as "awaited at four call sites"               |
+| add, remove or split a source module                          | the Layout tree here **and** README's Structure tree; the line counts in Layout (`wc -l`)                                               |
+| add or remove an MCP tool                                     | "all N MCP tool registrations" in Layout, and README's Available Tools table                                                            |
+| add a test file or a new kind of test                         | README's "Tests and type-checking" comments, which say what each suite covers                                                           |
+| finish or start a plan task                                   | its checkboxes in the plan markdown, then rebuild the HTML (see "The docs site")                                                        |
+| finish a phase                                                | the Status column of the plan-set table, and whether a later phase's "Needs" is now met                                                 |
+| learn something a probe, a live check or a failure taught you | the constraint or gotcha list it belongs in — a surprise that cost time goes under "Things that cost real time", with the symptom first |
+
+Get every number from a command run in this session, never from memory or from an older copy of
+this file. If a check shows nothing changed, leave the file alone; there is no "last verified"
+stamp to bump.
