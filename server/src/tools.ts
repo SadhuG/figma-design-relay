@@ -46,6 +46,7 @@ import {
 import { buildCodeConnectIndex } from "./code-connect/index.js";
 import type { Mapping } from "./code-connect/parse.js";
 import { findExportedComponents, scoreCandidates } from "./code-connect/suggest.js";
+import { writeMapping } from "./code-connect/write.js";
 
 const MAX_IMAGE_BYTES = 32 * 1024 * 1024;
 const IMAGE_FETCH_TIMEOUT_MS = 15_000;
@@ -895,6 +896,64 @@ export function registerTools(server: McpServer, node: Node, port: number): void
                 null,
                 2
               )
+            ),
+          ],
+        };
+      } catch (err) {
+        return {
+          content: [textBlock(err instanceof Error ? err.message : String(err))],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "add_code_connect_map",
+    "Write a Code Connect mapping between a Figma component and a component in this workspace. This writes a local *.figma.tsx FILE — it publishes nothing to Figma, unlike Figma's own server; commit the file to share the mapping. Creates the file or extends an existing one, and refuses a node that is already mapped anywhere in the workspace. Props are stubbed as figma.string(...) for you to refine. The file must live inside the MCP server working directory. Needs the plugin open in the file, to confirm the node is a component. When multiple files are connected, specify fileKey.",
+    toolInputSchemas.add_code_connect_map.shape,
+    async ({ nodeId, component, importPath, file, props, fileKey }): Promise<ToolResult> => {
+      try {
+        const key = await resolveFileKey(node, port, fileKey);
+        if (!key) {
+          throw new Error(
+            "The mapping URL needs the Figma file key. Pass fileKey — list_files shows the connected files."
+          );
+        }
+        if (key.startsWith("unsaved-")) {
+          throw new Error(
+            "This Figma file has no file key yet. Save it in Figma, reopen the plugin, and retry."
+          );
+        }
+
+        // Map the component the plugin confirms — the set, for a variant.
+        const response = await node.sendWithParams(
+          "get_context_for_code_connect",
+          [nodeId],
+          undefined,
+          fileKey
+        );
+        if (response.error) throw new Error(response.error);
+        const target = response.data as { id: string; name?: string };
+
+        const slug = encodeURIComponent((target.name ?? "").replace(/\s+/g, "-"));
+        const url = `https://www.figma.com/design/${key}/${slug}?node-id=${target.id.replace(":", "-")}`;
+        const result = await writeMapping(process.cwd(), {
+          component,
+          importPath,
+          url,
+          props: props ?? [],
+          file,
+        });
+        return {
+          content: [
+            textBlock(
+              JSON.stringify({
+                ...result,
+                nodeId: target.id,
+                url,
+                note: "Local file only — commit it to share the mapping.",
+              })
             ),
           ],
         };

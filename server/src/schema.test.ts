@@ -99,3 +99,17 @@ describe("validateRpc get_code_connect_suggestions", () => {
     expect(validateRpc("get_code_connect_suggestions", ["1:2"], {}).error).toBeNull();
   });
 });
+
+describe("validateRpc add_code_connect_map", () => {
+  const params = { component: "Button", importPath: "./Button", file: "ui/Button.figma.tsx" };
+
+  test("accepts a complete mapping", () => {
+    expect(validateRpc("add_code_connect_map", ["1:2"], params).error).toBeNull();
+  });
+
+  test("requires the component name", () => {
+    expect(
+      validateRpc("add_code_connect_map", ["1:2"], { ...params, component: "" }).error
+    ).not.toBeNull();
+  });
+});

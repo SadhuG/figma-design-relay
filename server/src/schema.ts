@@ -913,6 +913,28 @@ export const toolInputSchemas = {
       .describe("COMPONENT or COMPONENT_SET nodes to propose mappings for."),
     fileKey: fileKeyField,
   }),
+
+  add_code_connect_map: z.object({
+    nodeId: createFigmaNodeIdSchema().describe(
+      "The Figma COMPONENT or COMPONENT_SET to map. A variant maps through its set."
+    ),
+    component: z
+      .string()
+      .min(1)
+      .describe("The code component as referenced in code, e.g. `Button` or `Icons.Search`."),
+    importPath: z
+      .string()
+      .min(1)
+      .describe("Import specifier for the component, relative to the mapping file."),
+    file: z
+      .string()
+      .min(1)
+      .describe(
+        "Mapping file path relative to the MCP server working directory, ending in .figma.tsx or .figma.jsx, e.g. `src/ui/Button.figma.tsx`. An existing file is extended."
+      ),
+    props: z.array(z.string()).optional().describe("Prop names to stub in the mapping."),
+    fileKey: fileKeyField,
+  }),
 } as const;
 
 type ToolName = keyof typeof toolInputSchemas;
@@ -1016,6 +1038,7 @@ const rpcToArgs: Record<
   get_code_connect_map: (nodeIds, params) => ({ nodeIds, ...params }),
   get_context_for_code_connect: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
   get_code_connect_suggestions: (nodeIds, params) => ({ nodeIds, ...params }),
+  add_code_connect_map: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
 };
 
 /**
