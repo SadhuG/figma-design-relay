@@ -122,7 +122,9 @@ const readProps = (source: string, mask: string, from: number, to: number): stri
     else if (depth === 0 && ch === ":") {
       if (atKey) {
         const name = buffer.trim();
-        if (/^[A-Za-z_$][\w$]*$/.test(name)) names.push(name);
+        const quoted = name.match(/^(["'])(.*)\1$/);
+        if (quoted) names.push(quoted[2]);
+        else if (/^[A-Za-z_$][\w$]*$/.test(name)) names.push(name);
         atKey = false;
       }
       buffer = "";

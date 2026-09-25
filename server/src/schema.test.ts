@@ -132,3 +132,19 @@ describe("validateRpc add_code_connect_map figmaFileKey", () => {
     ).not.toBeNull();
   });
 });
+
+describe("validateRpc add_code_connect_map component", () => {
+  const params = { importPath: "./Button", file: "ui/Button.figma.tsx" };
+
+  test("accepts a dotted identifier", () => {
+    expect(
+      validateRpc("add_code_connect_map", ["1:2"], { ...params, component: "Icons.Search" }).error
+    ).toBeNull();
+  });
+
+  test("rejects a name that is not an identifier", () => {
+    expect(
+      validateRpc("add_code_connect_map", ["1:2"], { ...params, component: "my-button" }).error
+    ).not.toBeNull();
+  });
+});

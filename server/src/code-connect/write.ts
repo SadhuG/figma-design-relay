@@ -17,15 +17,19 @@ export interface MappingInput {
 const importName = (component: string): string => component.split(".")[0];
 
 const importLine = (input: MappingInput): string =>
-  `import { ${importName(input.component)} } from "${input.importPath}";`;
+  `import { ${importName(input.component)} } from ${JSON.stringify(input.importPath)};`;
+
+/** A prop name as an object key: bare when it is an identifier, quoted otherwise. */
+const propKey = (name: string): string =>
+  /^[A-Za-z_$][\w$]*$/.test(name) ? name : JSON.stringify(name);
 
 /** The `figma.connect(...)` call alone, without imports. */
 const renderCall = (input: MappingInput): string => {
   const props =
     input.props.length > 0
-      ? `  props: {\n${input.props.map((prop) => `    ${prop}: figma.string("${prop}"),`).join("\n")}\n  },\n`
+      ? `  props: {\n${input.props.map((prop) => `    ${propKey(prop)}: figma.string(${JSON.stringify(prop)}),`).join("\n")}\n  },\n`
       : "";
-  return `figma.connect(${input.component}, "${input.url}", {
+  return `figma.connect(${input.component}, ${JSON.stringify(input.url)}, {
 ${props}  example: (props) => <${input.component} {...props} />,
 });
 `;

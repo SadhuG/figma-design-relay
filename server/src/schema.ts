@@ -920,7 +920,10 @@ export const toolInputSchemas = {
     ),
     component: z
       .string()
-      .min(1)
+      .regex(
+        /^[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*)*$/,
+        "component must be an identifier as written in code, e.g. `Button` or `Icons.Search`"
+      )
       .describe("The code component as referenced in code, e.g. `Button` or `Icons.Search`."),
     importPath: z
       .string()

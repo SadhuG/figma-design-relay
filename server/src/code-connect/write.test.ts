@@ -215,3 +215,33 @@ describe("writeMapping links", () => {
     }
   });
 });
+
+describe("renderMappingFile prop names", () => {
+  // Figma property names are free text; an unquoted `aria-label:` key is a
+  // syntax error in the written file.
+  test("quotes a prop name that is not an identifier, and re-parses it", () => {
+    const out = renderMappingFile({
+      component: "Input",
+      importPath: "./Input",
+      url: "https://www.figma.com/design/AbC/DS?node-id=1-2",
+      props: ["aria-label", "Show icon", "size"],
+    });
+    expect(out).toContain('"aria-label": figma.string("aria-label")');
+    expect(out).toContain("size: figma.string(");
+    expect(parseCodeConnect(out, "Input.figma.tsx").mappings[0].props).toEqual([
+      "aria-label",
+      "Show icon",
+      "size",
+    ]);
+  });
+
+  test("escapes quotes in the import path", () => {
+    const out = renderMappingFile({
+      component: "Input",
+      importPath: './we"ird',
+      url: "https://www.figma.com/design/AbC/DS?node-id=1-2",
+      props: [],
+    });
+    expect(out).toContain('from "./we\\"ird";');
+  });
+});
