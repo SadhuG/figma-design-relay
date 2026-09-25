@@ -137,6 +137,21 @@ const readProps = (source: string, mask: string, from: number, to: number): stri
   return names;
 };
 
+/** A \`figma.connect(\` or \`figma.connect<Props>(\` call site. */
+const callPattern = (): RegExp => /\bfigma\s*\.\s*connect\s*(?:<[^()]*?>\s*)?\(/g;
+
+/**
+ * Removes comments without tracking strings \u2014 deliberately naive, so it
+ * cannot be confused the way the mask can. \`https://\` survives because a line
+ * comment must not follow a colon.
+ */
+const stripComments = (source: string): string =>
+  source
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .split("\n")
+    .map((line) => line.replace(/(^|[^:])\/\/.*$/, "$1"))
+    .join("\n");
+
 const IMPORT = /\bimport\s+([^;]*?)\s+from\s+["']([^"']+)["']/g;
 
 /** Escapes a string for literal use inside a `RegExp`. */
@@ -177,10 +192,13 @@ export const parseCodeConnect = (source: string, sourcePath: string): ParseResul
   const mappings: Mapping[] = [];
   const errors: string[] = [];
 
-  const CALL = /\bfigma\s*\.\s*connect\s*\(/g;
+  const CALL = callPattern();
   let match: RegExpExecArray | null;
+  let seen = 0;
+  let stopped = false;
 
   while ((match = CALL.exec(mask)) !== null) {
+    seen++;
     const open = match.index + match[0].length - 1;
     const line = source.slice(0, match.index).split("\n").length;
     const close = matchBracket(mask, open);
@@ -191,6 +209,7 @@ export const parseCodeConnect = (source: string, sourcePath: string): ParseResul
         `${sourcePath}:${line} — unterminated figma.connect(...) call; the rest of the file ` +
           `was not read. An apostrophe in JSX text (Don't) is the usual cause — write it as &apos;.`
       );
+      stopped = true;
       break;
     }
 
@@ -227,6 +246,17 @@ export const parseCodeConnect = (source: string, sourcePath: string): ParseResul
     mappings.push(mapping);
 
     CALL.lastIndex = close;
+  }
+
+  // The mask can be wrong — a quote inside a regex literal or JSX text opens a
+  // phantom string that hides whatever follows. Counting calls again with only
+  // comments removed catches what the mask hid, so no call vanishes silently.
+  const expected = stripComments(source).match(callPattern())?.length ?? 0;
+  if (!stopped && expected > seen) {
+    errors.push(
+      `${sourcePath} — ${expected - seen} of ${expected} figma.connect calls could not be located and are missing from the mappings. ` +
+        `A quote inside a regex literal or JSX text (Don't) usually causes this — write it as &apos; or move the regex out of the file.`
+    );
   }
 
   return { mappings, errors };

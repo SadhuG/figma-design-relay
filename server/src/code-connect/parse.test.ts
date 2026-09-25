@@ -101,3 +101,39 @@ describe("parseCodeConnect import paths", () => {
     expect(mapping.importPath).toBe("ui/button");
   });
 });
+
+describe("parseCodeConnect never loses a call silently", () => {
+  const url = (id: string) => `"https://figma.com/design/K/D?node-id=${id}"`;
+
+  test("reports calls hidden by paired apostrophes in JSX text", () => {
+    const result = parseCodeConnect(
+      `figma.connect(A, ${url("1-1")}, { example: () => <A>Don't</A> });\n` +
+        `figma.connect(B, ${url("2-2")});\n` +
+        `figma.connect(C, ${url("3-3")}, { example: () => <C>Won't</C> });\n`,
+      "pair.figma.tsx"
+    );
+    const found = result.mappings.length;
+    expect(found === 3 || result.errors.some((e) => e.includes("pair.figma.tsx"))).toBe(true);
+  });
+
+  test("reports a call hidden by a quote inside a regex literal", () => {
+    const result = parseCodeConnect(
+      `const q = /"/;\nfigma.connect(B, ${url("2-2")});\n`,
+      "regex.figma.tsx"
+    );
+    expect(result.mappings.length === 1 || result.errors.length > 0).toBe(true);
+  });
+
+  test("reads the generic form", () => {
+    const result = parseCodeConnect(`figma.connect<Props>(Button, ${url("1-2")});`, "g.figma.tsx");
+    expect(result.mappings[0]?.component).toBe("Button");
+  });
+
+  test("does not count calls in comments as lost", () => {
+    const result = parseCodeConnect(
+      `// figma.connect(X, ${url("9-9")})\n/* figma.connect(Y, ${url("8-8")}) */\nfigma.connect(B, ${url("2-2")});`,
+      "c.figma.tsx"
+    );
+    expect(result.errors).toEqual([]);
+  });
+});
