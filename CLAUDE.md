@@ -283,6 +283,20 @@ and will eventually stop, so when adding an action, check its `action.yml` `runs
 ref you pin rather than assuming a high version number means a current runtime — `softprops/action-gh-release@v2`
 was still node20 well after v3 shipped.
 
+## Branches
+
+Work happens on a feature branch (`feat/…`, `fix/…`). **When a feature branch is finished, merge it
+into `dev`, then merge `dev` into `main`** — every time, without being asked; a finished branch left
+unmerged is unfinished work. The order is fixed:
+
+1. Merge the feature branch into `dev` and push `dev`.
+2. Pull `main` into `dev` (`git merge origin/main`) so anything that landed on `main` directly is on
+   `dev` too, and push `dev` again if that brought anything in.
+3. Merge `dev` into `main` and push `main`. After this the two branches point at the same commit.
+
+Use merges, not rebases or squashes, so the branches keep sharing history. CI runs on every push, so
+each of these pushes is checked.
+
 ## Syncing with upstream
 
 This repo is a fork of `gethopp/figma-mcp-bridge`, wired up as the `upstream` remote (its push URL is
