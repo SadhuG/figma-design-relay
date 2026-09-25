@@ -933,6 +933,13 @@ export const toolInputSchemas = {
         "Mapping file path relative to the MCP server working directory, ending in .figma.tsx or .figma.jsx, e.g. `src/ui/Button.figma.tsx`. An existing file is extended."
       ),
     props: z.array(z.string()).optional().describe("Prop names to stub in the mapping."),
+    figmaFileKey: z
+      .string()
+      .regex(/^[A-Za-z0-9]+$/, "figmaFileKey is the part after /design/ in the file's URL")
+      .optional()
+      .describe(
+        "The Figma file key for the mapping URL — the part after /design/ in the file's URL. Needed when list_files shows an `unsaved-…` key: Figma only exposes the real key to private plugins."
+      ),
     fileKey: fileKeyField,
   }),
 } as const;

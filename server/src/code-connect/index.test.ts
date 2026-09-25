@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { SerializedNode } from "../codegen/tokens.js";
-import { buildCodeConnectIndex, mappingsForTree } from "./index.js";
+import { buildCodeConnectIndex, mappingsForTree, pickFigmaFileKey } from "./index.js";
 
 let root: string;
 
@@ -106,5 +106,27 @@ describe("mappingsForTree", () => {
     const index = await buildCodeConnectIndex(root);
     const component = { id: "1:2", name: "Button", type: "COMPONENT_SET" } as SerializedNode;
     expect(mappingsForTree(component, index, "AbC")["1:2"]?.component).toBe("Button");
+  });
+});
+
+describe("pickFigmaFileKey", () => {
+  test("prefers the key the caller passed", () => {
+    expect(pickFigmaFileKey("AbC", ["Zed"])).toBe("AbC");
+  });
+
+  test("uses the only connected file's key", () => {
+    expect(pickFigmaFileKey(undefined, ["Zed"])).toBe("Zed");
+  });
+
+  test("gives up when several files are connected", () => {
+    expect(pickFigmaFileKey(undefined, ["AbC", "Zed"])).toBeUndefined();
+  });
+
+  // The plugin falls back to a session key when figma.fileKey is not exposed
+  // (Figma reserves it for private plugins). It names a connection, not a Figma
+  // file, so no mapping URL can ever carry it.
+  test("treats a session fallback key as unknown", () => {
+    expect(pickFigmaFileKey(undefined, ["unsaved-abc-123"])).toBeUndefined();
+    expect(pickFigmaFileKey("unsaved-abc-123", [])).toBeUndefined();
   });
 });

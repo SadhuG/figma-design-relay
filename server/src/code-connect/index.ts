@@ -87,3 +87,24 @@ export const mappingsForTree = (
   visit(tree);
   return found;
 };
+
+/**
+ * The Figma file key a Code Connect lookup should match against.
+ *
+ * The plugin reports `figma.fileKey` when Figma exposes it — only to private
+ * plugins — and otherwise a session key starting `unsaved-`. A session key
+ * names a relay connection, not a Figma file, so it is treated as unknown.
+ * @param explicit - The key the caller passed, if any.
+ * @param connected - The keys of the connected files.
+ * @returns The key, or undefined when none is known — lookups then fall back
+ * to node ids that are unique across every mapping.
+ */
+export const pickFigmaFileKey = (
+  explicit: string | undefined,
+  connected: string[]
+): string | undefined => {
+  const real = (key: string | undefined): string | undefined =>
+    key && !key.startsWith("unsaved-") ? key : undefined;
+  if (explicit) return real(explicit);
+  return connected.length === 1 ? real(connected[0]) : undefined;
+};

@@ -43,7 +43,7 @@ import {
   findExportableNodes,
   type AssetRecord,
 } from "./assets.js";
-import { buildCodeConnectIndex, mappingsForTree } from "./code-connect/index.js";
+import { buildCodeConnectIndex, mappingsForTree, pickFigmaFileKey } from "./code-connect/index.js";
 import type { Mapping } from "./code-connect/parse.js";
 import { findExportedComponents, scoreCandidates } from "./code-connect/suggest.js";
 import { writeMapping } from "./code-connect/write.js";
@@ -956,19 +956,23 @@ export function registerTools(server: McpServer, node: Node, port: number): void
 
   server.tool(
     "add_code_connect_map",
-    "Write a Code Connect mapping between a Figma component and a component in this workspace. This writes a local *.figma.tsx FILE — it publishes nothing to Figma, unlike Figma's own server; commit the file to share the mapping. Creates the file or extends an existing one, and refuses a node that is already mapped anywhere in the workspace. Props are stubbed as figma.string(...) for you to refine. The file must live inside the MCP server working directory. Needs the plugin open in the file, to confirm the node is a component. When multiple files are connected, specify fileKey.",
+    "Write a Code Connect mapping between a Figma component and a component in this workspace. This writes a local *.figma.tsx FILE — it publishes nothing to Figma, unlike Figma's own server; commit the file to share the mapping. Creates the file or extends an existing one, and refuses a node that is already mapped anywhere in the workspace. Props are stubbed as figma.string(...) for you to refine. The file must live inside the MCP server working directory. Needs the plugin open in the file, to confirm the node is a component, and the Figma file key — pass figmaFileKey when list_files shows an unsaved-… key. When multiple files are connected, specify fileKey.",
     toolInputSchemas.add_code_connect_map.shape,
-    async ({ nodeId, component, importPath, file, props, fileKey }): Promise<ToolResult> => {
+    async ({
+      nodeId,
+      component,
+      importPath,
+      file,
+      props,
+      figmaFileKey,
+      fileKey,
+    }): Promise<ToolResult> => {
       try {
-        const key = await resolveFileKey(node, port, fileKey);
+        const key = figmaFileKey ?? (await resolveFileKey(node, port, fileKey));
         if (!key) {
           throw new Error(
-            "The mapping URL needs the Figma file key. Pass fileKey — list_files shows the connected files."
-          );
-        }
-        if (key.startsWith("unsaved-")) {
-          throw new Error(
-            "This Figma file has no file key yet. Save it in Figma, reopen the plugin, and retry."
+            "The mapping URL needs the Figma file key, and the plugin cannot read it (Figma only exposes it to private plugins). " +
+              "Pass figmaFileKey — the part after /design/ in the file's URL (Share → Copy link)."
           );
         }
 
@@ -1014,9 +1018,10 @@ export function registerTools(server: McpServer, node: Node, port: number): void
 }
 
 /**
- * The file key a Code Connect lookup should match against: the caller's, or
- * the only connected file's. Undefined when neither settles it, in which case a
- * lookup falls back to node ids that are unique across every mapping.
+ * The Figma file key a Code Connect lookup should match against: the caller's,
+ * or the only connected file's, and never a session `unsaved-` key (see
+ * `pickFigmaFileKey`). Undefined when none is known, in which case a lookup
+ * falls back to node ids that are unique across every mapping.
  * @param node - The node coordinator, for the connected-file list.
  * @param port - The port used for follower-to-leader HTTP calls.
  * @param fileKey - The key the caller passed, if any.
@@ -1026,12 +1031,15 @@ async function resolveFileKey(
   port: number,
   fileKey?: string
 ): Promise<string | undefined> {
-  if (fileKey) return fileKey;
+  if (fileKey) return pickFigmaFileKey(fileKey, []);
   try {
     const files =
       node.listConnectedFiles() ??
       (await new Follower(`http://${LOOPBACK_HOST}:${port}`).listConnectedFiles());
-    return files.length === 1 ? files[0].fileKey : undefined;
+    return pickFigmaFileKey(
+      undefined,
+      files.map((file) => file.fileKey)
+    );
   } catch {
     return undefined;
   }

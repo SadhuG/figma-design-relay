@@ -113,3 +113,22 @@ describe("validateRpc add_code_connect_map", () => {
     ).not.toBeNull();
   });
 });
+
+describe("validateRpc add_code_connect_map figmaFileKey", () => {
+  const params = { component: "Button", importPath: "./Button", file: "ui/Button.figma.tsx" };
+
+  test("accepts the key from a Figma URL", () => {
+    expect(
+      validateRpc("add_code_connect_map", ["1:2"], { ...params, figmaFileKey: "AbC123" }).error
+    ).toBeNull();
+  });
+
+  test("rejects a whole URL where the key belongs", () => {
+    expect(
+      validateRpc("add_code_connect_map", ["1:2"], {
+        ...params,
+        figmaFileKey: "https://www.figma.com/design/AbC123/DS",
+      }).error
+    ).not.toBeNull();
+  });
+});
