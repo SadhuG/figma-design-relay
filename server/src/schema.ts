@@ -905,6 +905,14 @@ export const toolInputSchemas = {
     ),
     fileKey: fileKeyField,
   }),
+
+  get_code_connect_suggestions: z.object({
+    nodeIds: z
+      .array(createFigmaNodeIdSchema())
+      .min(1)
+      .describe("COMPONENT or COMPONENT_SET nodes to propose mappings for."),
+    fileKey: fileKeyField,
+  }),
 } as const;
 
 type ToolName = keyof typeof toolInputSchemas;
@@ -1007,6 +1015,7 @@ const rpcToArgs: Record<
   run_script: (_nodeIds, params) => ({ ...params }),
   get_code_connect_map: (nodeIds, params) => ({ nodeIds, ...params }),
   get_context_for_code_connect: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
+  get_code_connect_suggestions: (nodeIds, params) => ({ nodeIds, ...params }),
 };
 
 /**

@@ -89,3 +89,13 @@ describe("validateRpc get_context_for_code_connect", () => {
     expect(validateRpc("get_context_for_code_connect", undefined, {}).error).not.toBeNull();
   });
 });
+
+describe("validateRpc get_code_connect_suggestions", () => {
+  test("requires at least one node id", () => {
+    expect(validateRpc("get_code_connect_suggestions", [], {}).error).not.toBeNull();
+  });
+
+  test("accepts component ids", () => {
+    expect(validateRpc("get_code_connect_suggestions", ["1:2"], {}).error).toBeNull();
+  });
+});

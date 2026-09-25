@@ -45,6 +45,7 @@ import {
 } from "./assets.js";
 import { buildCodeConnectIndex } from "./code-connect/index.js";
 import type { Mapping } from "./code-connect/parse.js";
+import { findExportedComponents, scoreCandidates } from "./code-connect/suggest.js";
 
 const MAX_IMAGE_BYTES = 32 * 1024 * 1024;
 const IMAGE_FETCH_TIMEOUT_MS = 15_000;
@@ -831,6 +832,66 @@ export function registerTools(server: McpServer, node: Node, port: number): void
             textBlock(
               JSON.stringify(
                 { ...result, filesScanned: index.filesScanned, errors: index.errors },
+                null,
+                2
+              )
+            ),
+          ],
+        };
+      } catch (err) {
+        return {
+          content: [textBlock(err instanceof Error ? err.message : String(err))],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "get_code_connect_suggestions",
+    "Propose Code Connect mappings by matching Figma component names against the components exported from this workspace's source files — name matching only, so treat every candidate as a proposal and read its evidence before accepting it. Never writes; accept a candidate with add_code_connect_map. A variant is matched through its component set. Components that already have a mapping are reported as mappedTo instead of re-suggested. When multiple files are connected, specify fileKey.",
+    toolInputSchemas.get_code_connect_suggestions.shape,
+    async ({ nodeIds, fileKey }): Promise<ToolResult> => {
+      try {
+        const root = process.cwd();
+        const [index, exported, key] = await Promise.all([
+          buildCodeConnectIndex(root),
+          findExportedComponents(root),
+          resolveFileKey(node, port, fileKey),
+        ]);
+
+        const results: Array<Record<string, unknown>> = [];
+        for (const id of nodeIds) {
+          const response = await node.sendWithParams(
+            "get_context_for_code_connect",
+            [id],
+            undefined,
+            fileKey
+          );
+          if (response.error) {
+            results.push({ nodeId: id, error: response.error });
+            continue;
+          }
+          const component = response.data as { id: string; name?: string };
+          const name = component.name ?? "";
+          const existing = index.lookup(component.id, key);
+          results.push(
+            existing
+              ? { nodeId: id, target: component.id, name, mappedTo: existing }
+              : {
+                  nodeId: id,
+                  target: component.id,
+                  name,
+                  candidates: scoreCandidates(name, exported),
+                }
+          );
+        }
+
+        return {
+          content: [
+            textBlock(
+              JSON.stringify(
+                { suggestions: results, exportsScanned: exported.length, errors: index.errors },
                 null,
                 2
               )
