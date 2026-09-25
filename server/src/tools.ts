@@ -43,6 +43,8 @@ import {
   findExportableNodes,
   type AssetRecord,
 } from "./assets.js";
+import { buildCodeConnectIndex } from "./code-connect/index.js";
+import type { Mapping } from "./code-connect/parse.js";
 
 const MAX_IMAGE_BYTES = 32 * 1024 * 1024;
 const IMAGE_FETCH_TIMEOUT_MS = 15_000;
@@ -788,6 +790,74 @@ export function registerTools(server: McpServer, node: Node, port: number): void
       return renderResponse(() => node.sendWithParams("run_script", undefined, { code }, fileKey));
     }
   );
+
+  server.tool(
+    "get_code_connect_map",
+    "Map Figma nodes to the components that implement them, read from the *.figma.ts files in this workspace — local files under version control, not Figma cloud records. Call it before writing code from a design: a mapped node should be implemented with the mapped component, not a new one. Map the COMPONENT or COMPONENT_SET, not an instance; get_design_context already resolves instances to their mappings. Files the parser cannot read are listed under errors — a component there may be mapped even though it is missing from mappings.",
+    toolInputSchemas.get_code_connect_map.shape,
+    async ({ nodeIds, fileKey }): Promise<ToolResult> => {
+      try {
+        const index = await buildCodeConnectIndex(process.cwd());
+        let result: Record<string, unknown>;
+        if (nodeIds?.length) {
+          const key = await resolveFileKey(node, port, fileKey);
+          const mappings: Mapping[] = [];
+          const unmapped: string[] = [];
+          for (const id of nodeIds) {
+            const mapping = index.lookup(id, key);
+            if (mapping) mappings.push(mapping);
+            else unmapped.push(id);
+          }
+          result = { mappings, unmapped };
+        } else {
+          const mappings = fileKey
+            ? index.mappings.filter((mapping) => mapping.fileKey === fileKey)
+            : index.mappings;
+          result = { mappings };
+        }
+        return {
+          content: [
+            textBlock(
+              JSON.stringify(
+                { ...result, filesScanned: index.filesScanned, errors: index.errors },
+                null,
+                2
+              )
+            ),
+          ],
+        };
+      } catch (err) {
+        return {
+          content: [textBlock(err instanceof Error ? err.message : String(err))],
+          isError: true,
+        };
+      }
+    }
+  );
+}
+
+/**
+ * The file key a Code Connect lookup should match against: the caller's, or
+ * the only connected file's. Undefined when neither settles it, in which case a
+ * lookup falls back to node ids that are unique across every mapping.
+ * @param node - The node coordinator, for the connected-file list.
+ * @param port - The port used for follower-to-leader HTTP calls.
+ * @param fileKey - The key the caller passed, if any.
+ */
+async function resolveFileKey(
+  node: Node,
+  port: number,
+  fileKey?: string
+): Promise<string | undefined> {
+  if (fileKey) return fileKey;
+  try {
+    const files =
+      node.listConnectedFiles() ??
+      (await new Follower(`http://${LOOPBACK_HOST}:${port}`).listConnectedFiles());
+    return files.length === 1 ? files[0].fileKey : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /**

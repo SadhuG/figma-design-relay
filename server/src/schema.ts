@@ -888,6 +888,16 @@ export const toolInputSchemas = {
       ),
     fileKey: fileKeyField,
   }),
+
+  get_code_connect_map: z.object({
+    nodeIds: z
+      .array(createFigmaNodeIdSchema())
+      .optional()
+      .describe(
+        "Figma nodes to look up. Omit to return every mapping, narrowed to fileKey when given."
+      ),
+    fileKey: fileKeyField,
+  }),
 } as const;
 
 type ToolName = keyof typeof toolInputSchemas;
@@ -988,6 +998,7 @@ const rpcToArgs: Record<
   remove_manual_keyframe_track: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
   set_timeline_duration: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
   run_script: (_nodeIds, params) => ({ ...params }),
+  get_code_connect_map: (nodeIds, params) => ({ nodeIds, ...params }),
 };
 
 /**

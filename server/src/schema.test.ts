@@ -69,3 +69,13 @@ describe("validateRpc run_script", () => {
     expect(result.params).toEqual({ code: "return 1" });
   });
 });
+
+describe("validateRpc get_code_connect_map", () => {
+  test("accepts node ids", () => {
+    expect(validateRpc("get_code_connect_map", ["1:2"], {}).error).toBeNull();
+  });
+
+  test("rejects a hyphenated node id", () => {
+    expect(validateRpc("get_code_connect_map", ["1-2"], {}).error).toMatch(/colon format/);
+  });
+});
