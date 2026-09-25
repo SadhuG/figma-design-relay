@@ -29,6 +29,8 @@ export interface ComponentRef {
   setName?: string;
   /** The component set's id when the main component is a variant. */
   setId?: string;
+  /** Set when the component comes from a library rather than this file. */
+  remote?: true;
 }
 
 export interface ComponentIdentity {
@@ -43,6 +45,7 @@ export interface MainComponentLike {
   key?: string;
   name?: string;
   parent?: { id?: string; type: string; name?: string } | null;
+  remote?: boolean;
 }
 
 export interface InstanceLike {
@@ -103,6 +106,7 @@ export const serializeInstanceIdentity = async (
   const identity: InstanceIdentity = {};
   if (main) {
     identity.mainComponent = { id: main.id, key: main.key, name: main.name };
+    if (main.remote) identity.mainComponent.remote = true;
     if (main.parent?.type === "COMPONENT_SET" && typeof main.parent.name === "string") {
       if (main.parent.id) identity.mainComponent.setId = main.parent.id;
       identity.mainComponent.setName = main.parent.name;

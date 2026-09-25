@@ -159,3 +159,21 @@ describe("describeForCodeConnect", () => {
     );
   });
 });
+
+describe("serializeInstanceIdentity library components", () => {
+  // A library component's id here is not its id in the library file, so a
+  // Code Connect mapping to it cannot be matched — the flag lets the relay say so.
+  test("marks a main component that comes from a library", async () => {
+    const out = await serializeInstanceIdentity({
+      getMainComponentAsync: async () => ({ id: "1:2", key: "k", name: "Button", remote: true }),
+    });
+    expect(out?.mainComponent?.remote).toBe(true);
+  });
+
+  test("omits the flag for a local component", async () => {
+    const out = await serializeInstanceIdentity({
+      getMainComponentAsync: async () => ({ id: "1:2", key: "k", name: "Button", remote: false }),
+    });
+    expect(out?.mainComponent).not.toHaveProperty("remote");
+  });
+});

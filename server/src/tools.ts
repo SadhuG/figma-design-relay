@@ -132,6 +132,22 @@ export interface DesignContextInput {
   mappings?: Record<string, Mapping>;
 }
 
+/** Counts instances of library components that no mapping covers. */
+const countUnmappedLibraryInstances = (
+  tree: SerializedNode,
+  mappings: Record<string, unknown>
+): number => {
+  let count = 0;
+  const visit = (node: SerializedNode): void => {
+    if (node.type === "INSTANCE" && node.design?.mainComponent?.remote && !mappings[node.id]) {
+      count++;
+    }
+    for (const child of node.children ?? []) visit(child);
+  };
+  visit(tree);
+  return count;
+};
+
 /** Node id → name for every node in the tree. */
 const nodeNames = (tree: SerializedNode): Record<string, string> => {
   const names: Record<string, string> = {};
@@ -168,6 +184,19 @@ export function composeDesignContext(input: DesignContextInput): ContentBlock[] 
         `${collapsed} ${plural} collapsed at depth; icons inside were not exported. Raise depth if the asset list looks short.`
       );
     }
+  }
+  // A library component's id here differs from its id in the library file the
+  // mapping's URL names, so these instances can never match — say so, or the
+  // placeholder reads as "no component exists, generate one".
+  const library = countUnmappedLibraryInstances(input.tree, input.mappings ?? {});
+  if (library > 0) {
+    const subject =
+      library === 1
+        ? "1 instance comes from a library"
+        : `${library} instances come from a library`;
+    notes.push(
+      `${subject}. Code Connect mappings to library components cannot be matched from this file, so a mapping may exist even though none is shown — check the library's *.figma.tsx files or get_code_connect_map before generating one.`
+    );
   }
   if (notes.length > 0) sections.push(notes.join("\n"));
 
@@ -852,7 +881,7 @@ export function registerTools(server: McpServer, node: Node, port: number): void
 
   server.tool(
     "get_code_connect_map",
-    "Map Figma nodes to the components that implement them, read from the *.figma.ts files in this workspace — local files under version control, not Figma cloud records. Call it before writing code from a design: a mapped node should be implemented with the mapped component, not a new one. Map the COMPONENT or COMPONENT_SET, not an instance; get_design_context already resolves instances to their mappings. Files the parser cannot read are listed under errors — a component there may be mapped even though it is missing from mappings.",
+    "Map Figma nodes to the components that implement them, read from the *.figma.ts files in this workspace — local files under version control, not Figma cloud records, matched by node id, so unlike Figma's own server it cannot match a library component from a file that consumes the library. Call it before writing code from a design: a mapped node should be implemented with the mapped component, not a new one. Map the COMPONENT or COMPONENT_SET, not an instance; get_design_context already resolves instances to their mappings. Files the parser cannot read are listed under errors — a component there may be mapped even though it is missing from mappings.",
     toolInputSchemas.get_code_connect_map.shape,
     async ({ nodeIds, fileKey }): Promise<ToolResult> => {
       try {

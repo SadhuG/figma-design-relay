@@ -28,7 +28,7 @@ absent.
 | `boundVariables`      | At least one property is bound to a variable                         | Nothing is bound                                 |
 | `styles`              | At least one of the five `*StyleId` properties is set                | The node uses no named styles                    |
 
-`mainComponent` is `{ id, key, name, setId?, setName? }` — `setId` and `setName` are the component set's id and name when the main component is a variant, since a variant's own `name` is its property string. `setId` is what a Code Connect mapping to the set is matched by. `componentProperties` maps a property name to
+`mainComponent` is `{ id, key, name, setId?, setName?, remote? }` — `setId` and `setName` are the component set's id and name when the main component is a variant, since a variant's own `name` is its property string. `setId` is what a Code Connect mapping to the set is matched by. `remote` is `true` when the component comes from a library rather than this file. `componentProperties` maps a property name to
 `{ type, value }`, so an instance of `Button/Primary` is recognisable as one.
 
 ### `propertyOwnerId` and the variant trap

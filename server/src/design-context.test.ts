@@ -190,3 +190,44 @@ describe("composeDesignContext assets in code", () => {
     expect((first as { text: string }).text).not.toContain("Code Connect");
   });
 });
+
+describe("composeDesignContext library instances", () => {
+  const screen = {
+    id: "2:1",
+    name: "Screen",
+    type: "FRAME",
+    children: [
+      {
+        id: "2:2",
+        name: "Save",
+        type: "INSTANCE",
+        design: { mainComponent: { id: "9:1", name: "Button", remote: true } },
+      },
+    ],
+  } as unknown as SerializedNode;
+
+  // A mapping to a library component cannot be matched from a consuming file,
+  // and silence would read as "no component exists — generate one".
+  test("warns that library instances cannot be matched to mappings", () => {
+    const [first] = composeDesignContext({ tree: screen, format: "react", assets: [] });
+    expect((first as { text: string }).text).toMatch(/1 instance comes from a library/);
+  });
+
+  test("does not warn about a library instance that is mapped", () => {
+    const [first] = composeDesignContext({
+      tree: screen,
+      format: "react",
+      assets: [],
+      mappings: {
+        "2:2": {
+          component: "Button",
+          fileKey: "L",
+          nodeId: "1:1",
+          source: "b.figma.tsx",
+          props: [],
+        },
+      },
+    });
+    expect((first as { text: string }).text).not.toMatch(/from a library/);
+  });
+});

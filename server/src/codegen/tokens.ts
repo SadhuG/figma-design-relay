@@ -20,7 +20,14 @@ export interface SerializedNode {
       collectionName?: string;
     }>;
     styles?: Record<string, { id: string; name?: string } | "mixed">;
-    mainComponent?: { id: string; key?: string; name?: string; setId?: string; setName?: string };
+    mainComponent?: {
+      id: string;
+      key?: string;
+      name?: string;
+      setId?: string;
+      setName?: string;
+      remote?: boolean;
+    };
   };
   children?: SerializedNode[];
   [key: string]: unknown;

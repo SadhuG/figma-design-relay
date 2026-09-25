@@ -70,9 +70,13 @@ when the file does not import the component. `props` lists the keys of the
 
 Node ids like `1:2` recur in every Figma file, so a lookup by node id only
 matches mappings for the file the node is in. That file is the `fileKey` you
-pass, or — when you omit it — the one connected file. If several files are
-connected and you pass no `fileKey`, only node ids that are unique across all
-mappings match.
+pass, or — when you omit it — the one connected file.
+
+The key has to be a real Figma file key, and Figma only exposes it to private
+plugins through `figma.fileKey`. Otherwise the plugin connects under a
+session key starting `unsaved-`, which `list_files` shows. A session key
+names a relay connection, not a Figma file, so it is ignored for matching. When
+no real key is known, only node ids that are unique across all mappings match.
 
 ### `get_context_for_code_connect`
 
@@ -105,14 +109,16 @@ must end in `.figma.tsx` or `.figma.jsx` (the generated `example` is JSX).
 - Each prop you list is stubbed as `figma.string("<name>")`. Refine it: use
   `get_context_for_code_connect` to see whether it is really a boolean, an enum
   or an instance swap.
-- The URL is built from the file key and the node the plugin confirms — the set,
-  when you pass a variant. The plugin must be open in the file, and the file
-  must have been saved (an unsaved file has no key).
+- The URL is built from the Figma file key and the node the plugin confirms —
+  the set, when you pass a variant. The plugin must be open in the file. When
+  `list_files` shows an `unsaved-…` key, the plugin cannot read the real one:
+  pass it as `figmaFileKey`, the part after `/design/` in the file's URL
+  (Share → Copy link).
 
 It refuses, writing nothing, when:
 
 - the node is already mapped anywhere in the workspace — edit that mapping;
-- `file` resolves outside the working directory, including through a link;
+- `file` resolves outside the working directory, or is itself a link;
 - `file` already holds a `figma.connect` call the parser cannot read, because a
   duplicate there would go unnoticed.
 
@@ -142,7 +148,8 @@ The parser is a small scanner rather than a TypeScript compiler, so the server
 takes on no new dependency. It reads:
 
 - `figma.connect(Component, "url")` and `figma.connect(Component, "url", { … })`,
-  including a dotted component such as `Icons.Search`;
+  including a dotted component such as `Icons.Search` and the generic form
+  `figma.connect<Props>(…)`;
 - the URL as a string or template literal without interpolation;
 - the keys of the `props` object.
 
@@ -154,6 +161,9 @@ each `errors` entry names the file and line:
   so. The usual cause is an apostrophe in JSX text inside `example`
   (`<p>Don't</p>`), which the scanner reads as an opening quote; write it as
   `&apos;`.
+- calls the scan never reached. After scanning, calls are counted again with
+  only comments removed; any the scan missed — typically hidden by a quote in a
+  regex literal or in JSX text — are reported as missing.
 
 When a mapping file has errors, `get_design_context` says so in its caveats.
 A component in that file may be mapped even though the response does not show
@@ -181,8 +191,10 @@ This is the top of the hint priority in
 - **Library components.** An instance of a component from a team library
   points at that component's id in _this_ file, not in the library file where
   the mapping's URL points. The Plugin API cannot translate between the two, so
-  such instances are not matched. Mapping the library component from inside
-  the library file works.
+  such instances are not matched, where Figma's own server matches them by
+  component key. `get_design_context` says how many library instances it
+  could not match, so the absence of a mapping is not read as "none exists".
+  Opened in the library file itself, the components match normally.
 - **Name-only suggestions.** Suggestions do not compare props or structure.
 - **One mapping per node.** `add_code_connect_map` refuses a second mapping for
   the same node; variant-specific mappings (`variant: { … }`) have to be
