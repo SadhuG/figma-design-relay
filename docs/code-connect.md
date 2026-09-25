@@ -33,12 +33,12 @@ These are ordinary source files. Commit them; review them like code.
 
 ## The four tools
 
-| Tool                           | Needs the plugin | What it does                                                                                                                                                    |
-| ------------------------------ | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `get_code_connect_map`         | no               | Returns the mappings — all of them, those for one `fileKey`, or those for a list of `nodeIds` (with the ids that have none under `unmapped`).                   |
-| `get_context_for_code_connect` | yes              | A component's property definitions, the options on each variant axis, its key and description — what you need to write an accurate `props` block.               |
-| `get_code_connect_suggestions` | yes              | Proposes workspace components for Figma components by name, each with a score and the evidence for it. Already-mapped components are reported, not re-proposed. |
-| `add_code_connect_map`         | yes              | Writes a mapping file, or appends to an existing one. Never publishes anything.                                                                                 |
+| Tool                           | Needs the plugin | What it does                                                                                                                                                                                     |
+| ------------------------------ | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `get_code_connect_map`         | no               | Returns the mappings — all of them, those for one `fileKey`, or those for a list of `nodeIds` (with the ids that have none under `unmapped`, and ids mapped in several files under `ambiguous`). |
+| `get_context_for_code_connect` | yes              | A component's property definitions, the options on each variant axis, its key and description — what you need to write an accurate `props` block.                                                |
+| `get_code_connect_suggestions` | yes              | Proposes workspace components for Figma components by name, each with a score and the evidence for it. Already-mapped components are reported, not re-proposed.                                  |
+| `add_code_connect_map`         | yes              | Writes a mapping file, or appends to an existing one. Never publishes anything.                                                                                                                  |
 
 `get_design_context` also consults the mappings — see
 [Design context](#design-context) below.
@@ -77,6 +77,13 @@ plugins through `figma.fileKey`. Otherwise the plugin connects under a
 session key starting `unsaved-`, which `list_files` shows. A session key
 names a relay connection, not a Figma file, so it is ignored for matching. When
 no real key is known, only node ids that are unique across all mappings match.
+
+An id that is mapped in more than one Figma file cannot be resolved without a
+real key, but it is not unmapped either. Such ids are listed under `ambiguous`,
+each with its candidate mappings, and never under `unmapped`. Pass the file key
+from the file's URL to pick one. The field is present only when non-empty.
+Listing every mapping for a `fileKey` works the same way: a session key filters
+nothing out, so it returns all the mappings rather than none.
 
 ### `get_context_for_code_connect`
 

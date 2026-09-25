@@ -88,6 +88,63 @@ export const mappingsForTree = (
   return found;
 };
 
+export interface MappingSelection {
+  mappings: Mapping[];
+  unmapped: string[];
+  /**
+   * Ids mapped in more than one Figma file, when no real file key says which.
+   * Present only when non-empty. Distinct from `unmapped`: a mapping does exist,
+   * so the caller must not write a new component for it.
+   */
+  ambiguous?: Record<string, Mapping[]>;
+}
+
+/**
+ * Looks up a list of node ids, as `get_code_connect_map` does when given some.
+ * @param index - The workspace's Code Connect index.
+ * @param nodeIds - Colon-form node ids.
+ * @param fileKey - A real Figma file key, when known (see `pickFigmaFileKey`).
+ */
+export const selectMappings = (
+  index: Pick<CodeConnectIndex, "mappings" | "lookup">,
+  nodeIds: string[],
+  fileKey?: string
+): MappingSelection => {
+  const mappings: Mapping[] = [];
+  const unmapped: string[] = [];
+  const ambiguous: Record<string, Mapping[]> = {};
+  for (const id of nodeIds) {
+    const mapping = index.lookup(id, fileKey);
+    if (mapping) {
+      mappings.push(mapping);
+      continue;
+    }
+    const candidates = fileKey ? [] : index.mappings.filter((m) => m.nodeId === id);
+    if (candidates.length > 1) ambiguous[id] = candidates;
+    else unmapped.push(id);
+  }
+  return Object.keys(ambiguous).length > 0
+    ? { mappings, unmapped, ambiguous }
+    : { mappings, unmapped };
+};
+
+/**
+ * The mappings for one Figma file, as `get_code_connect_map` lists them.
+ * @param index - The workspace's Code Connect index.
+ * @param fileKey - The key the caller passed. A session key names a relay
+ * connection rather than a Figma file, so it filters nothing out — filtering on
+ * it would return no mappings at all.
+ */
+export const mappingsForFile = (
+  index: Pick<CodeConnectIndex, "mappings">,
+  fileKey?: string
+): Mapping[] => {
+  const figmaKey = pickFigmaFileKey(fileKey, []);
+  return figmaKey
+    ? index.mappings.filter((mapping) => mapping.fileKey === figmaKey)
+    : index.mappings;
+};
+
 /**
  * The Figma file key a Code Connect lookup should match against.
  *

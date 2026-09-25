@@ -21,7 +21,7 @@ Figma plugin ──ws://localhost:1994/ws──> leader server ──stdio──
 | `server/` | `bun run build`                           | `tsc` → `dist/`                                               |
 | `plugin/` | `bun run build`                           | two Vite passes: UI, then `main`                              |
 | `plugin/` | `bun run typecheck`                       | `tsc --noEmit`; `bun run build` runs it first                 |
-| `server/` | `bun test`                                | 151 tests: schemas, rpc guards, codegen, assets, Code Connect |
+| `server/` | `bun test`                                | 155 tests: schemas, rpc guards, codegen, assets, Code Connect |
 | `plugin/` | `bun test`                                | 82 tests: scripts, serializer, editor gate                    |
 
 **Bun everywhere — never `npm` or `yarn`.**
@@ -129,7 +129,7 @@ plugin/src/
   `toolInputSchemas` without adding its mapper here is a compile error.** That is deliberate; do not
   work around it.
 - `server/src/schema.ts:1080` — `validateRpc`, the follower→leader guard.
-- `server/src/tools.ts:267` — `registerTools`; `:1131` — `renderResponse`, the shared handler wrapper
+- `server/src/tools.ts:273` — `registerTools`; `:1123` — `renderResponse`, the shared handler wrapper
   that turns a `BridgeResponse.error` into an MCP error result.
 - `plugin/src/main/editor-gate.ts:7` — `EDIT_REQUEST_TYPES`; `:43` — `requireEditorMode`, which
   takes `editorType` as a parameter rather than reading `figma.editorType`, so the Dev Mode gate is

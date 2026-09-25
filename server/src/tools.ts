@@ -43,7 +43,13 @@ import {
   findExportableNodes,
   type AssetRecord,
 } from "./assets.js";
-import { buildCodeConnectIndex, mappingsForTree, pickFigmaFileKey } from "./code-connect/index.js";
+import {
+  buildCodeConnectIndex,
+  mappingsForFile,
+  mappingsForTree,
+  pickFigmaFileKey,
+  selectMappings,
+} from "./code-connect/index.js";
 import type { Mapping } from "./code-connect/parse.js";
 import { findExportedComponents, scoreCandidates } from "./code-connect/suggest.js";
 import { writeMapping } from "./code-connect/write.js";
@@ -881,28 +887,14 @@ export function registerTools(server: McpServer, node: Node, port: number): void
 
   server.tool(
     "get_code_connect_map",
-    "Map Figma nodes to the components that implement them, read from the *.figma.ts files in this workspace — local files under version control, not Figma cloud records, matched by node id, so unlike Figma's own server it cannot match a library component from a file that consumes the library. Call it before writing code from a design: a mapped node should be implemented with the mapped component, not a new one. Map the COMPONENT or COMPONENT_SET, not an instance; get_design_context already resolves instances to their mappings. Files the parser cannot read are listed under errors — a component there may be mapped even though it is missing from mappings.",
+    "Map Figma nodes to the components that implement them, read from the *.figma.ts files in this workspace — local files under version control, not Figma cloud records, matched by node id, so unlike Figma's own server it cannot match a library component from a file that consumes the library. Call it before writing code from a design: a mapped node should be implemented with the mapped component, not a new one. Map the COMPONENT or COMPONENT_SET, not an instance; get_design_context already resolves instances to their mappings. Ids listed under ambiguous are mapped in more than one Figma file and no real file key said which — they are mapped, so pass the file key from the file URL rather than writing a new component. Files the parser cannot read are listed under errors — a component there may be mapped even though it is missing from mappings.",
     toolInputSchemas.get_code_connect_map.shape,
     async ({ nodeIds, fileKey }): Promise<ToolResult> => {
       try {
         const index = await buildCodeConnectIndex(process.cwd());
-        let result: Record<string, unknown>;
-        if (nodeIds?.length) {
-          const key = await resolveFileKey(node, port, fileKey);
-          const mappings: Mapping[] = [];
-          const unmapped: string[] = [];
-          for (const id of nodeIds) {
-            const mapping = index.lookup(id, key);
-            if (mapping) mappings.push(mapping);
-            else unmapped.push(id);
-          }
-          result = { mappings, unmapped };
-        } else {
-          const mappings = fileKey
-            ? index.mappings.filter((mapping) => mapping.fileKey === fileKey)
-            : index.mappings;
-          result = { mappings };
-        }
+        const result = nodeIds?.length
+          ? selectMappings(index, nodeIds, await resolveFileKey(node, port, fileKey))
+          : { mappings: mappingsForFile(index, fileKey) };
         return {
           content: [
             textBlock(

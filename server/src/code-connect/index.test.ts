@@ -3,7 +3,13 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { SerializedNode } from "../codegen/tokens.js";
-import { buildCodeConnectIndex, mappingsForTree, pickFigmaFileKey } from "./index.js";
+import {
+  buildCodeConnectIndex,
+  mappingsForFile,
+  mappingsForTree,
+  pickFigmaFileKey,
+  selectMappings,
+} from "./index.js";
 
 let root: string;
 
@@ -128,5 +134,37 @@ describe("pickFigmaFileKey", () => {
   test("treats a session fallback key as unknown", () => {
     expect(pickFigmaFileKey(undefined, ["unsaved-abc-123"])).toBeUndefined();
     expect(pickFigmaFileKey("unsaved-abc-123", [])).toBeUndefined();
+  });
+});
+
+describe("selectMappings", () => {
+  test("splits node ids into mapped and unmapped", async () => {
+    const index = await buildCodeConnectIndex(root);
+    const result = selectMappings(index, ["1:2", "9:9"], "AbC");
+    expect(result.mappings.map((m) => m.component)).toEqual(["Button"]);
+    expect(result.unmapped).toEqual(["9:9"]);
+    expect(result.ambiguous).toBeUndefined();
+  });
+
+  // 1:2 is mapped in two Figma files. With no real key it cannot be resolved,
+  // but reporting it as unmapped would invite a duplicate component.
+  test("reports an id mapped in several files as ambiguous, not unmapped", async () => {
+    const index = await buildCodeConnectIndex(root);
+    const result = selectMappings(index, ["1:2", "5:6"]);
+    expect(result.mappings.map((m) => m.component)).toEqual(["Badge"]);
+    expect(result.unmapped).toEqual([]);
+    expect(result.ambiguous?.["1:2"]?.map((m) => m.component).sort()).toEqual(["Button", "Card"]);
+  });
+});
+
+describe("mappingsForFile", () => {
+  test("filters to a real file key", async () => {
+    const index = await buildCodeConnectIndex(root);
+    expect(mappingsForFile(index, "Zed").map((m) => m.component)).toEqual(["Card", "Badge"]);
+  });
+
+  test("returns every mapping for a session key rather than none", async () => {
+    const index = await buildCodeConnectIndex(root);
+    expect(mappingsForFile(index, "unsaved-abc-123")).toHaveLength(3);
   });
 });
