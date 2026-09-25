@@ -70,3 +70,19 @@ describe("discoverCodeConnectFiles", () => {
     await rm(empty, { recursive: true, force: true });
   });
 });
+
+describe("discoverCodeConnectFiles bounds", () => {
+  // An MCP client may start the server in / or a system directory; walking
+  // that on every design-context call would hang until the relay times out.
+  test("refuses a tree larger than the directory budget, naming the fix", async () => {
+    const deep = await mkdtemp(path.join(tmpdir(), "cc-deep-"));
+    await mkdir(path.join(deep, "a", "b", "c"), { recursive: true });
+    try {
+      await expect(discoverCodeConnectFiles(deep, { maxDirectories: 2 })).rejects.toThrow(
+        /project root/
+      );
+    } finally {
+      await rm(deep, { recursive: true, force: true });
+    }
+  });
+});

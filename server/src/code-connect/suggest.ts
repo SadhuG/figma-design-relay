@@ -1,6 +1,5 @@
-import { readdir, readFile, realpath } from "node:fs/promises";
-import path from "node:path";
-import { IGNORED_DIRECTORIES } from "./discover.js";
+import { readFile } from "node:fs/promises";
+import { walkWorkspace } from "./discover.js";
 
 export interface ExportedComponent {
   name: string;
@@ -70,45 +69,26 @@ const EXPORTED = /export\s+(?:default\s+)?(?:const|function|class)\s+([A-Z][\w$]
 
 /**
  * Scans the workspace for exported identifiers that look like components —
- * capitalised, exported, in a source file. Links resolving outside the
- * workspace are skipped, as in discovery.
+ * capitalised, exported, in a source file. Walks under the same rules and
+ * directory budget as discovery.
  * @param root - The MCP server's working directory.
  */
 export const findExportedComponents = async (root: string): Promise<ExportedComponent[]> => {
-  const base = await realpath(root);
   const found: ExportedComponent[] = [];
-
-  const walk = async (dir: string): Promise<void> => {
-    let entries;
-    try {
-      entries = await readdir(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    for (const entry of entries) {
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        if (IGNORED_DIRECTORIES.has(entry.name)) continue;
-        await walk(full);
-        continue;
-      }
-      if (!SOURCE_FILE.test(entry.name) || /\.figma\.|\.test\./.test(entry.name)) continue;
-
+  await walkWorkspace(
+    root,
+    (name) => SOURCE_FILE.test(name) && !/\.figma\.|\.test\./.test(name),
+    async (resolved, relative) => {
       let source: string;
       try {
-        const resolved = await realpath(full);
-        if (!resolved.startsWith(base + path.sep)) continue;
         source = await readFile(resolved, "utf8");
       } catch {
-        continue;
+        return;
       }
-      const relative = path.relative(base, full).split(path.sep).join("/");
       for (const match of source.matchAll(EXPORTED)) {
         found.push({ name: match[1], source: relative });
       }
     }
-  };
-
-  await walk(base);
+  );
   return found;
 };
