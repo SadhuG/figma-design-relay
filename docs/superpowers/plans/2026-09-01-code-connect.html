@@ -1386,9 +1386,9 @@ git commit -m "feat(server): add get_code_connect_map backed by workspace files"
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="codeconnectt5s5" />
+                  <input type="checkbox" id="codeconnectt5s5" checked />
                   <label class="step__label" for="codeconnectt5s5"
                     >Prove the error path by hand</label
                   >
@@ -1402,6 +1402,16 @@ git commit -m "feat(server): add get_code_connect_map backed by workspace files"
                   <p class="expect">
                     <b>Expect</b> an error explaining that Code Connect maps components and telling
                     you to select the main component — not a raw type error.
+                  </p>
+                  <p>
+                    <strong>Done on 2026-09-25</strong> against _Temp: LeadFlow_ through
+                    <code>server/.smoke/call.mjs</code>, as a follower of the client's leader on
+                    1994. Instance <code>47:627</code> returned <code>isError: true</code> with
+                    _Node 47:627 is an INSTANCE. Code Connect maps components — pass its main
+                    component (47:635) instead._ The page <code>0:1</code> was refused as not a
+                    component, the set <code>40:587</code> (<code>Button</code>) returned its four
+                    variant axes, and the variant <code>40:586</code> was described through that
+                    set.
                   </p>
                 </div>
               </li>
@@ -1697,9 +1707,9 @@ export const findExportedComponents = async (root: string): Promise&lt;ExportedC
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="codeconnectt6s6" />
+                  <input type="checkbox" id="codeconnectt6s6" checked />
                   <label class="step__label" for="codeconnectt6s6">Prove it end to end</label>
                 </div>
                 <div class="step__body">
@@ -1712,6 +1722,15 @@ export const findExportedComponents = async (root: string): Promise&lt;ExportedC
                     <b>Expect</b> the matching component ranked first with
                     <code>evidence</code> reading <code>exact name match</code>, and no file written
                     anywhere.
+                  </p>
+                  <p>
+                    <strong>Done on 2026-09-25</strong>, run from a scratch workspace exporting
+                    <code>Button</code>, <code>ButtonGroup</code> and <code>Logo</code>. For the
+                    <code>Button</code> set, a <code>Button</code> variant and the
+                    <code>Logo</code> set, the matching export ranked first at score 1 with
+                    <code>exact name match</code>; <code>ButtonGroup</code> followed at 0.72 as a
+                    prefix overlap. The variant was resolved to its set before matching. No file was
+                    written.
                   </p>
                 </div>
               </li>
@@ -2015,9 +2034,9 @@ export const writeMapping = async (
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="codeconnectt7s6" />
+                  <input type="checkbox" id="codeconnectt7s6" checked />
                   <label class="step__label" for="codeconnectt7s6"
                     >Prove containment and duplicate refusal by hand</label
                   >
@@ -2032,6 +2051,18 @@ export const writeMapping = async (
                     <b>Expect</b> the first writes; the second refuses, naming the existing mapping;
                     the third refuses, naming the working directory. No file appears outside the
                     workspace.
+                  </p>
+                  <p>
+                    <strong>Done on 2026-09-25.</strong> The connection's key was
+                    <code>unsaved-…</code> — Figma does not expose <code>figma.fileKey</code> to
+                    this plugin — so the first call refused and asked for <code>figmaFileKey</code>;
+                    with it, variant <code>40:586</code> was written as a mapping to its set
+                    <code>40-587</code>, with the <code>aria-label</code> prop quoted. A second
+                    mapping of the set from another file was refused, naming
+                    <code>src/ui/Button.figma.tsx</code>; <code>../escape.figma.tsx</code> was
+                    refused, naming the working directory; <code>.figma.ts</code> was refused.
+                    Appending <code>Logo</code> to the same file added its import. No file appeared
+                    outside the workspace.
                   </p>
                 </div>
               </li>
@@ -2194,9 +2225,9 @@ collect(tree);</code></pre>
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="codeconnectt8s5" />
+                  <input type="checkbox" id="codeconnectt8s5" checked />
                   <label class="step__label" for="codeconnectt8s5">Prove it end to end</label>
                 </div>
                 <div class="step__body">
@@ -2207,6 +2238,18 @@ collect(tree);</code></pre>
                   <p class="expect">
                     <b>Expect</b> the response opens with a Code Connect mappings section naming
                     your component and its source file, above the reference code.
+                  </p>
+                  <p>
+                    <strong>Done on 2026-09-25</strong> on frame <code>1:2</code> (<code
+                      >Signup Page - Desktop</code
+                    >) at depth 12. The response opened with the mappings section listing
+                    <code>47:627</code> Button → <code>Button</code> and <code>54:45</code> Logo →
+                    <code>Logo</code>, both variant instances matched through their sets, and the
+                    React code rendered <code>&lt;Button data-figma-node="47:627"&gt;</code> and
+                    <code>&lt;Logo …&gt;</code> under <code>Code Connect:</code> comments. A mapping
+                    file with an unreadable call added a caveat above the section, and instance
+                    <code>244:2758</code> of a library <code>Badge</code> produced the library
+                    caveat.
                   </p>
                 </div>
               </li>

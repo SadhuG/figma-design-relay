@@ -926,11 +926,13 @@ server.tool(
 Run: `cd server && bun run build && cd ../plugin && bunx tsc --noEmit -p tsconfig.json`
 Expected: PASS — no errors from either
 
-- [ ] **Step 5: Prove the error path by hand**
+- [x] **Step 5: Prove the error path by hand**
 
 With the plugin running in a design file, call `get_context_for_code_connect` on an **instance** rather than its main component.
 
 Expected: an error explaining that Code Connect maps components and telling you to select the main component — not a raw type error.
+
+**Done on 2026-09-25** against _Temp: LeadFlow_ through `server/.smoke/call.mjs`, as a follower of the client's leader on 1994. Instance `47:627` returned `isError: true` with _Node 47:627 is an INSTANCE. Code Connect maps components — pass its main component (47:635) instead._ The page `0:1` was refused as not a component, the set `40:587` (`Button`) returned its four variant axes, and the variant `40:586` was described through that set.
 
 - [x] **Step 6: Commit**
 
@@ -1145,11 +1147,13 @@ In `server/src/schema.ts`:
 
 In `server/src/tools.ts`, register a handler that, for each node id, fetches the node's name via `get_node`, skips ids the index already maps, and returns `scoreCandidates(name, await findExportedComponents(process.cwd()))`. Scan the workspace once, outside the loop.
 
-- [ ] **Step 6: Prove it end to end**
+- [x] **Step 6: Prove it end to end**
 
 With the plugin open in a design file that has a component matching one of your codebase components, call `get_code_connect_suggestions` on that component's node id.
 
 Expected: the matching component ranked first with `evidence` reading `exact name match`, and no file written anywhere.
+
+**Done on 2026-09-25**, run from a scratch workspace exporting `Button`, `ButtonGroup` and `Logo`. For the `Button` set, a `Button` variant and the `Logo` set, the matching export ranked first at score 1 with `exact name match`; `ButtonGroup` followed at 0.72 as a prefix overlap. The variant was resolved to its set before matching. No file was written.
 
 - [x] **Step 7: Commit**
 
@@ -1384,11 +1388,13 @@ server.tool(
 );
 ```
 
-- [ ] **Step 6: Prove containment and duplicate refusal by hand**
+- [x] **Step 6: Prove containment and duplicate refusal by hand**
 
 Call `add_code_connect_map` twice with the same `nodeId` and `file`, then once with `file: "../escape.figma.ts"`.
 
 Expected: the first writes; the second refuses, naming the existing mapping; the third refuses, naming the working directory. No file appears outside the workspace.
+
+**Done on 2026-09-25.** The connection's key was `unsaved-…` — Figma does not expose `figma.fileKey` to this plugin — so the first call refused and asked for `figmaFileKey`; with it, variant `40:586` was written as a mapping to its set `40-587`, with the `aria-label` prop quoted. A second mapping of the set from another file was refused, naming `src/ui/Button.figma.tsx`; `../escape.figma.tsx` was refused, naming the working directory; `.figma.ts` was refused. Appending `Logo` to the same file added its import. No file appeared outside the workspace.
 
 - [x] **Step 7: Commit**
 
@@ -1479,11 +1485,13 @@ test("puts Code Connect mappings ahead of the reference code", () => {
 Run: `cd server && bun run test && bun run build`
 Expected: PASS — every test green, no `tsc` errors
 
-- [ ] **Step 5: Prove it end to end**
+- [x] **Step 5: Prove it end to end**
 
 Map a component with `add_code_connect_map`, then call `get_design_context` on a frame containing an instance of it.
 
 Expected: the response opens with a Code Connect mappings section naming your component and its source file, above the reference code.
+
+**Done on 2026-09-25** on frame `1:2` (`Signup Page - Desktop`) at depth 12. The response opened with the mappings section listing `47:627` Button → `Button` and `54:45` Logo → `Logo`, both variant instances matched through their sets, and the React code rendered `<Button data-figma-node="47:627">` and `<Logo …>` under `Code Connect:` comments. A mapping file with an unreadable call added a caveat above the section, and instance `244:2758` of a library `Badge` produced the library caveat.
 
 - [x] **Step 6: Write the guide**
 

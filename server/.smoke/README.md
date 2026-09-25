@@ -57,6 +57,22 @@ SMOKE_PORT=1995 node .smoke/call.mjs get_selection
 not on `networkAccess.allowedDomains`. Rebuild the plugin **without** the variable afterwards — a
 plugin left dialing 1995 is the classic way to end up "running but not connected".
 
+## Tools that read the workspace
+
+The Code Connect tools read and write files under the **server's working directory**, and the
+server `call.mjs` spawns inherits the directory you run it from. Run it from a scratch project to
+exercise them without touching this repo:
+
+```bash
+mkdir -p "$TEMP/cc-live/src/ui" && cd "$TEMP/cc-live"
+echo 'export const Button = () => null;' > src/ui/Button.tsx
+node ~/code/figma-design-relay/server/.smoke/call.mjs get_code_connect_suggestions '{"nodeIds":["40:587"]}'
+```
+
+`list_files` shows an `unsaved-…` key for this plugin, because Figma only exposes `figma.fileKey`
+to private plugins, so `add_code_connect_map` needs `figmaFileKey` — any alphanumeric key will do
+for a probe.
+
 ## Reading the output
 
 `probe.mjs` drives `run_script`; `call.mjs` drives any tool by name. Both print the port in their
