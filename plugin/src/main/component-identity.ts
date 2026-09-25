@@ -12,6 +12,7 @@ export interface NodeLike {
   type: string;
   name?: string;
   key?: string;
+  description?: string;
   parent?: NodeLike | null;
   componentPropertyDefinitions?: Record<string, unknown>;
 }
@@ -106,4 +107,65 @@ export const serializeInstanceIdentity = async (
   }
   if (hasProperties) identity.componentProperties = properties;
   return identity;
+};
+
+export interface CodeConnectContext {
+  /** The node a mapping should target: the set for a variant, else the component. */
+  id: string;
+  name?: string;
+  type: string;
+  key?: string;
+  description?: string;
+  propertyDefinitions: Record<string, unknown>;
+  variantAxes: Array<{ name: string; options: string[] }>;
+  /** The variant that was passed in, when it was not the mapping target itself. */
+  selectedVariant?: { id: string; name?: string };
+}
+
+/**
+ * Describes a component for authoring a Code Connect mapping.
+ * @param node - A `COMPONENT` or `COMPONENT_SET`.
+ * @param mainComponentId - For an instance, its main component's id, so the
+ * refusal can say which node to pass instead.
+ * @returns The mapping target's identity, properties and variant axes.
+ * @throws When the node is not a component.
+ */
+export const describeForCodeConnect = (
+  node: NodeLike,
+  mainComponentId?: string
+): CodeConnectContext => {
+  const owner = componentPropertyOwner(node);
+  if (!owner) {
+    if (node.type === "INSTANCE") {
+      throw new Error(
+        `Node ${node.id} is an INSTANCE. Code Connect maps components — pass its main component` +
+          (mainComponentId ? ` (${mainComponentId})` : "") +
+          ` instead.`
+      );
+    }
+    throw new Error(
+      `Node ${node.id} is a ${node.type}, not a COMPONENT or COMPONENT_SET. ` +
+        `Code Connect maps components; pass the main component.`
+    );
+  }
+
+  const definitions = owner.componentPropertyDefinitions ?? {};
+  const variantAxes = Object.entries(definitions)
+    .filter(([, definition]) => (definition as { type?: string }).type === "VARIANT")
+    .map(([name, definition]) => ({
+      name,
+      options: (definition as { variantOptions?: string[] }).variantOptions ?? [],
+    }));
+
+  const context: CodeConnectContext = {
+    id: owner.id,
+    name: owner.name,
+    type: owner.type,
+    key: owner.key,
+    propertyDefinitions: definitions,
+    variantAxes,
+  };
+  if (owner.description) context.description = owner.description;
+  if (owner.id !== node.id) context.selectedVariant = { id: node.id, name: node.name };
+  return context;
 };

@@ -792,6 +792,17 @@ export function registerTools(server: McpServer, node: Node, port: number): void
   );
 
   server.tool(
+    "get_context_for_code_connect",
+    "Describe a Figma component's properties and variant axes so a Code Connect mapping can be authored accurately: the property definitions, the options on each variant axis, the component key, and any description the designer wrote. Pass a COMPONENT or COMPONENT_SET; a variant is described through its set, which is what a mapping should target. When multiple files are connected, specify fileKey.",
+    toolInputSchemas.get_context_for_code_connect.shape,
+    async ({ nodeId, fileKey }): Promise<ToolResult> => {
+      return renderResponse(() =>
+        node.sendWithParams("get_context_for_code_connect", [nodeId], undefined, fileKey)
+      );
+    }
+  );
+
+  server.tool(
     "get_code_connect_map",
     "Map Figma nodes to the components that implement them, read from the *.figma.ts files in this workspace — local files under version control, not Figma cloud records. Call it before writing code from a design: a mapped node should be implemented with the mapped component, not a new one. Map the COMPONENT or COMPONENT_SET, not an instance; get_design_context already resolves instances to their mappings. Files the parser cannot read are listed under errors — a component there may be mapped even though it is missing from mappings.",
     toolInputSchemas.get_code_connect_map.shape,

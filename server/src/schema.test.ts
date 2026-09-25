@@ -79,3 +79,13 @@ describe("validateRpc get_code_connect_map", () => {
     expect(validateRpc("get_code_connect_map", ["1-2"], {}).error).toMatch(/colon format/);
   });
 });
+
+describe("validateRpc get_context_for_code_connect", () => {
+  test("validates the node id carried on nodeIds", () => {
+    expect(validateRpc("get_context_for_code_connect", ["1-2"], {}).error).toMatch(/colon format/);
+  });
+
+  test("requires a node id", () => {
+    expect(validateRpc("get_context_for_code_connect", undefined, {}).error).not.toBeNull();
+  });
+});

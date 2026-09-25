@@ -898,6 +898,13 @@ export const toolInputSchemas = {
       ),
     fileKey: fileKeyField,
   }),
+
+  get_context_for_code_connect: z.object({
+    nodeId: createFigmaNodeIdSchema().describe(
+      "The COMPONENT or COMPONENT_SET to describe. Pass the main component, not an instance; a variant is described through its set."
+    ),
+    fileKey: fileKeyField,
+  }),
 } as const;
 
 type ToolName = keyof typeof toolInputSchemas;
@@ -999,6 +1006,7 @@ const rpcToArgs: Record<
   set_timeline_duration: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
   run_script: (_nodeIds, params) => ({ ...params }),
   get_code_connect_map: (nodeIds, params) => ({ nodeIds, ...params }),
+  get_context_for_code_connect: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
 };
 
 /**

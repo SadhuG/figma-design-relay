@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   componentPropertyOwner,
+  describeForCodeConnect,
   serializeComponentIdentity,
   serializeInstanceIdentity,
 } from "./component-identity";
@@ -108,5 +109,51 @@ describe("serializeInstanceIdentity", () => {
   test("returns undefined for a detached instance with no properties", async () => {
     const out = await serializeInstanceIdentity({ getMainComponentAsync: async () => null });
     expect(out).toBeUndefined();
+  });
+});
+
+describe("describeForCodeConnect", () => {
+  const described = {
+    ...set,
+    description: "Primary call to action",
+    componentPropertyDefinitions: {
+      Size: { type: "VARIANT", defaultValue: "M", variantOptions: ["S", "M", "L"] },
+      Label: { type: "TEXT", defaultValue: "Go" },
+    },
+  };
+  const child = { ...variant, parent: described };
+
+  test("returns the property definitions and the variant axes", () => {
+    const out = describeForCodeConnect(described);
+    expect(out.propertyDefinitions).toEqual(described.componentPropertyDefinitions);
+    expect(out.variantAxes).toEqual([{ name: "Size", options: ["S", "M", "L"] }]);
+  });
+
+  test("names the set, not the variant, when given a variant", () => {
+    const out = describeForCodeConnect(child);
+    expect(out).toMatchObject({ id: "1:1", name: "Button", key: "setkey" });
+    expect(out.selectedVariant).toEqual({ id: "1:2", name: "Size=M" });
+  });
+
+  test("carries the designer's description", () => {
+    expect(describeForCodeConnect(described).description).toBe("Primary call to action");
+  });
+
+  test("describes a standalone component with no properties", () => {
+    const out = describeForCodeConnect(standalone);
+    expect(out).toMatchObject({ id: "2:1", name: "Divider", propertyDefinitions: {} });
+    expect(out.variantAxes).toEqual([]);
+  });
+
+  test("refuses an instance and names its main component", () => {
+    expect(() =>
+      describeForCodeConnect({ id: "5:5", type: "INSTANCE", name: "Button" }, "1:2")
+    ).toThrow(/main component.*1:2/);
+  });
+
+  test("refuses a frame, saying what Code Connect maps", () => {
+    expect(() => describeForCodeConnect({ id: "3:1", type: "FRAME" })).toThrow(
+      /COMPONENT or COMPONENT_SET/
+    );
   });
 });

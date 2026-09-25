@@ -2,6 +2,7 @@ import { serializeNode } from "./serializer";
 import { addLayersToFrame } from "../html-figma/figma";
 import { runScript } from "./script-runner";
 import { EDIT_REQUEST_TYPES, requireEditorMode } from "./editor-gate";
+import { describeForCodeConnect, type NodeLike } from "./component-identity";
 
 export type RequestType =
   | "get_document"
@@ -41,7 +42,8 @@ export type RequestType =
   | "apply_manual_keyframe_track"
   | "remove_manual_keyframe_track"
   | "set_timeline_duration"
-  | "run_script";
+  | "run_script"
+  | "get_context_for_code_connect";
 
 type ServerRequestParams = Record<string, unknown> & {
   format?: "PNG" | "SVG" | "JPG" | "PDF";
@@ -1823,6 +1825,24 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
           type: request.type,
           requestId: request.requestId,
           data: outcome,
+        };
+      }
+      case "get_context_for_code_connect": {
+        // The id rides on nodeIds: validateRpc strips `nodeId` from params on
+        // the follower → leader hop.
+        const nodeId = request.nodeIds?.[0];
+        if (!nodeId) {
+          throw new Error("get_context_for_code_connect requires a node id.");
+        }
+        const node = await figma.getNodeByIdAsync(nodeId);
+        if (!node) {
+          throw new Error(`Node ${nodeId} not found in this file. Check the id and the fileKey.`);
+        }
+        const main = node.type === "INSTANCE" ? await node.getMainComponentAsync() : null;
+        return {
+          type: request.type,
+          requestId: request.requestId,
+          data: describeForCodeConnect(node as unknown as NodeLike, main?.id),
         };
       }
       default:
