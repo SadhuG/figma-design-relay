@@ -21,8 +21,8 @@ Figma plugin ──ws://localhost:1994/ws──> leader server ──stdio──
 | `server/` | `bun run build`                           | `tsc` → `dist/`                                               |
 | `plugin/` | `bun run build`                           | two Vite passes: UI, then `main`                              |
 | `plugin/` | `bun run typecheck`                       | `tsc --noEmit`; `bun run build` runs it first                 |
-| `server/` | `bun test`                                | 132 tests: schemas, rpc guards, codegen, assets, Code Connect |
-| `plugin/` | `bun test`                                | 80 tests: scripts, serializer, editor gate                    |
+| `server/` | `bun test`                                | 151 tests: schemas, rpc guards, codegen, assets, Code Connect |
+| `plugin/` | `bun test`                                | 82 tests: scripts, serializer, editor gate                    |
 
 **Bun everywhere — never `npm` or `yarn`.**
 
@@ -84,6 +84,15 @@ Things that cost real time before they were understood:
   node id must send it on `nodeIds` and read `request.nodeIds[0]` in the plugin. Unit tests never
   see this — only the direct leader path is exercised — so a new node-addressed tool needs one
   live probe through a follower.
+- **The relay's `fileKey` is usually not a Figma file key.** Figma exposes `figma.fileKey` only to
+  private plugins, so this plugin connects under a session key starting `unsaved-` (the fresh key
+  after every hot reload is that fallback). Anything that needs the real key — a Code Connect
+  URL, matching a mapping — must treat `unsaved-…` as unknown (`pickFigmaFileKey`) and let the
+  caller pass the key from the file's URL, as `add_code_connect_map`'s `figmaFileKey` does.
+- **Backslashes collapse in the agent's shell heredocs and `bun -e` strings.** Source written
+  that way lost `\\` → `\`, turning `\\b` in a template-string `RegExp` into a backspace and
+  shipping a matcher that never matched. Write regex-bearing source with the Edit/Write tools,
+  and use `String.raw` for `new RegExp` templates.
 
 ## Layout
 
@@ -116,11 +125,11 @@ plugin/src/
 ### Landmarks worth knowing before editing
 
 - `server/src/schema.ts:593` — `toolInputSchemas`, the advertised MCP input shapes.
-- `server/src/schema.ts:986` — `rpcToArgs`, typed `Record<ToolName, …>`. **Adding a key to
+- `server/src/schema.ts:996` — `rpcToArgs`, typed `Record<ToolName, …>`. **Adding a key to
   `toolInputSchemas` without adding its mapper here is a compile error.** That is deliberate; do not
   work around it.
-- `server/src/schema.ts:1070` — `validateRpc`, the follower→leader guard.
-- `server/src/tools.ts:238` — `registerTools`; `:1094` — `renderResponse`, the shared handler wrapper
+- `server/src/schema.ts:1080` — `validateRpc`, the follower→leader guard.
+- `server/src/tools.ts:267` — `registerTools`; `:1131` — `renderResponse`, the shared handler wrapper
   that turns a `BridgeResponse.error` into an MCP error result.
 - `plugin/src/main/editor-gate.ts:7` — `EDIT_REQUEST_TYPES`; `:43` — `requireEditorMode`, which
   takes `editorType` as a parameter rather than reading `figma.editorType`, so the Dev Mode gate is

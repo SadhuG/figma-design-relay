@@ -38,7 +38,7 @@ Every Code Connect mapping addresses its node by URL. Figma writes node ids with
 - Consumes: nothing.
 - Produces: `parseFigmaUrl(url): FigmaTarget | null` and the `FigmaTarget` type. Tasks 3 and 7 import them from `./url.js`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 _server/src/code-connect/url.test.ts — create_
 
@@ -75,12 +75,12 @@ describe("parseFigmaUrl", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `cd server && bun test src/code-connect/url.test.ts`
 Expected: FAIL — `Cannot find module './url.js'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 _server/src/code-connect/url.ts — create_
 
@@ -123,12 +123,12 @@ export const parseFigmaUrl = (url: string): FigmaTarget | null => {
 };
 ```
 
-- [ ] **Step 4: Run the tests and make sure they pass**
+- [x] **Step 4: Run the tests and make sure they pass**
 
 Run: `cd server && bun test src/code-connect/url.test.ts`
 Expected: PASS — 6 pass, 0 fail
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/code-connect/url.ts server/src/code-connect/url.test.ts
@@ -151,7 +151,7 @@ Walking a workspace means walking into `node_modules` unless you say otherwise, 
 - Consumes: nothing.
 - Produces: `discoverCodeConnectFiles(root): Promise<string[]>` returning workspace-relative POSIX paths, and `IGNORED_DIRECTORIES`. Tasks 4, 6 and 7 import them from `./discover.js`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 _server/src/code-connect/discover.test.ts — create_
 
@@ -210,12 +210,12 @@ describe("discoverCodeConnectFiles", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `cd server && bun test src/code-connect/discover.test.ts`
 Expected: FAIL — `Cannot find module './discover.js'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 _server/src/code-connect/discover.ts — create_
 
@@ -289,12 +289,12 @@ export const discoverCodeConnectFiles = async (root: string): Promise<string[]> 
 };
 ```
 
-- [ ] **Step 4: Run the tests and make sure they pass**
+- [x] **Step 4: Run the tests and make sure they pass**
 
 Run: `cd server && bun test src/code-connect/discover.test.ts`
 Expected: PASS — 5 pass, 0 fail
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/code-connect/discover.ts server/src/code-connect/discover.test.ts
@@ -317,7 +317,7 @@ A TypeScript parser would be the obvious tool and is the wrong one here: it is a
 - Consumes: `parseFigmaUrl`, `FigmaTarget` from `./url.js`.
 - Produces: `parseCodeConnect(source, sourcePath): ParseResult`, plus the `Mapping` and `ParseResult` types. Tasks 4, 6, 7 and 8 import them from `./parse.js`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 _server/src/code-connect/parse.test.ts — create_
 
@@ -388,12 +388,12 @@ describe("parseCodeConnect", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `cd server && bun test src/code-connect/parse.test.ts`
 Expected: FAIL — `Cannot find module './parse.js'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 _server/src/code-connect/parse.ts — create_
 
@@ -592,12 +592,12 @@ export const parseCodeConnect = (source: string, sourcePath: string): ParseResul
 };
 ```
 
-- [ ] **Step 4: Run the tests and make sure they pass**
+- [x] **Step 4: Run the tests and make sure they pass**
 
 Run: `cd server && bun test src/code-connect/parse.test.ts`
 Expected: PASS — 7 pass, 0 fail
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/code-connect/parse.ts server/src/code-connect/parse.test.ts
@@ -622,7 +622,7 @@ Discovery plus parsing plus a lookup. The index is rebuilt per call rather than 
 - Consumes: `discoverCodeConnectFiles` from `./discover.js`; `parseCodeConnect`, `Mapping` from `./parse.js`.
 - Produces: `buildCodeConnectIndex(root): Promise<CodeConnectIndex>` and the `CodeConnectIndex` type, whose `lookup(nodeId, fileKey?)` returns `Mapping | undefined`. Tasks 6, 7 and 8 import them from `./index.js`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 _server/src/code-connect/index.test.ts — create_
 
@@ -682,12 +682,12 @@ describe("buildCodeConnectIndex", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `cd server && bun test src/code-connect/index.test.ts`
 Expected: FAIL — `Cannot find module './index.js'`
 
-- [ ] **Step 3: Write the index**
+- [x] **Step 3: Write the index**
 
 _server/src/code-connect/index.ts — create_
 
@@ -750,12 +750,12 @@ export const buildCodeConnectIndex = async (root: string): Promise<CodeConnectIn
 };
 ```
 
-- [ ] **Step 4: Run the tests and make sure they pass**
+- [x] **Step 4: Run the tests and make sure they pass**
 
 Run: `cd server && bun test src/code-connect/index.test.ts`
 Expected: PASS — 5 pass, 0 fail
 
-- [ ] **Step 5: Add the tool schema and RPC mapper**
+- [x] **Step 5: Add the tool schema and RPC mapper**
 
 In `server/src/schema.ts`, add to `toolInputSchemas`:
 
@@ -775,7 +775,7 @@ And to `rpcToArgs`:
   get_code_connect_map: (nodeIds, params) => ({ nodeIds, ...params }),
 ```
 
-- [ ] **Step 6: Register the tool**
+- [x] **Step 6: Register the tool**
 
 In `server/src/tools.ts`, inside `registerTools`:
 
@@ -813,12 +813,12 @@ server.tool(
 );
 ```
 
-- [ ] **Step 7: Verify the build and the suite**
+- [x] **Step 7: Verify the build and the suite**
 
 Run: `cd server && bun run build && bun run test`
 Expected: PASS — no `tsc` errors, every test green
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add server/src/code-connect/index.ts server/src/code-connect/index.test.ts server/src/schema.ts server/src/tools.ts
@@ -842,7 +842,7 @@ To author a mapping you need the component's props and variant axes. Phase 2 alr
 - Consumes: phase 2's `serializeComponentIdentity` output via the serializer; `buildCodeConnectIndex` from `./code-connect/index.js`.
 - Produces: a bridge request `get_component_context` with `params: { nodeId }` returning `{ id, name, key, type, propertyDefinitions, variantAxes, description }`, and the MCP tool that wraps it.
 
-- [ ] **Step 1: Add the plugin request type and case**
+- [x] **Step 1: Add the plugin request type and case**
 
 Add `"get_component_context"` to the `RequestType` union in `plugin/src/main/code.ts`, then add the case before `default:`. The owner narrowing from phase 2 is reused rather than re-derived — reading `componentPropertyDefinitions` off a variant throws.
 
@@ -889,7 +889,7 @@ Add `"get_component_context"` to the `RequestType` union in `plugin/src/main/cod
       }
 ```
 
-- [ ] **Step 2: Add the schema and mapper**
+- [x] **Step 2: Add the schema and mapper**
 
 In `server/src/schema.ts`:
 
@@ -906,7 +906,7 @@ In `server/src/schema.ts`:
   get_context_for_code_connect: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
 ```
 
-- [ ] **Step 3: Register the tool**
+- [x] **Step 3: Register the tool**
 
 ```ts
 server.tool(
@@ -921,7 +921,7 @@ server.tool(
 );
 ```
 
-- [ ] **Step 4: Verify both halves build**
+- [x] **Step 4: Verify both halves build**
 
 Run: `cd server && bun run build && cd ../plugin && bunx tsc --noEmit -p tsconfig.json`
 Expected: PASS — no errors from either
@@ -932,7 +932,7 @@ With the plugin running in a design file, call `get_context_for_code_connect` on
 
 Expected: an error explaining that Code Connect maps components and telling you to select the main component — not a raw type error.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add plugin/src/main/code.ts server/src/schema.ts server/src/tools.ts
@@ -957,7 +957,7 @@ Suggestions are a ranking problem, and the ranking has to be legible: an agent s
 - Consumes: `Mapping` from `./parse.js`; `discoverCodeConnectFiles`, `IGNORED_DIRECTORIES` from `./discover.js`.
 - Produces: `scoreCandidates(figmaName, exports): Suggestion[]` and `findExportedComponents(root): Promise<ExportedComponent[]>`. Task 8 does not use them; only the tool does.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Only the scorer is unit-tested — it holds the judgement. The export scan is directory I/O, proven in step 6.
 
@@ -997,12 +997,12 @@ describe("scoreCandidates", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `cd server && bun test src/code-connect/suggest.test.ts`
 Expected: FAIL — `Cannot find module './suggest.js'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 _server/src/code-connect/suggest.ts — create_
 
@@ -1120,12 +1120,12 @@ export const findExportedComponents = async (root: string): Promise<ExportedComp
 };
 ```
 
-- [ ] **Step 4: Run the tests and make sure they pass**
+- [x] **Step 4: Run the tests and make sure they pass**
 
 Run: `cd server && bun test src/code-connect/suggest.test.ts`
 Expected: PASS — 5 pass, 0 fail
 
-- [ ] **Step 5: Add the schema, mapper and tool**
+- [x] **Step 5: Add the schema, mapper and tool**
 
 In `server/src/schema.ts`:
 
@@ -1151,7 +1151,7 @@ With the plugin open in a design file that has a component matching one of your 
 
 Expected: the matching component ranked first with `evidence` reading `exact name match`, and no file written anywhere.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add server/src/code-connect/suggest.ts server/src/code-connect/suggest.test.ts server/src/schema.ts server/src/tools.ts
@@ -1176,7 +1176,7 @@ This is the only tool in the phase that writes. It writes a **file**, not a clou
 - Consumes: `Mapping` from `./parse.js`; `buildCodeConnectIndex` from `./index.js`.
 - Produces: `renderMappingFile(input): string` and `writeMapping(root, input): Promise<{ file: string; created: boolean }>`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 _server/src/code-connect/write.test.ts — create_
 
@@ -1229,12 +1229,12 @@ describe("renderMappingFile", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `cd server && bun test src/code-connect/write.test.ts`
 Expected: FAIL — `Cannot find module './write.js'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 _server/src/code-connect/write.ts — create_
 
@@ -1324,12 +1324,12 @@ export const writeMapping = async (
 };
 ```
 
-- [ ] **Step 4: Run the tests and make sure they pass**
+- [x] **Step 4: Run the tests and make sure they pass**
 
 Run: `cd server && bun test src/code-connect/write.test.ts`
 Expected: PASS — 5 pass, 0 fail
 
-- [ ] **Step 5: Add the schema, mapper and tool**
+- [x] **Step 5: Add the schema, mapper and tool**
 
 In `server/src/schema.ts`:
 
@@ -1390,7 +1390,7 @@ Call `add_code_connect_map` twice with the same `nodeId` and `file`, then once w
 
 Expected: the first writes; the second refuses, naming the existing mapping; the third refuses, naming the working directory. No file appears outside the workspace.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add server/src/code-connect/write.ts server/src/code-connect/write.test.ts server/src/schema.ts server/src/tools.ts
@@ -1414,7 +1414,7 @@ A mapping nobody reads changes nothing. This wires the index into `get_design_co
 - Consumes: `buildCodeConnectIndex` from `./code-connect/index.js`; `composeDesignContext` from phase 3.
 - Produces: documentation only.
 
-- [ ] **Step 1: Extend the composer**
+- [x] **Step 1: Extend the composer**
 
 Phase 3's `composeDesignContext` takes a `DesignContextInput`. Add `mappings: Mapping[]` to it and emit a section **before** the reference code, because it changes what the agent should write:
 
@@ -1432,7 +1432,7 @@ if (input.mappings.length > 0) {
 }
 ```
 
-- [ ] **Step 2: Feed the index in**
+- [x] **Step 2: Feed the index in**
 
 In the `get_design_context` handler, build the index and collect the mappings for every node id in the serialized tree:
 
@@ -1449,7 +1449,7 @@ collect(tree);
 
 Pass `mappings: mapped` into `composeDesignContext`.
 
-- [ ] **Step 3: Update the phase 3 composer test**
+- [x] **Step 3: Update the phase 3 composer test**
 
 Phase 3's `design-context.test.ts` constructs `DesignContextInput` without `mappings`. Add `mappings: []` to each case, and add one asserting the new section leads:
 
@@ -1474,7 +1474,7 @@ test("puts Code Connect mappings ahead of the reference code", () => {
 });
 ```
 
-- [ ] **Step 4: Run the whole suite and build**
+- [x] **Step 4: Run the whole suite and build**
 
 Run: `cd server && bun run test && bun run build`
 Expected: PASS — every test green, no `tsc` errors
@@ -1485,11 +1485,11 @@ Map a component with `add_code_connect_map`, then call `get_design_context` on a
 
 Expected: the response opens with a Code Connect mappings section naming your component and its source file, above the reference code.
 
-- [ ] **Step 6: Write the guide**
+- [x] **Step 6: Write the guide**
 
 Create `docs/code-connect.md` covering: where mappings live and that they are committed files; the four tools and what each does; the discovery rules (`**/*.figma.{ts,tsx,js,jsx}`, ignored directories, containment); the parser's supported shapes and what it reports as unreadable; why there is no `send_code_connect_mappings` — the bridge's equivalent is `git commit`, which makes the mapping reviewable in a way a cloud record is not; and the hint priority from the spec's R25.
 
-- [ ] **Step 7: Update the README**
+- [x] **Step 7: Update the README**
 
 Add four rows to the tool table:
 
@@ -1506,7 +1506,7 @@ And append to Editing Notes:
 - Code Connect on the bridge is entirely local: mappings are read from and written to `*.figma.ts` files in your repository, never Figma's cloud. There is no `send_code_connect_mappings` equivalent — committing the file is the publish step, which also makes the mapping reviewable.
 ```
 
-- [ ] **Step 8: Format and run everything**
+- [x] **Step 8: Format and run everything**
 
 ```bash
 bun run format
@@ -1516,7 +1516,7 @@ cd ../plugin && bun run test && bunx tsc --noEmit -p tsconfig.json && bun run bu
 
 Expected: PASS — Prettier reports no remaining changes on a second run, both suites green, both builds clean
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add server/src/tools.ts server/src/design-context.test.ts README.md docs/code-connect.md
