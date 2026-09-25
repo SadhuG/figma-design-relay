@@ -73,6 +73,26 @@ describe("toReact instances", () => {
     expect(out).toContain("Figma component: Button/Primary");
     expect(out).toContain("Save changes");
   });
+
+  // R25: a Code Connect mapping outranks every other hint, and the output says
+  // which source it used so a mapped component reads differently from a guess.
+  test("renders a mapped instance as the mapped component and names the mapping", () => {
+    const out = toReact(
+      {
+        id: "4:1",
+        name: "Confirm",
+        type: "INSTANCE",
+        design: { mainComponent: { id: "9:1", key: "btn", name: "Button/Primary" } },
+        children: [{ id: "4:2", name: "Label", type: "TEXT", characters: "Save changes" }],
+      } as unknown as SerializedNode,
+      { mappings: { "4:1": { component: "Button", source: "src/ui/Button.figma.tsx" } } }
+    );
+    expect(out).toContain("{/* Code Connect: Button — src/ui/Button.figma.tsx */}");
+    expect(out).toContain('<Button data-figma-node="4:1">');
+    expect(out).toContain("Save changes");
+    expect(out).toContain("</Button>");
+    expect(out).not.toContain("map with Code Connect");
+  });
 });
 
 describe("toReact real-data hygiene", () => {

@@ -162,4 +162,31 @@ describe("composeDesignContext assets in code", () => {
     expect(text).toContain('<img src="assets/icon-search-1-2.svg"');
     expect(text).not.toContain("#123456");
   });
+
+  test("puts Code Connect mappings ahead of the reference code", () => {
+    const [first] = composeDesignContext({
+      tree,
+      format: "react",
+      assets: [],
+      mappings: {
+        "1:1": {
+          component: "Card",
+          fileKey: "AbC",
+          nodeId: "7:7",
+          source: "src/ui/Card.figma.tsx",
+          importPath: "src/ui/Card",
+          props: [],
+        },
+      },
+    });
+    const text = (first as { text: string }).text;
+    expect(text).toContain("## Code Connect mappings");
+    expect(text).toContain("`1:1` Card → `Card` from `src/ui/Card`");
+    expect(text.indexOf("Code Connect mappings")).toBeLessThan(text.indexOf("Reference code"));
+  });
+
+  test("omits the Code Connect section when nothing is mapped", () => {
+    const [first] = composeDesignContext({ tree, format: "react", assets: [], mappings: {} });
+    expect((first as { text: string }).text).not.toContain("Code Connect");
+  });
 });

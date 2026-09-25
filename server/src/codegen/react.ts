@@ -17,6 +17,18 @@ export interface ReactOptions {
    * Such a node renders as an image reference; its paths are not emitted.
    */
   assets?: Record<string, string>;
+  /**
+   * Node id → Code Connect mapping for instances the workspace already
+   * implements. Such an instance renders as the mapped component.
+   */
+  mappings?: Record<string, CodeConnectRef>;
+}
+
+/** The part of a Code Connect mapping the generator needs. */
+export interface CodeConnectRef {
+  component: string;
+  /** The mapping file, so the agent can read how Figma properties map to props. */
+  source: string;
 }
 
 /**
@@ -128,7 +140,8 @@ const render = (
   node: SerializedNode,
   depth: number,
   indent: number,
-  assets: Record<string, string>
+  assets: Record<string, string>,
+  mappings: Record<string, CodeConnectRef>
 ): string[] => {
   const pad = " ".repeat(depth * indent);
   const lines: string[] = [];
@@ -146,6 +159,22 @@ const render = (
   // An instance is a placeholder for a codebase component the generator must
   // not invent — but its content (the button label, the nested icon) is still
   // what the agent has to render, so the children are emitted inside it.
+  // A mapping outranks every other hint: the workspace already has this
+  // component, so the code names it rather than a placeholder.
+  const mapped = node.type === "INSTANCE" ? mappings[node.id] : undefined;
+  if (mapped) {
+    lines.push(`${pad}{/* Code Connect: ${mapped.component} — ${mapped.source} */}`);
+    const inner = node.children ?? [];
+    if (inner.length === 0) {
+      lines.push(`${pad}<${mapped.component} data-figma-node="${node.id}" />`);
+      return lines;
+    }
+    lines.push(`${pad}<${mapped.component} data-figma-node="${node.id}">`);
+    for (const child of inner) lines.push(...render(child, depth + 1, indent, assets, mappings));
+    lines.push(`${pad}</${mapped.component}>`);
+    return lines;
+  }
+
   if (node.type === "INSTANCE" && node.design?.mainComponent?.name) {
     lines.push(
       `${pad}{/* Figma component: ${componentLabel(node.design.mainComponent)} — map with Code Connect */}`
@@ -156,7 +185,7 @@ const render = (
       return lines;
     }
     lines.push(`${pad}<div${attributes(node)} data-figma-node="${node.id}">`);
-    for (const child of inner) lines.push(...render(child, depth + 1, indent, assets));
+    for (const child of inner) lines.push(...render(child, depth + 1, indent, assets, mappings));
     lines.push(`${pad}</div>`);
     return lines;
   }
@@ -177,7 +206,7 @@ const render = (
   }
 
   lines.push(`${pad}<div${attributes(node)}>`);
-  for (const child of children) lines.push(...render(child, depth + 1, indent, assets));
+  for (const child of children) lines.push(...render(child, depth + 1, indent, assets, mappings));
   lines.push(`${pad}</div>`);
   return lines;
 };
@@ -185,8 +214,8 @@ const render = (
 /**
  * Renders a serialized tree as React reference code.
  * @param node - The serialized root.
- * @param options - Indent width and the exported-asset map.
+ * @param options - Indent width, the exported-asset map and the Code Connect mappings.
  * @returns A JSX string, deterministic for a given tree.
  */
 export const toReact = (node: SerializedNode, options: ReactOptions = {}): string =>
-  render(node, 0, options.indent ?? 2, options.assets ?? {}).join("\n");
+  render(node, 0, options.indent ?? 2, options.assets ?? {}, options.mappings ?? {}).join("\n");

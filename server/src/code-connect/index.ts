@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { discoverCodeConnectFiles } from "./discover.js";
+import type { SerializedNode } from "../codegen/tokens.js";
 import { parseCodeConnect, type Mapping } from "./parse.js";
 
 export interface CodeConnectIndex {
@@ -51,4 +52,38 @@ export const buildCodeConnectIndex = async (root: string): Promise<CodeConnectIn
   };
 
   return { mappings, errors, filesScanned: files.length, lookup };
+};
+
+/**
+ * Finds the mapping behind every node in a serialized design tree.
+ *
+ * A mapping targets a COMPONENT or COMPONENT_SET, but a design is made of
+ * instances with ids of their own — so an instance is matched through its
+ * main component's set first (where Code Connect mappings usually point), then
+ * through the main component itself.
+ * @param tree - The serialized root.
+ * @param index - The workspace's Code Connect index.
+ * @param fileKey - The file the tree came from, when known.
+ * @returns Design node id → mapping, for mapped nodes only.
+ */
+export const mappingsForTree = (
+  tree: SerializedNode,
+  index: Pick<CodeConnectIndex, "lookup">,
+  fileKey?: string
+): Record<string, Mapping> => {
+  const found: Record<string, Mapping> = {};
+  const visit = (node: SerializedNode): void => {
+    const main = node.design?.mainComponent;
+    const mapping =
+      node.type === "INSTANCE" && main
+        ? ((main.setId ? index.lookup(main.setId, fileKey) : undefined) ??
+          index.lookup(main.id, fileKey))
+        : node.type === "COMPONENT" || node.type === "COMPONENT_SET"
+          ? index.lookup(node.id, fileKey)
+          : undefined;
+    if (mapping) found[node.id] = mapping;
+    for (const child of node.children ?? []) visit(child);
+  };
+  visit(tree);
+  return found;
 };

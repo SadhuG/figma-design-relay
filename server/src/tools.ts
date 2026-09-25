@@ -43,7 +43,7 @@ import {
   findExportableNodes,
   type AssetRecord,
 } from "./assets.js";
-import { buildCodeConnectIndex } from "./code-connect/index.js";
+import { buildCodeConnectIndex, mappingsForTree } from "./code-connect/index.js";
 import type { Mapping } from "./code-connect/parse.js";
 import { findExportedComponents, scoreCandidates } from "./code-connect/suggest.js";
 import { writeMapping } from "./code-connect/write.js";
@@ -128,7 +128,20 @@ export interface DesignContextInput {
   notes?: string[];
   /** Set when the caller asked for assets, so a depth-limited tree can say what it may have missed. */
   assetDir?: string;
+  /** Design node id → the Code Connect mapping that implements it. */
+  mappings?: Record<string, Mapping>;
 }
+
+/** Node id → name for every node in the tree. */
+const nodeNames = (tree: SerializedNode): Record<string, string> => {
+  const names: Record<string, string> = {};
+  const visit = (node: SerializedNode): void => {
+    names[node.id] = node.name;
+    for (const child of node.children ?? []) visit(child);
+  };
+  visit(tree);
+  return names;
+};
 
 const tokenRow = (token: TokenUse): string =>
   `- \`${token.name}\` (${token.kind}, ${token.property}) — used by ${token.usedBy.length} node(s)`;
@@ -158,10 +171,25 @@ export function composeDesignContext(input: DesignContextInput): ContentBlock[] 
   }
   if (notes.length > 0) sections.push(notes.join("\n"));
 
+  // Ahead of the code, because it changes what the agent should write.
+  const mapped = Object.entries(input.mappings ?? {});
+  if (mapped.length > 0) {
+    const names = nodeNames(input.tree);
+    const rows = mapped
+      .map(
+        ([id, mapping]) =>
+          `- \`${id}\` ${names[id] ?? ""} → \`${mapping.component}\` from \`${mapping.importPath ?? "(import not found)"}\` — mapping in \`${mapping.source}\``
+      )
+      .join("\n");
+    sections.push(
+      `## Code Connect mappings\n\nThese nodes are already implemented by components in this workspace. Use those components — do not generate equivalents. Each mapping file shows how the Figma properties map to props.\n\n${rows}`
+    );
+  }
+
   // Exported nodes render as file references, so the code never redraws an icon.
   const assetsById = Object.fromEntries(input.assets.map((asset) => [asset.nodeId, asset.file]));
   sections.push(
-    `## Reference code (${input.format})\n\nAdapt this to the target project's stack — it is a reference, not final code.\n\n\`\`\`\n${generateCode(input.tree, input.format, { assets: assetsById })}\n\`\`\``
+    `## Reference code (${input.format})\n\nAdapt this to the target project's stack — it is a reference, not final code.\n\n\`\`\`\n${generateCode(input.tree, input.format, { assets: assetsById, mappings: input.mappings })}\n\`\`\``
   );
 
   if (tokens.length > 0) {
@@ -339,6 +367,23 @@ export function registerTools(server: McpServer, node: Node, port: number): void
           notes.push(`Screenshot unavailable: ${shot.error ?? "the export returned nothing"}.`);
         }
 
+        // A broken mapping file must not cost the agent the design, but it must
+        // not pass silently either: a missing mapping reads as "generate one".
+        let mappings: Record<string, Mapping> = {};
+        try {
+          const index = await buildCodeConnectIndex(process.cwd());
+          mappings = mappingsForTree(tree, index, await resolveFileKey(node, port, fileKey));
+          if (index.errors.length > 0) {
+            notes.push(
+              `Some Code Connect mappings could not be read, so a component below may be mapped without saying so:\n${index.errors.join("\n")}`
+            );
+          }
+        } catch (err) {
+          notes.push(
+            `Code Connect mappings unavailable: ${err instanceof Error ? err.message : String(err)}.`
+          );
+        }
+
         return {
           content: composeDesignContext({
             tree,
@@ -347,6 +392,7 @@ export function registerTools(server: McpServer, node: Node, port: number): void
             screenshot: first ? { base64: first.base64, format: "PNG" } : undefined,
             notes,
             assetDir,
+            mappings,
           }),
         };
       } catch (err) {

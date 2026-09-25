@@ -35,13 +35,21 @@ The result is a multi-part MCP result, always in this order:
 
 ### Sections of the text block
 
-The text block is Markdown with up to three `##` sections, in this order,
-preceded by any caveats (partial selection, missing screenshot) as plain lines.
-Sections with nothing to say are omitted.
+The text block is Markdown with up to five `##` sections, in this order,
+preceded by any caveats (partial selection, missing screenshot, unreadable Code
+Connect files) as plain lines. Sections with nothing to say are omitted.
+
+**`## Code Connect mappings`** — one row per node in the subtree that a
+Code Connect file in the workspace maps: the node, the component, where to
+import it from, and the mapping file. It comes before the code because it
+changes what the agent should write. See [code-connect.md](code-connect.md).
 
 **`## Reference code (<format>)`** — the generated code in a fenced block.
 
-- Instances are emitted as a placeholder `<div data-figma-node="…">` preceded
+- A mapped instance (`react` only) renders as its component, preceded by
+  `{/* Code Connect: Button — src/ui/Button.figma.tsx */}`, with its children
+  inside it.
+- Other instances are emitted as a placeholder `<div data-figma-node="…">` preceded
   by a comment naming the main component — the component set's name with the
   variant as detail (`{/* Figma component: Button (Size=lg, Type=Secondary) —
 map with Code Connect */}`) — with the instance's own children, the label
@@ -78,9 +86,10 @@ subtree contained something exportable.
 Each property in the generated code comes from the most specific source
 available, in this order:
 
-1. **Code Connect mapping** — _phase 4, not yet implemented_. When it lands, a
-   mapped instance renders as the real codebase component and the response says
-   so.
+1. **Code Connect mapping** — a mapped instance renders as the real codebase
+   component, and the comment above it says `Code Connect` rather than
+   `Figma component … map with Code Connect`, so a mapped component never reads
+   like a guessed one. See [code-connect.md](code-connect.md).
 2. **Component identity** — an instance's main component name, surfaced as a
    comment so the agent can tell a component from a plain frame.
 3. **Style name** — a named text style, surfaced as a comment.

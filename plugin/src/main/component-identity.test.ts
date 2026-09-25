@@ -95,13 +95,15 @@ describe("serializeInstanceIdentity", () => {
         id: "1:2",
         key: "variantkey",
         name: "Size=M, Type=Primary",
-        parent: { type: "COMPONENT_SET", name: "Button" },
+        parent: { id: "1:1", type: "COMPONENT_SET", name: "Button" },
       }),
     });
+    // setId is what a Code Connect mapping to the set is looked up by.
     expect(out?.mainComponent).toEqual({
       id: "1:2",
       key: "variantkey",
       name: "Size=M, Type=Primary",
+      setId: "1:1",
       setName: "Button",
     });
   });

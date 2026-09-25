@@ -27,6 +27,8 @@ export interface ComponentRef {
    * ("Button") is the one an agent needs.
    */
   setName?: string;
+  /** The component set's id when the main component is a variant. */
+  setId?: string;
 }
 
 export interface ComponentIdentity {
@@ -40,7 +42,7 @@ export interface MainComponentLike {
   id: string;
   key?: string;
   name?: string;
-  parent?: { type: string; name?: string } | null;
+  parent?: { id?: string; type: string; name?: string } | null;
 }
 
 export interface InstanceLike {
@@ -102,6 +104,7 @@ export const serializeInstanceIdentity = async (
   if (main) {
     identity.mainComponent = { id: main.id, key: main.key, name: main.name };
     if (main.parent?.type === "COMPONENT_SET" && typeof main.parent.name === "string") {
+      if (main.parent.id) identity.mainComponent.setId = main.parent.id;
       identity.mainComponent.setName = main.parent.name;
     }
   }

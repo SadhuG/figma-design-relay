@@ -116,6 +116,10 @@ If you want to know more about how it works, read the [How it works](#how-it-wor
 | `scroll_and_zoom_into_view`    | Frame the viewport around the given nodes (works in Dev Mode)                                                                              |
 | `delete_nodes`                 | Delete nodes with explicit confirmation                                                                                                    |
 | `run_script`                   | Execute JavaScript against the Figma Plugin API — the escape hatch for anything the other tools do not cover ([guide](docs/run-script.md)) |
+| `get_code_connect_map`         | Map Figma components to workspace components, read from local `*.figma.tsx` files ([guide](docs/code-connect.md))                          |
+| `get_context_for_code_connect` | A component's properties and variant axes, for authoring a mapping                                                                         |
+| `get_code_connect_suggestions` | Propose mappings by matching Figma component names against workspace exports                                                               |
+| `add_code_connect_map`         | Write a Code Connect mapping file into the workspace — a local file, not a Figma cloud record                                              |
 
 All tools accept an optional `fileKey` parameter when multiple Figma files are connected. Use `list_files` to discover connected files and their keys.
 
@@ -132,6 +136,7 @@ All tools accept an optional `fileKey` parameter when multiple Figma files are c
 - `run_script` executes agent-authored JavaScript with the full Plugin API in scope. It is the escape hatch for components, variables, styles, boolean operations, prototyping, and any other API the dedicated tools do not cover. Unlike the dedicated tools it is **not atomic** — a script that throws part-way leaves its earlier mutations in the file, because the Plugin API has no rollback. See [docs/run-script.md](docs/run-script.md) for the full contract, limits, and gotchas.
 - Serialized nodes carry design-system identity, not just geometry: instances report their main component and set properties, fills bound to variables report the token name, named styles report the style name, and auto-layout children report hug/fill intent. Fields are omitted when a node carries nothing for them, so plain nodes serialize exactly as before. See [docs/serialized-nodes.md](docs/serialized-nodes.md).
 - `get_design_context` exports icons and images as files under `assetDir` rather than returning expiring URLs, because a committed file is what code you keep actually needs. The path must stay inside the MCP server working directory. See [docs/design-context.md](docs/design-context.md) for the response contract.
+- Code Connect on the relay is entirely local: mappings are read from and written to `*.figma.tsx` files in your repository, never Figma's cloud. There is no `send_code_connect_mappings` equivalent — committing the file is the publish step, which also makes the mapping reviewable. Mapped components show up at the top of `get_design_context`. See [docs/code-connect.md](docs/code-connect.md).
 
 ### What You Can Build
 
@@ -206,8 +211,8 @@ bun run format:check  # verify formatting without writing (useful in CI)
 ### Tests and type-checking
 
 ```bash
-cd server && bun test       # schemas, /rpc guards, codegen, content blocks, asset export
-cd plugin && bun test       # run_script, serializer and its helpers, editor gate
+cd server && bun test       # schemas, /rpc guards, codegen, content blocks, asset export, Code Connect
+cd plugin && bun test       # run_script, serializer and its helpers, Code Connect context, editor gate
 cd plugin && bun run typecheck   # tsc --noEmit; also runs as part of `bun run build`
 ```
 
@@ -235,6 +240,7 @@ Figma-Design-Relay/
         ├── content.ts    # Text and image blocks for tool results
         ├── assets.ts     # Exports design assets into the workspace
         ├── codegen/      # Tokens and React / HTML / CSS reference code
+        ├── code-connect/ # Reads, suggests and writes local Code Connect mappings
         └── types.ts      # Shared types
 ```
 
