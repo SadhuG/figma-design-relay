@@ -184,3 +184,34 @@ describe("writeMapping imports", () => {
     expect(written.match(/import \{ Icons \}/g)).toHaveLength(1);
   });
 });
+
+describe("writeMapping links", () => {
+  // A cloned repo can hold a link to a file that does not exist yet. Reading
+  // it fails, so it looks new — and a plain write would follow it out.
+  test("refuses a dangling link as the target and writes nothing outside", async () => {
+    const { symlink, stat } = await import("node:fs/promises");
+    const root = await mkdtemp(path.join(tmpdir(), "cc-link-"));
+    const outside = await mkdtemp(path.join(tmpdir(), "cc-link-out-"));
+    const escaped = path.join(outside, "Escaped.figma.tsx");
+    try {
+      try {
+        await symlink(escaped, path.join(root, "Button.figma.tsx"));
+      } catch {
+        return; // Symlink creation needs a privilege Windows does not grant by default.
+      }
+      await expect(
+        writeMapping(root, {
+          component: "Button",
+          importPath: "./Button",
+          url: "https://www.figma.com/design/AbC/DS?node-id=1-2",
+          props: [],
+          file: "Button.figma.tsx",
+        })
+      ).rejects.toThrow(/link/);
+      await expect(stat(escaped)).rejects.toThrow();
+    } finally {
+      await rm(root, { recursive: true, force: true });
+      await rm(outside, { recursive: true, force: true });
+    }
+  });
+});

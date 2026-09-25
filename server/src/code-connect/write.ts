@@ -1,4 +1,4 @@
-import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { buildCodeConnectIndex } from "./index.js";
 import { escapeRegExp, parseCodeConnect } from "./parse.js";
@@ -108,6 +108,18 @@ export const writeMapping = async (
     );
   }
 
+  // A link is refused outright: one pointing at a file that does not exist yet
+  // reads as missing, and a plain write would then follow it out.
+  const link = await lstat(target).then(
+    (stats) => stats.isSymbolicLink(),
+    () => false
+  );
+  if (link) {
+    throw new Error(
+      `file "${input.file}" is a link. Write mappings to a regular file inside the workspace.`
+    );
+  }
+
   let existing: string | null = null;
   try {
     existing = await readFile(target, "utf8");
@@ -118,7 +130,8 @@ export const writeMapping = async (
   if (existing === null) {
     await mkdir(path.dirname(target), { recursive: true });
     if (!inside(await realpath(path.dirname(target)))) escapes();
-    await writeFile(target, renderMappingFile(input));
+    // "wx" fails rather than follow anything that appeared since the check.
+    await writeFile(target, renderMappingFile(input), { flag: "wx" });
     return { file: relative, created: true };
   }
 
