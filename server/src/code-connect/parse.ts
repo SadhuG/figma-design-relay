@@ -139,6 +139,9 @@ const readProps = (source: string, mask: string, from: number, to: number): stri
 
 const IMPORT = /\bimport\s+([^;]*?)\s+from\s+["']([^"']+)["']/g;
 
+/** Escapes a string for literal use inside a `RegExp`. */
+export const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 /**
  * Finds where `component` is imported from. `Icons.Search` is matched by its
  * root identifier, `Icons`. Imports inside comments are skipped.
@@ -150,7 +153,7 @@ const readImportPath = (
   sourcePath: string
 ): string | undefined => {
   const root = component.split(".")[0];
-  const named = new RegExp(`(^|[^\w$])${root.replace(/\$/g, "\$")}([^\w$]|$)`);
+  const named = new RegExp(String.raw`(^|[^\w$])${escapeRegExp(root)}([^\w$]|$)`);
   for (const match of source.matchAll(IMPORT)) {
     if (mask[match.index] !== "i" || !named.test(match[1])) continue;
     const specifier = match[2];

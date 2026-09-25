@@ -90,3 +90,14 @@ figma.connect(B, "https://figma.com/design/K/D?node-id=3-4");`,
     expect(result.errors[0]).toMatch(/rest of the file/);
   });
 });
+
+describe("parseCodeConnect import paths", () => {
+  test("does not take a longer name that shares the prefix", () => {
+    const [mapping] = parseCodeConnect(
+      'import { ButtonGroup } from "./group";\nimport { Button } from "./button";\n' +
+        'figma.connect(Button, "https://figma.com/design/K/D?node-id=1-2");',
+      "ui/Button.figma.tsx"
+    ).mappings;
+    expect(mapping.importPath).toBe("ui/button");
+  });
+});

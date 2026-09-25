@@ -154,3 +154,33 @@ describe("writeMapping", () => {
     ).rejects.toThrow(/could not read/);
   });
 });
+
+describe("writeMapping imports", () => {
+  let root: string;
+
+  beforeEach(async () => {
+    root = await mkdtemp(path.join(tmpdir(), "cc-imports-"));
+  });
+
+  afterEach(async () => {
+    await rm(root, { recursive: true, force: true });
+  });
+
+  test("does not import a component the file already imports", async () => {
+    const base = {
+      component: "Icons.Search",
+      importPath: "./icons",
+      url: "https://www.figma.com/design/AbC/DS?node-id=1-2",
+      props: [],
+      file: "Icons.figma.tsx",
+    };
+    await writeMapping(root, base);
+    await writeMapping(root, {
+      ...base,
+      component: "Icons.Close",
+      url: "https://www.figma.com/design/AbC/DS?node-id=3-4",
+    });
+    const written = await readFile(path.join(root, "Icons.figma.tsx"), "utf8");
+    expect(written.match(/import \{ Icons \}/g)).toHaveLength(1);
+  });
+});

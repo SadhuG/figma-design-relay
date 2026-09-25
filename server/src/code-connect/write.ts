@@ -1,7 +1,7 @@
 import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { buildCodeConnectIndex } from "./index.js";
-import { parseCodeConnect } from "./parse.js";
+import { escapeRegExp, parseCodeConnect } from "./parse.js";
 import { parseFigmaUrl } from "./url.js";
 
 export interface MappingInput {
@@ -134,7 +134,10 @@ export const writeMapping = async (
   // The component must be imported for the appended call to compile.
   let next = existing.trimEnd();
   const name = importName(input.component);
-  const alreadyImported = new RegExp(`\bimport\s[^;]*\b${name}\b[^;]*\sfrom\s`).test(next);
+  const alreadyImported = new RegExp(
+    String.raw`\bimport\s[^;]*?(^|[^\w$])${escapeRegExp(name)}([^\w$]|$)[^;]*?\sfrom\s`,
+    "m"
+  ).test(next);
   if (!alreadyImported) {
     // After the end of the last import statement, which may span lines.
     let end = 0;
