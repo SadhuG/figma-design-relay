@@ -5,12 +5,12 @@ libraries the file can use, and how to bring a published asset into the file. Th
 **narrower than Figma's own MCP server**, because the Plugin API exposes much less than Figma's REST
 and internal APIs do. This page says exactly what each tool can and cannot reach.
 
-| Tool                   | What it does                                                                                   | Writes? |
-| ---------------------- | ---------------------------------------------------------------------------------------------- | ------- |
-| `whoami`               | The signed-in user as `{ id, name, photoUrl }`, or `user: null` with a note                    | no      |
-| `get_libraries`        | Enabled libraries by their published variable collections; one collection's keys               | no      |
-| `import_library_asset` | Import a published component, component set, style or variable by key                          | yes     |
-| `search_design_system` | Search components and instances on the current page (or every page), plus variable collections | no      |
+| Tool                   | What it does                                                                         | Writes? |
+| ---------------------- | ------------------------------------------------------------------------------------ | ------- |
+| `whoami`               | The signed-in user as `{ id, name, photoUrl }`, or `user: null` with a note          | no      |
+| `get_libraries`        | Enabled libraries by their published variable collections; one collection's keys     | no      |
+| `import_library_asset` | Import a published component, component set, style or variable by key                | yes     |
+| `search_design_system` | Search components and instances in every open design file, plus variable collections | no      |
 
 ## Permissions
 
@@ -29,7 +29,8 @@ what to do next, never Figma's raw message:
 > Figma's Development menu.
 
 Every other relay tool keeps working either way. `search_design_system` does not fail at all; it
-falls back to the current page and reports why under `libraryError`.
+falls back to local components and reports why under `libraryError`, once however many files were
+searched.
 
 ## `whoami`
 
@@ -125,9 +126,7 @@ By default only the **current page** is searched. The plugin runs with dynamic p
 other pages are not in memory; `allPages: true` calls `figma.loadAllPagesAsync()` and then searches
 the whole document. That is slow on a large file — and the load counts against the bridge's
 three-minute request timeout — so it is opt-in, and the note on a current-page result suggests it.
-`searched` then reads `components and component instances on every page`. Other connected files
-are never searched: route to one with `fileKey`.
-
+`searched` then reads `components and component instances on every page`.
 Every hit carries its `kind`, its `key`, and a `score`:
 
 | Score | Match                                    | Example for `button`     |
@@ -149,18 +148,70 @@ file that holds it, use its node id instead.
 Hits are ranked and capped at `limit` (default 50, at most 200). When some were cut, `total` says
 how many matched and the note says so.
 
+### Every open file at once
+
+With several files open, one search covers **every open design file**. FigJam boards and Slides
+decks are skipped — they hold no design-system components — and the response lists them under
+`files.skipped`. To search fewer files, pass `files`: a list of file names as `list_files` shows
+them (case and surrounding spaces are ignored) or fileKeys, at most 20. When many files are open, an
+agent should read their names first and pass only the relevant ones — "the design system file" —
+rather than paying for every file. `fileKey` still means exactly one file, and cannot be combined
+with `files`.
+
+Every file is asked at the same time, with the same `query`, `limit` and `allPages`, so a search
+takes about as long as the slowest file. The answers are merged:
+
+- **One entry per component.** Hits are matched across files by their `key` (and `kind`); a hit
+  without a key is never merged.
+- **The original wins.** When one of the open files is where the component was built, the entry
+  points there — `fileKey`, `fileName` and `id` are that file's — because that is where its
+  variants and properties live. With no original open, the entry is the first file's library copy
+  (`remote: true`).
+- **`alsoIn` lists every other file** it appears in, with that file's node id: a
+  where-is-this-used inventory. A library variable collection appears once, with the other files
+  under `alsoIn`.
+- Entries are ranked by `score`, then originals before library copies, then name, and capped at
+  `limit`; `total` is the merged count when some were cut.
+
+A file that fails — its plugin was closed, hot-reloaded or timed out — does not fail the search. It
+is listed under `files.skipped` with the reason and, for a dropped connection or timeout, "run the
+plugin in that file again". The search fails only when no file could answer, and then its error
+names every file's reason.
+
 The response states its own reach, so an agent never has to guess it:
 
 ```json
 {
   "results": [
-    { "id": "18:8013", "name": "Button", "kind": "componentSet", "key": "48ba…", "score": 1 }
+    {
+      "id": "18:8013",
+      "name": "Button",
+      "kind": "componentSet",
+      "key": "48ba…",
+      "score": 1,
+      "fileKey": "unsaved-3f1c…",
+      "fileName": "Acme Design System",
+      "alsoIn": [{ "fileKey": "unsaved-9a2e…", "fileName": "Checkout Screens", "id": "402:77" }]
+    }
   ],
   "searched": [
     "components and component instances on the current page",
     "published variable collections"
   ],
-  "note": "This search covers only what is listed under `searched`. …"
+  "files": {
+    "searched": [
+      { "fileKey": "unsaved-3f1c…", "fileName": "Acme Design System" },
+      { "fileKey": "unsaved-9a2e…", "fileName": "Checkout Screens" }
+    ],
+    "skipped": [
+      {
+        "fileKey": "unsaved-77d0…",
+        "fileName": "Q3 Brainstorm",
+        "reason": "Skipped: a FigJam board. Only design files hold components to search."
+      }
+    ]
+  },
+  "note": "This search covers only what is listed under `searched`, in the files under `files.searched`. …"
 }
 ```
 
@@ -170,7 +221,8 @@ carries the reason, while the local results are still returned.
 Instances are resolved to their main components 64 at a time rather than all at once. If a whole
 batch of 64 fails, the sandbox cannot load main components at all — the usual cause is a plugin
 hot-reloaded after a rebuild, where each lookup takes seconds and then throws — so the remaining
-instances are skipped and `instanceError` says to relaunch the plugin. A single broken instance is
+instances are skipped and `instanceError` says to relaunch the plugin — or, when several files were
+searched, `instanceErrors` names each file it happened in. A single broken instance is
 skipped silently.
 
 ## What has been verified against real Figma

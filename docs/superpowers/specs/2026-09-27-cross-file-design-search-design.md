@@ -1,6 +1,8 @@
 # Spec: Searching the design system across every open file
 
-**Status:** Approved design, not yet planned or built.
+**Status:** Delivered in 0.7.5 by
+[`../plans/2026-09-27-cross-file-design-search.md`](../plans/2026-09-27-cross-file-design-search.md).
+The live check (X10) is still open.
 **Date:** 2026-09-27
 **Closes:** the last gap in R40 of the
 [parity spec](2026-09-01-official-figma-mcp-parity.md) — "components present or instantiated in

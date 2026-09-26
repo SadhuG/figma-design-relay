@@ -65,6 +65,7 @@ server/src/
   codegen/      tokens, then React / HTML / CSS reference code behind index.ts's dispatcher
   code-connect/ discovers, parses, indexes, suggests and writes local *.figma.tsx mappings
   mermaid/      parse.ts (the strict Mermaid subset) + layout.ts (positions) for generate_diagram
+  search/       search_design_system across open files: select-files.ts, merge.ts, index.ts (fan-out)
   types.ts      shared types; LOOPBACK_HOST lives here
 server/.smoke/  live harness: probe.mjs (run_script), call.mjs (any tool) — see its README
 plugin/dev-slot.ts        dev slot rules + the dev manifest both Vite configs emit into dist/
