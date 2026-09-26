@@ -73,7 +73,9 @@ describe("selectSearchFiles with files", () => {
     expect(skipped).toHaveLength(1);
     expect(skipped[0].fileName).toBe("Acme DS v2");
     expect(skipped[0].reason).toContain("Not open");
-    expect(skipped[0].reason).toContain('"Acme Design System", "Checkout Screens"');
+    expect(skipped[0].reason).toContain(
+      '"Acme Design System" (fileKey: k-sys), "Checkout Screens"'
+    );
   });
 
   test("still skips a named FigJam board", () => {
@@ -95,5 +97,19 @@ describe("selectSearchFiles with fileKey", () => {
     expect(selected).toEqual([]);
     expect(skipped[0].reason).toContain('No plugin connected for fileKey "nope"');
     expect(skipped[0].reason).toContain('"Acme Design System"');
+  });
+});
+
+// Final review fixes.
+describe("selectSearchFiles after review", () => {
+  test("lists each open file's fileKey, as the old bridge error did", () => {
+    const { skipped } = selectSearchFiles([system], { fileKey: "nope" });
+    expect(skipped[0].reason).toContain('"Acme Design System" (fileKey: k-sys)');
+  });
+
+  test("tells the agent what to do about a skipped FigJam board", () => {
+    const { skipped } = selectSearchFiles([board], {});
+    expect(skipped[0].reason).toContain("Open a design file");
+    expect(skipped[0].reason).toContain("pass its fileKey");
   });
 });

@@ -242,3 +242,67 @@ describe("mergeSearchResults files and errors", () => {
     expect(all.note).not.toContain("allPages: true");
   });
 });
+
+// Final review fixes.
+describe("mergeSearchResults after review", () => {
+  const hits = (names: string[]): FileHit[] =>
+    names.map((name) => ({ id: name, name, kind: "component", key: name, score: 1 }));
+
+  test("keeps a single file's own total when its plugin already cut the list", () => {
+    const merged = mergeSearchResults({
+      outcomes: [answered(system, hits(["A", "B"]), { total: 120 })],
+      skipped: [],
+      limit: 2,
+    });
+    expect(merged.total).toBe(120);
+    expect(merged.note).toContain("Only the 2 strongest of 120 hits");
+  });
+
+  test("reports a lower bound when one of several files was cut", () => {
+    const merged = mergeSearchResults({
+      outcomes: [
+        answered(system, hits(["A", "B"]), { total: 120 }),
+        answered(checkout, hits(["C"])),
+      ],
+      skipped: [],
+      limit: 2,
+    });
+    expect(merged.total).toBe(120);
+    expect(merged.note).toContain("Only the 2 strongest of at least 120 hits");
+  });
+
+  test("breaks score ties by name the way the plugin does", () => {
+    const merged = mergeSearchResults({
+      outcomes: [answered(system, hits(["Banana", "apple"]))],
+      skipped: [],
+    });
+    expect(merged.results.map((hit) => hit.name)).toEqual(["apple", "Banana"]);
+  });
+
+  test("skips a file whose hits are malformed instead of failing the search", () => {
+    const merged = mergeSearchResults({
+      outcomes: [
+        answered(system, [button("1:1")]),
+        { file: checkout, result: { results: [null], searched: [] } },
+      ],
+      skipped: [],
+    });
+    expect(merged.results).toHaveLength(1);
+    expect(merged.files.skipped[0]).toMatchObject({
+      fileName: "Checkout Screens",
+      reason: expect.stringContaining("Rebuild"),
+    });
+  });
+
+  test.each([
+    ["Unknown request type: search_design_system", "Rebuild the plugin"],
+    ['No plugin connected for fileKey "k-co".', "Run the plugin in that file again"],
+    ["The operation was aborted due to timeout", "Run the plugin in that file again"],
+  ])("says what to do after %p", (error, advice) => {
+    const merged = mergeSearchResults({
+      outcomes: [answered(system, []), { file: checkout, error }],
+      skipped: [],
+    });
+    expect(merged.files.skipped[0].reason).toContain(advice);
+  });
+});

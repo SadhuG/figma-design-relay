@@ -15,6 +15,8 @@ export interface FileHit {
 interface FileSearchResult {
   results: FileHit[];
   searched: string[];
+  /** Set by the plugin when it cut its own list to `limit`. */
+  total?: number;
   libraryError?: string;
   instanceError?: string;
 }
@@ -54,22 +56,44 @@ export interface MergedSearchResult {
 export const DEFAULT_SEARCH_LIMIT = 50;
 
 // A dropped socket or a timeout is fixed by rerunning the plugin; say so.
-const RECONNECT = /disconnect|timed out|not connected|connection error/i;
+const RECONNECT =
+  /disconnect|timed out|timeout|abort|not connected|no plugin connected|connection error/i;
+// A plugin build older than the tool does not know the request at all.
+const OUTDATED = /unknown request type/i;
+const REBUILD = "Rebuild the plugin and run it in that file again.";
 
+const isHit = (value: unknown): value is FileHit => {
+  const hit = value as Partial<FileHit> | null;
+  return (
+    typeof hit === "object" &&
+    hit !== null &&
+    typeof hit.id === "string" &&
+    typeof hit.name === "string" &&
+    typeof hit.kind === "string" &&
+    typeof hit.score === "number"
+  );
+};
+
+// Checked hit by hit: one malformed entry must skip its file, not crash the whole search.
 const isFileSearchResult = (value: unknown): value is FileSearchResult => {
   const candidate = value as { results?: unknown; searched?: unknown } | null;
   return (
     typeof candidate === "object" &&
     candidate !== null &&
     Array.isArray(candidate.results) &&
+    candidate.results.every(isHit) &&
     Array.isArray(candidate.searched)
   );
 };
 
-const failureReason = (error: string): string =>
-  RECONNECT.test(error) ? `${error} Run the plugin in that file again, then retry.` : error;
+const failureReason = (error: string): string => {
+  if (OUTDATED.test(error)) return `${error} ${REBUILD}`;
+  if (RECONNECT.test(error)) return `${error} Run the plugin in that file again, then retry.`;
+  return error;
+};
 
-const byName = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+// The plugin ranks with localeCompare; a single-file search must keep its order.
+const byName = (a: string, b: string): number => a.localeCompare(b);
 
 /**
  * Merges each file's search result into one answer: one entry per component or collection,
@@ -97,8 +121,7 @@ export const mergeSearchResults = (input: {
       fileKey: outcome.file.fileKey,
       fileName: outcome.file.fileName,
       reason: failureReason(
-        outcome.error ??
-          "The plugin returned a result this server cannot read. Rebuild the plugin and run it in that file again."
+        outcome.error ?? `The plugin returned a result this server cannot read. ${REBUILD}`
       ),
     });
   }
@@ -170,10 +193,18 @@ export const mergeSearchResults = (input: {
       " Only each file's current page was searched; pass allPages: true to search every page " +
       "(slower on a large file).";
   }
-  if (merged.length > cap) {
+  // Each plugin already cut its own list to `limit` and said so in `total`. One file's total is
+  // exact; across several files the overlap is unknown, so the largest one is a lower bound.
+  const fileTotals = answered
+    .map(({ result: each }) => each.total)
+    .filter((total): total is number => typeof total === "number");
+  const cut = merged.length > cap || fileTotals.length > 0;
+  const total = Math.max(merged.length, ...fileTotals);
+  const exact = fileTotals.length === 0 || answered.length === 1;
+  if (cut) {
     note +=
-      ` Only the ${cap} strongest of ${merged.length} hits are returned; narrow the query or ` +
-      `raise limit to see more.`;
+      ` Only the ${Math.min(cap, merged.length)} strongest of ${exact ? "" : "at least "}${total} ` +
+      `hits are returned; narrow the query or raise limit to see more.`;
   }
   if (skipped.length > 0) note += " Some files were not searched; see files.skipped.";
 
@@ -186,7 +217,7 @@ export const mergeSearchResults = (input: {
     },
     note,
   };
-  if (merged.length > cap) result.total = merged.length;
+  if (cut) result.total = total;
 
   // Library access belongs to the account, not the file, so one report is enough.
   const libraryError = answered.find(({ result: each }) => each.libraryError)?.result.libraryError;

@@ -83,7 +83,10 @@ An example answer, three files open, searching "button":
   5. Merged hits are ordered by `score` descending, then originals before remote copies, then
      name. `limit` (default 50) caps the merged list; `total` is present when the cap cut it.
      Passing the caller's `limit` to each file loses nothing: a hit's score depends only on its
-     name, so the merged top N is always inside the union of each file's top N.
+     name, so the merged top N is inside the union of each file's top N, up to ties at the cut
+     (the merge puts originals first among equal scores; a file cuts by score and name only).
+     A file that cut its own list reports its `total`: one file's is passed through exactly;
+     across several, the largest is a lower bound and the note says "at least".
 - **X6. Result shape.** The response keeps every field it has today (`results`, `searched`,
   `total`, `libraryError`, `note`) and adds:
   - `files: { searched: Array<{ fileKey, fileName }>, skipped: Array<{ fileKey?, fileName, reason }> }`

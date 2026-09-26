@@ -127,6 +127,7 @@ other pages are not in memory; `allPages: true` calls `figma.loadAllPagesAsync()
 the whole document. That is slow on a large file — and the load counts against the bridge's
 three-minute request timeout — so it is opt-in, and the note on a current-page result suggests it.
 `searched` then reads `components and component instances on every page`.
+
 Every hit carries its `kind`, its `key`, and a `score`:
 
 | Score | Match                                    | Example for `button`     |
@@ -231,7 +232,7 @@ The project has no Figma account whose plan allows team library APIs, so the lib
 tools has only been tested against stubbed `figma.teamLibrary` and importer objects in
 `plugin/src/main/library.test.ts`. Checked against a live file: `whoami`, `search_design_system`'s
 local results, and the refusal path — `get_libraries` naming the missing permission, and search
-falling back to the current page with `libraryError`. **Never exercised live:** real data from
-`get_libraries`, a successful `import_library_asset`, and a search hit found through a library
-instance. If one of those misbehaves on a plan that allows them, that is the untested ground, and a
+falling back to local components with `libraryError`. **Never exercised live:** real data from
+`get_libraries`, a successful `import_library_asset`, a search hit found through a library
+instance, and a search across several open files (0.7.5). If one of those misbehaves on a plan that allows them, that is the untested ground, and a
 report of what Figma returned is the quickest way to close it.

@@ -22,7 +22,9 @@ const NOT_SEARCHED: Partial<Record<string, string>> = {
 const openFiles = (connected: readonly ConnectedFile[]): string =>
   connected.length === 0
     ? "No files are open with the plugin."
-    : `Open files: ${connected.map((file) => `"${file.fileName}"`).join(", ")}.`;
+    : `Open files: ${connected
+        .map((file) => `"${file.fileName}" (fileKey: ${file.fileKey})`)
+        .join(", ")}.`;
 
 const comparable = (name: string): string => name.trim().toLowerCase();
 
@@ -61,7 +63,9 @@ export const selectSearchFiles = (
       skipped.push({
         fileKey: file.fileKey,
         fileName: file.fileName,
-        reason: `Skipped: ${editor}. Only design files hold components to search.`,
+        reason:
+          `Skipped: ${editor}. Only design files hold components to search. Open a design ` +
+          `file and run the plugin there, or pass its fileKey to search this one anyway.`,
       });
       return;
     }
