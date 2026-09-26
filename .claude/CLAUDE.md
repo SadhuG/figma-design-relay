@@ -22,7 +22,7 @@ This file holds only what applies to every task. The rest loads when it is relev
 | `.claude/rules/plugin.md`         | automatically, on `plugin/**`                                 | landmarks, `figma` global, async access, capability table, manifest |
 | `.claude/rules/docs.md`           | automatically, on `docs/**`                                   | the HTML generator, checkbox state, moving docs                     |
 | `.claude/rules/release.md`        | on `CHANGELOG.md`, `package.json`, `.github/**`, `scripts/**` | versions, tags, release workflow, CI                                |
-| `.claude/skills/finish-task`      | **before every task's last commit**                           | verify, refresh drifting facts, bump, merge to `dev` then `main`    |
+| `.claude/skills/finish-task`      | **before every task's last commit**                           | verify, refresh facts, bump, agent review, merge `dev` then `main`  |
 | `.claude/skills/add-mcp-tool`     | when adding or removing a tool                                | every place a tool must be wired, tested and documented             |
 | `.claude/skills/live-figma-check` | when testing against real Figma                               | smoke harness, the machine's relay setup, symptoms that cost time   |
 | `.claude/skills/sync-upstream`    | when merging `upstream/main`                                  | merge procedure, rename conflicts, old-name hunt                    |
@@ -122,6 +122,11 @@ strings.
   facts in this file that drift with the code (test counts, landmarks, layout, tool count), bumps
   the version (minor per finished phase, patch per fix or tooling change, none for docs-only), and
   merges the branch into `dev`, then `dev` into `main`, with real merges.
+- **Nothing is pulled or merged until a separate agent has reviewed it.** Before any merge into
+  `dev` or `main` — a feature branch, an upstream sync, anything — spawn a fresh agent to do a full
+  code review of the whole diff against the target branch. The agent that wrote the code reviewing
+  it does not count. Fix or answer every finding, re-verify, and tell the user what the review found
+  and what was done; only then merge. `finish-task` step 4 holds the procedure.
 - **Keep the docs current as you work.** A durable fact, settled convention, new command or changed
   workflow goes into the right file — this one, a `.claude/` rule or skill, the README, or `docs/` —
   as part of the work. Anything left only in a conversation is lost. Keep volatile numbers to the

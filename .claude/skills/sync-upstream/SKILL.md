@@ -23,4 +23,7 @@ to `DISABLED` so nothing can be pushed there by accident.
 6. Verify locally — `bun run typecheck` and `bun test` in `plugin/`, `bun test` in `server/`, and a
    build of each. **A non-zero plugin type-check count means the merge broke something**; do not
    wave it through.
-7. Finish with the `finish-task` skill (patch bump, merge to `dev` then `main`).
+7. Finish with the `finish-task` skill (patch bump, a full review by a separate agent, then merge
+   to `dev` then `main`). The review covers everything upstream brought in, not just the conflict
+   resolutions: upstream's code has never been reviewed against this fork's rules (loopback-only
+   binding, no old names, no npm publishing).

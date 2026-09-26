@@ -1,6 +1,6 @@
 ---
 name: finish-task
-description: Use before the last commit of any task in figma-design-relay — refreshes the facts in CLAUDE.md, README and the plans that drift with the code, bumps the version, verifies, then merges the branch into dev and main.
+description: Use before the last commit of any task in figma-design-relay — refreshes the facts in CLAUDE.md, README and the plans that drift with the code, bumps the version, verifies, has a separate agent review the diff, then merges the branch into dev and main.
 ---
 
 # Finishing a task
@@ -47,7 +47,25 @@ Unless the task is docs-only: a finished phase bumps the minor, anything else th
 `server/package.json` and `plugin/package.json` together and add the `CHANGELOG.md` entry in the
 same commit (`.claude/rules/release.md`).
 
-## 4. Merge: feature → dev → main
+## 4. Review by a separate agent
+
+**No merge happens before this step passes.** Commit everything first, then spawn a fresh agent
+(the Agent tool — never review your own work and call it done) to do a full code review of
+`git diff origin/dev...<branch>`. Give it the branch name, what the task set out to do, and ask for
+correctness bugs, missed wiring (the `add-mcp-tool` checklist, when a tool changed), stale docs,
+and violations of CLAUDE.md's rules — ranked by severity, with file and line.
+
+Then act on it:
+
+- Fix every real finding in a new commit and re-run step 1. Re-review if the fixes were more than
+  small.
+- Push back on a finding that is wrong, with the reason — do not change code just to satisfy it.
+- Tell the user what the review found and what happened to each item before merging.
+
+If the diff against `dev` changes during step 5 (something new came in from `main`), what came in
+has not been reviewed: review that too before pushing it to `main`.
+
+## 5. Merge: feature → dev → main
 
 Real merges only — no rebase, no squash — so the branches keep sharing history. Each push runs CI.
 
