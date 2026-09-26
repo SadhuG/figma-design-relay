@@ -34,7 +34,7 @@ Phase 6 of the parity plan set: FigJam, Slides and diagrams (R43–R50).
 - `generate_diagram` draws Mermaid flowcharts, sequence, ER and state diagrams as native FigJam
   shapes and connectors, within a documented subset. Anything outside it is refused with its line
   number and nothing is drawn; a failure part-way removes whatever had been drawn.
-- `docs/figjam.md` and `docs/slides.md` state what each editor supports and what it does not.
+- `docs/guides/figjam.md` and `docs/guides/slides.md` state what each editor supports and what it does not.
 
 ### Changed
 
@@ -61,7 +61,7 @@ Phase 5 of the parity plan set: library reach and identity (R36–R42).
 - `search_design_system` searches components and instances on the current page and published
   variable collections. It is narrower than Figma's own tool and says so: an empty result is not
   proof a component does not exist. Library components are found through their instances.
-- `docs/libraries.md` documents all four, their permissions and their limits.
+- `docs/guides/libraries.md` documents all four, their permissions and their limits.
 
 ### Changed
 
@@ -149,7 +149,7 @@ Phase 2: serializer enrichment (R11–R19). The phase's live verification was re
 - Bound variables and style ids are resolved to their names.
 - Component and instance identity, including component property definitions.
 - Layout intent, prototype reactions, annotations and export settings.
-- `docs/serialized-nodes.md` documents the serialized node shape.
+- `docs/reference/serialized-nodes.md` documents the serialized node shape.
 
 ### Changed
 

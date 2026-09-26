@@ -40,8 +40,8 @@
           <strong>For agentic workers:</strong> required sub-skill —
           <code>superpowers:subagent-driven-development</code> (recommended) or
           <code>superpowers:executing-plans</code>. Work the plan task by task. The markdown source
-          at <code>docs/superpowers/plans/2026-09-01-run-script-plugin-api-escape-hatch.md</code> is
-          the machine-readable copy; this page is the same plan with the step checklist made live.
+          at <code>docs/superpowers/plans/2026-09-01-phase-1-run-script.md</code> is the
+          machine-readable copy; this page is the same plan with the step checklist made live.
         </p>
       </blockquote>
 
@@ -1499,8 +1499,8 @@ git commit -m "feat(server): register the run_script MCP tool"</code></pre>
                     Editing Notes bullet
                   </li>
                   <li>
-                    <span class="verb">Create</span><code>docs/run-script.md</code> — the long-form
-                    guide the README links to
+                    <span class="verb">Create</span><code>docs/guides/run-script.md</code> — the
+                    long-form guide the README links to
                   </li>
                 </ul>
               </dd>
@@ -1656,11 +1656,11 @@ return { removed: "&lt;id from step 3&gt;" };</code></pre>
                 </div>
                 <div class="step__body">
                   <p>
-                    Create <code>docs/run-script.md</code>. It covers the contract, the result shape
-                    table, the limits, the gotchas, and the non-atomicity section — the full text is
-                    in the markdown source of this plan, task 7 step 7.
+                    Create <code>docs/guides/run-script.md</code>. It covers the contract, the
+                    result shape table, the limits, the gotchas, and the non-atomicity section — the
+                    full text is in the markdown source of this plan, task 7 step 7.
                   </p>
-                  <p class="pre-label">docs/run-script.md — contract section</p>
+                  <p class="pre-label">docs/guides/run-script.md — contract section</p>
                   <pre><code>Your source is wrapped in an async function and called, so you get top-level
 `await` and top-level `return`:
 
@@ -1673,7 +1673,7 @@ return { removed: "&lt;id from step 3&gt;" };</code></pre>
 **Always return the ids of nodes you create or mutate.** Returned Figma nodes
 collapse to `{ id, name, type }`, so a whole node object tells you almost
 nothing; ids let the next call address the same nodes.</code></pre>
-                  <p class="pre-label">docs/run-script.md — the gotchas to cover</p>
+                  <p class="pre-label">docs/guides/run-script.md — the gotchas to cover</p>
                   <ul class="plain">
                     <li>Colors are 0–1, not 0–255.</li>
                     <li>
@@ -1710,7 +1710,7 @@ nothing; ids let the next call address the same nodes.</code></pre>
                 </div>
                 <div class="step__body">
                   <p>Immediately after the <code>delete_nodes</code> row:</p>
-                  <pre><code>| `run_script` | Execute JavaScript against the Figma Plugin API — the escape hatch for anything the other tools do not cover ([guide](docs/run-script.md)) |</code></pre>
+                  <pre><code>| `run_script` | Execute JavaScript against the Figma Plugin API — the escape hatch for anything the other tools do not cover ([guide](docs/guides/run-script.md)) |</code></pre>
                 </div>
               </li>
 
@@ -1727,7 +1727,7 @@ nothing; ids let the next call address the same nodes.</code></pre>
   operations, prototyping, and any other API the dedicated tools do not cover.
   Unlike the dedicated tools it is **not atomic** — a script that throws
   part-way leaves its earlier mutations in the file, because the Plugin API has
-  no rollback. See [docs/run-script.md](docs/run-script.md) for the full
+  no rollback. See [docs/guides/run-script.md](docs/guides/run-script.md) for the full
   contract, limits, and gotchas.</code></pre>
                 </div>
               </li>
@@ -1756,7 +1756,7 @@ cd ../plugin &amp;&amp; bun run test &amp;&amp; bun run build</code></pre>
                   <label class="step__label" for="t7s11">Commit</label>
                 </div>
                 <div class="step__body">
-                  <pre><code>git add README.md docs/run-script.md
+                  <pre><code>git add README.md docs/guides/run-script.md
 git commit -m "docs: document run_script"</code></pre>
                 </div>
               </li>
@@ -1781,8 +1781,8 @@ git commit -m "docs: document run_script"</code></pre>
                 as an MCP error, and is rejected in Dev Mode.
               </li>
               <li>
-                <code>README.md</code> and <code>docs/run-script.md</code> describe the tool, its
-                limits, and its non-atomicity.
+                <code>README.md</code> and <code>docs/guides/run-script.md</code> describe the tool,
+                its limits, and its non-atomicity.
               </li>
             </ul>
           </section>
@@ -1791,10 +1791,7 @@ git commit -m "docs: document run_script"</code></pre>
             <span>Figma Design Relay</span>
             <span>Plan · Phase 1 · 2026-09-01</span>
             <span
-              >Source:
-              <code
-                >docs/superpowers/plans/2026-09-01-run-script-plugin-api-escape-hatch.md</code
-              ></span
+              >Source: <code>docs/superpowers/plans/2026-09-01-phase-1-run-script.md</code></span
             >
             <span
               ><a href="../specs/2026-09-01-official-figma-mcp-parity.html">← Parity spec</a></span

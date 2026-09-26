@@ -1371,7 +1371,7 @@ The composer is unit-tested against a fixture. What is not yet proven is that a 
 **Files:**
 
 - Modify: `README.md` — the `get_design_context` row and Editing Notes
-- Create: `docs/design-context.md` — the response contract
+- Create: `docs/guides/design-context.md` — the response contract
 
 **Interfaces:**
 
@@ -1431,14 +1431,14 @@ rm -rf tmp-assets
 
 - [x] **Step 9: Write the response contract**
 
-Create `docs/design-context.md` covering: the parameters (`nodeId`, `depth`, `format`, `assetDir`, `fileKey`); the block order (text first, image second); the section order inside the text block; the hint priority from R25; the token-over-value rule; the asset contract and why local files are preferred to expiring URLs; and the limits (depth, 200000 characters, the bridge's three-minute timeout).
+Create `docs/guides/design-context.md` covering: the parameters (`nodeId`, `depth`, `format`, `assetDir`, `fileKey`); the block order (text first, image second); the section order inside the text block; the hint priority from R25; the token-over-value rule; the asset contract and why local files are preferred to expiring URLs; and the limits (depth, 200000 characters, the bridge's three-minute timeout).
 
 - [x] **Step 10: Update the README**
 
 Replace the `get_design_context` row in the tool table:
 
 ```markdown
-| `get_design_context` | Reference code, design tokens, exported assets and a screenshot for a node — one call ([guide](docs/design-context.md)) |
+| `get_design_context` | Reference code, design tokens, exported assets and a screenshot for a node — one call ([guide](docs/guides/design-context.md)) |
 ```
 
 And append to Editing Notes:
@@ -1460,7 +1460,7 @@ Expected: PASS — Prettier reports no remaining changes on a second run, both s
 - [x] **Step 12: Commit**
 
 ```bash
-git add README.md docs/design-context.md
+git add README.md docs/guides/design-context.md
 git commit -m "docs: document the design-context response contract"
 ```
 
@@ -1473,4 +1473,4 @@ git commit -m "docs: document the design-context response contract"
 - In a real Figma file, one `get_design_context` call returns reference code, a token list and a rendered screenshot; a token-bound fill emits `var(--…)` and never its hex.
 - `assetDir` writes real SVG files inside the workspace and refuses a path that escapes it.
 - All four formats work and an unknown format is rejected by name.
-- `docs/design-context.md` documents the parameters, block order, hint priority and limits.
+- `docs/guides/design-context.md` documents the parameters, block order, hint priority and limits.

@@ -881,7 +881,7 @@ Everything so far is verified by unit tests and a stdio probe. Nothing has yet p
 **Files:**
 
 - Modify: `README.md` — add `run_script` to the Available Tools table and a paragraph under Editing Notes
-- Create: `docs/run-script.md` — the long-form guide the README links to
+- Create: `docs/guides/run-script.md` — the long-form guide the README links to
 
 **Interfaces:**
 
@@ -957,7 +957,7 @@ return { removed: "<id from step 3>" };
 
 - [x] **Step 7: Write the long-form guide**
 
-Create `docs/run-script.md`:
+Create `docs/guides/run-script.md`:
 
 ````markdown
 # `run_script`
@@ -1053,7 +1053,7 @@ is how you end up with duplicates.
 In `README.md`, add a row to the Available Tools table immediately after the `delete_nodes` row:
 
 ```markdown
-| `run_script` | Execute JavaScript against the Figma Plugin API — the escape hatch for anything the other tools do not cover ([guide](docs/run-script.md)) |
+| `run_script` | Execute JavaScript against the Figma Plugin API — the escape hatch for anything the other tools do not cover ([guide](docs/guides/run-script.md)) |
 ```
 
 - [x] **Step 9: Document the caveats under Editing Notes**
@@ -1061,7 +1061,7 @@ In `README.md`, add a row to the Available Tools table immediately after the `de
 In `README.md`, append to the Editing Notes bullet list:
 
 ```markdown
-- `run_script` executes agent-authored JavaScript with the full Plugin API in scope. It is the escape hatch for components, variables, styles, boolean operations, prototyping, and any other API the dedicated tools do not cover. Unlike the dedicated tools it is **not atomic** — a script that throws part-way leaves its earlier mutations in the file, because the Plugin API has no rollback. See [docs/run-script.md](docs/run-script.md) for the full contract, limits, and gotchas.
+- `run_script` executes agent-authored JavaScript with the full Plugin API in scope. It is the escape hatch for components, variables, styles, boolean operations, prototyping, and any other API the dedicated tools do not cover. Unlike the dedicated tools it is **not atomic** — a script that throws part-way leaves its earlier mutations in the file, because the Plugin API has no rollback. See [docs/guides/run-script.md](docs/guides/run-script.md) for the full contract, limits, and gotchas.
 ```
 
 - [x] **Step 10: Format, and run everything one more time**
@@ -1077,7 +1077,7 @@ Expected: Prettier reports no remaining changes on a second run; server tests 8 
 - [x] **Step 11: Commit**
 
 ```bash
-git add README.md docs/run-script.md
+git add README.md docs/guides/run-script.md
 git commit -m "docs: document run_script"
 ```
 
@@ -1091,5 +1091,5 @@ git commit -m "docs: document run_script"
 - In a real Figma design file, `run_script` reads `figma.root.name`, creates and
   removes a frame, surfaces a thrown error as an MCP error, and is rejected in
   Dev Mode.
-- `README.md` and `docs/run-script.md` describe the tool, its limits, and its
+- `README.md` and `docs/guides/run-script.md` describe the tool, its limits, and its
   non-atomicity.

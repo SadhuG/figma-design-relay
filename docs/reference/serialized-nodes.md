@@ -2,7 +2,7 @@
 
 Every read tool that walks the scene graph — `get_document`, `get_node`, `get_selection` and
 `get_design_context` — returns nodes through one serializer,
-[`plugin/src/main/serializer.ts`](../plugin/src/main/serializer.ts). This page documents the fields
+[`plugin/src/main/serializer.ts`](../../plugin/src/main/serializer.ts). This page documents the fields
 that carry **design-system identity and intent** rather than geometry.
 
 The governing rule, and the part readers get wrong: **every field on this page is omitted when the
@@ -103,7 +103,7 @@ layout box. When the two boxes are identical the render bounds are pure noise, s
 ## FigJam fields
 
 Nodes that exist only in FigJam carry their meaning outside the geometry, so
-[`figjam-serializer.ts`](../plugin/src/main/figjam-serializer.ts) lifts it onto the top level of the
+[`figjam-serializer.ts`](../../plugin/src/main/figjam-serializer.ts) lifts it onto the top level of the
 node. Every field is omitted on every other node type.
 
 | Field          | Node types                                           | Omitted when                                                 |

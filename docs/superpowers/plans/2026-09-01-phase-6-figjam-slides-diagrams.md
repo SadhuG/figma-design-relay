@@ -773,7 +773,7 @@ Slides gets reads and screenshots, and text edits inside existing slides. Creati
 
 - Modify: `plugin/src/main/capabilities.ts` — Slides entries
 - Modify: `plugin/src/main/capabilities.test.ts` — Slides expectations
-- Create: `docs/slides.md`
+- Create: `docs/guides/slides.md`
 
 **Interfaces:**
 
@@ -814,12 +814,12 @@ Expected: PASS — task 1's table already produces these outcomes. If any case f
 
 - [x] **Step 3: Write the scope document**
 
-Create `docs/slides.md` stating: what works (every read tool, `get_screenshot`, `save_screenshots`, and text and property edits on nodes inside existing slides); what does not and why (creating slides, slide rows and slide grids is deliberately unimplemented in phase 6 — the node types exist but the layout rules do not, and a half-working slide builder is worse than none); and how to check (`get_metadata` reports `editorType: "slides"`).
+Create `docs/guides/slides.md` stating: what works (every read tool, `get_screenshot`, `save_screenshots`, and text and property edits on nodes inside existing slides); what does not and why (creating slides, slide rows and slide grids is deliberately unimplemented in phase 6 — the node types exist but the layout rules do not, and a half-working slide builder is worse than none); and how to check (`get_metadata` reports `editorType: "slides"`).
 
 - [x] **Step 4: Commit**
 
 ```bash
-git add plugin/src/main/capabilities.test.ts docs/slides.md
+git add plugin/src/main/capabilities.test.ts docs/guides/slides.md
 git commit -m "docs: state the Slides support scope"
 ```
 
@@ -1516,7 +1516,7 @@ The whole phase rests on a manifest change that touches every tool. This is wher
 
 - Create: `plugin/src/main/capabilities.regression.test.ts`
 - Modify: `README.md` — tool table, Editing Notes, plugin install section
-- Create: `docs/figjam.md`
+- Create: `docs/guides/figjam.md`
 
 **Interfaces:**
 
@@ -1591,14 +1591,14 @@ Expected: every one behaves exactly as before phase 6. This is the acceptance te
 
 - [x] **Step 4: Write the FigJam guide**
 
-Create `docs/figjam.md` covering: which editors the plugin now supports and how to tell which one you are in (`get_metadata` reports `editorType`); what a serialized FigJam board looks like, especially connector endpoints and why topology matters; the four write tools and their FigJam-only restriction; `generate_diagram`'s supported subset with one worked example per diagram type; and what happens with unsupported Mermaid — refused by name, nothing drawn.
+Create `docs/guides/figjam.md` covering: which editors the plugin now supports and how to tell which one you are in (`get_metadata` reports `editorType`); what a serialized FigJam board looks like, especially connector endpoints and why topology matters; the four write tools and their FigJam-only restriction; `generate_diagram`'s supported subset with one worked example per diagram type; and what happens with unsupported Mermaid — refused by name, nothing drawn.
 
 - [x] **Step 5: Update the README**
 
 Add five rows to the tool table:
 
 ```markdown
-| `create_sticky` | Create a FigJam sticky note ([guide](docs/figjam.md)) |
+| `create_sticky` | Create a FigJam sticky note ([guide](docs/guides/figjam.md)) |
 | `create_shape_with_text` | Create a FigJam shape with text inside it |
 | `create_connector` | Connect two FigJam nodes, optionally with a label |
 | `create_section` | Create a section in a FigJam board or design file |
@@ -1608,7 +1608,7 @@ Add five rows to the tool table:
 Update the plugin install section to say the plugin now runs in design files, FigJam boards and Slides (not Dev Mode — see R43), and append to Editing Notes:
 
 ```markdown
-- Tools are gated by editor, not just by Dev Mode: `create_page` and the design write tools need a design file, sticky notes and connectors need FigJam, and Slides support is limited to reads plus text edits inside existing slides ([scope](docs/slides.md)). A tool used in the wrong editor is refused up front with a message naming the editor it needs.
+- Tools are gated by editor, not just by Dev Mode: `create_page` and the design write tools need a design file, sticky notes and connectors need FigJam, and Slides support is limited to reads plus text edits inside existing slides ([scope](docs/guides/slides.md)). A tool used in the wrong editor is refused up front with a message naming the editor it needs.
 - `generate_diagram` supports flowchart, sequenceDiagram, erDiagram and stateDiagram-v2. Anything else is refused by name — the bridge will not draw an approximation of a diagram type it does not understand.
 ```
 
@@ -1625,7 +1625,7 @@ Expected: PASS — Prettier reports no remaining changes on a second run, both s
 - [x] **Step 7: Commit**
 
 ```bash
-git add plugin/src/main/capabilities.regression.test.ts README.md docs/figjam.md
+git add plugin/src/main/capabilities.regression.test.ts README.md docs/guides/figjam.md
 git commit -m "docs: document FigJam, Slides and diagram support"
 ```
 
@@ -1640,4 +1640,4 @@ git commit -m "docs: document FigJam, Slides and diagram support"
 - A FigJam board serializes with connector endpoints intact, so its topology survives.
 - `create_sticky`, `create_shape_with_text`, `create_connector` and `create_section` work in FigJam and are refused elsewhere with a message naming the editor they need.
 - `generate_diagram` renders all four supported Mermaid types and refuses a fifth by name without drawing anything.
-- `docs/figjam.md` and `docs/slides.md` state what is supported and what is deliberately not.
+- `docs/guides/figjam.md` and `docs/guides/slides.md` state what is supported and what is deliberately not.

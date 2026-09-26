@@ -1,6 +1,7 @@
 # Spec: Replacing the Official Figma MCP Server with Figma Design Relay
 
-**Status:** Draft
+**Status:** Delivered — all six phases shipped (0.2.0–0.7.0). The gap analysis below is the
+measurement taken on 2026-09-01, before any of them; read its "missing" and "partial" rows as history.
 **Date:** 2026-09-01
 **Goal:** Make `figma-design-relay` a viable full-time replacement for Figma's
 first-party MCP server for an agent doing design→code and code→design work,
@@ -216,14 +217,14 @@ property definitions (R13) to author accurate mappings.
 
 Every phase has its own plan, one per phase rather than one for all six:
 
-| Phase | Plan                                                                      |
-| ----- | ------------------------------------------------------------------------- |
-| 1     | `docs/superpowers/plans/2026-09-01-run-script-plugin-api-escape-hatch.md` |
-| 2     | `docs/superpowers/plans/2026-09-01-serializer-enrichment.md`              |
-| 3     | `docs/superpowers/plans/2026-09-01-design-context-v2.md`                  |
-| 4     | `docs/superpowers/plans/2026-09-01-code-connect.md`                       |
-| 5     | `docs/superpowers/plans/2026-09-01-library-reach.md`                      |
-| 6     | `docs/superpowers/plans/2026-09-01-figjam-slides-diagrams.md`             |
+| Phase | Plan                                                                  |
+| ----- | --------------------------------------------------------------------- |
+| 1     | `docs/superpowers/plans/2026-09-01-phase-1-run-script.md`             |
+| 2     | `docs/superpowers/plans/2026-09-01-phase-2-serializer-enrichment.md`  |
+| 3     | `docs/superpowers/plans/2026-09-01-phase-3-design-context-v2.md`      |
+| 4     | `docs/superpowers/plans/2026-09-01-phase-4-code-connect.md`           |
+| 5     | `docs/superpowers/plans/2026-09-01-phase-5-library-reach.md`          |
+| 6     | `docs/superpowers/plans/2026-09-01-phase-6-figjam-slides-diagrams.md` |
 
 ---
 
@@ -231,7 +232,7 @@ Every phase has its own plan, one per phase rather than one for all six:
 
 Requirements are numbered continuously across the whole roadmap so a task in any
 plan can cite one unambiguously. Phase 1's `R1`–`R10` are already cited by
-`docs/superpowers/plans/2026-09-01-run-script-plugin-api-escape-hatch.md` and
+`docs/superpowers/plans/2026-09-01-phase-1-run-script.md` and
 must not be renumbered.
 
 | Phase | Requirements | Depends on                                       |
@@ -247,7 +248,7 @@ must not be renumbered.
 ### 6.1 Phase 1 — `run_script` (R1–R10)
 
 Closes Gap 1 and Gap 8. Planned in
-`docs/superpowers/plans/2026-09-01-run-script-plugin-api-escape-hatch.md`.
+`docs/superpowers/plans/2026-09-01-phase-1-run-script.md`.
 
 - **R1.** The bridge exposes an MCP tool `run_script` taking `code` (string) and
   optional `fileKey`.

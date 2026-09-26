@@ -81,67 +81,67 @@ If you want to know more about how it works, read the [How it works](#how-it-wor
 
 ## Available Tools
 
-| Tool                           | Description                                                                                                                                |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `list_files`                   | List all connected Figma files (supports multi-file workflows)                                                                             |
-| `get_document`                 | Get the current Figma page document tree                                                                                                   |
-| `get_selection`                | Get the currently selected nodes in Figma                                                                                                  |
-| `get_node`                     | Get a specific Figma node by ID (colon format, e.g. `4029:12345`)                                                                          |
-| `get_styles`                   | Get all local paint, text, effect, and grid styles                                                                                         |
-| `get_metadata`                 | Get file name, pages, and current page info                                                                                                |
-| `get_design_context`           | Reference code, design tokens, exported assets and a screenshot for a node — one call ([guide](docs/design-context.md))                    |
-| `get_variable_defs`            | Get all variable collections, modes, and values (design tokens)                                                                            |
-| `get_screenshot`               | Export nodes as PNG/SVG/JPG/PDF (base64-encoded)                                                                                           |
-| `save_screenshots`             | Export and save screenshots directly to the local filesystem                                                                               |
-| `get_motion_styles`            | List all available animation presets (beta)                                                                                                |
-| `get_node_motion`              | Read a node's current animation styles and properties (beta)                                                                               |
-| `apply_animation_style`        | Apply a preset animation style to a node (beta)                                                                                            |
-| `remove_animation_style`       | Remove an applied animation style from a node (beta)                                                                                       |
-| `apply_manual_keyframe_track`  | Apply a manual keyframe track to a node property (beta)                                                                                    |
-| `remove_manual_keyframe_track` | Remove a manual keyframe track from a node property (beta)                                                                                 |
-| `set_timeline_duration`        | Set the duration of a timeline in seconds (beta)                                                                                           |
-| `set_node_visibility`          | Show or hide specific nodes                                                                                                                |
-| `set_text_content`             | Replace the contents of a text node                                                                                                        |
-| `set_text_properties`          | Patch font, size, alignment, auto-resize, color, and bounds on a text node                                                                 |
-| `set_node_properties`          | Patch common node properties: name, position, size, visibility, opacity, corner radius                                                     |
-| `set_solid_fill`               | Replace a node's fill or stroke with a single solid paint                                                                                  |
-| `set_gradient_fill`            | Replace a node's fill or stroke with a linear/radial/angular/diamond gradient                                                              |
-| `set_effects`                  | Replace a node's effects list (drop/inner shadows, layer/background blurs)                                                                 |
-| `set_stroke_properties`        | Patch stroke weight, align, dash pattern, cap, and join                                                                                    |
-| `set_auto_layout`              | Configure auto-layout direction, padding, gap, alignment, sizing, and wrap                                                                 |
-| `create_page`                  | Create a new page in the document, optionally switching to it                                                                              |
-| `create_frame`                 | Create a new frame, optionally under a parent                                                                                              |
-| `create_text`                  | Create a new text node                                                                                                                     |
-| `create_shape`                 | Create a rectangle, ellipse, or line                                                                                                       |
-| `create_image`                 | Create an image-backed rectangle from a local path, URL, or data URI                                                                       |
-| `import_html_layers`           | Bulk-import an html-figma layer tree (JSON) as frames, text, rectangles, and vectors                                                       |
-| `duplicate_nodes`              | Duplicate nodes in place                                                                                                                   |
-| `reparent_nodes`               | Move nodes into another parent                                                                                                             |
-| `group_nodes`                  | Wrap a list of nodes (sharing a parent) in a new group                                                                                     |
-| `ungroup_node`                 | Ungroup a group or frame — children move up to its parent                                                                                  |
-| `set_selection`                | Set the page selection to a list of node IDs (works in every editor)                                                                       |
-| `scroll_and_zoom_into_view`    | Frame the viewport around the given nodes (works in every editor)                                                                          |
-| `delete_nodes`                 | Delete nodes with explicit confirmation                                                                                                    |
-| `run_script`                   | Execute JavaScript against the Figma Plugin API — the escape hatch for anything the other tools do not cover ([guide](docs/run-script.md)) |
-| `get_code_connect_map`         | Map Figma components to workspace components, read from local `*.figma.tsx` files ([guide](docs/code-connect.md))                          |
-| `get_context_for_code_connect` | A component's properties and variant axes, for authoring a mapping                                                                         |
-| `get_code_connect_suggestions` | Propose mappings by matching Figma component names against workspace exports                                                               |
-| `add_code_connect_map`         | Write a Code Connect mapping file into the workspace — a local file, not a Figma cloud record                                              |
-| `whoami`                       | Report the Figma user signed in to the connected plugin                                                                                    |
-| `get_libraries`                | List enabled team libraries by their published variable collections, and a collection's variable keys ([guide](docs/libraries.md))         |
-| `import_library_asset`         | Import a published component, component set, style or variable by key                                                                      |
-| `search_design_system`         | Search components and instances on the current page and published variable collections — scoped, see the guide                             |
-| `create_sticky`                | Create a FigJam sticky note ([guide](docs/figjam.md))                                                                                      |
-| `create_shape_with_text`       | Create a FigJam shape with text inside it                                                                                                  |
-| `create_connector`             | Connect two FigJam nodes, optionally with a label                                                                                          |
-| `create_section`               | Create a section in a FigJam board or design file                                                                                          |
-| `generate_diagram`             | Render Mermaid source as a FigJam diagram — flowchart, sequence, ER, state, within a documented subset                                     |
+| Tool                           | Description                                                                                                                                       |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `list_files`                   | List all connected Figma files (supports multi-file workflows)                                                                                    |
+| `get_document`                 | Get the current Figma page document tree                                                                                                          |
+| `get_selection`                | Get the currently selected nodes in Figma                                                                                                         |
+| `get_node`                     | Get a specific Figma node by ID (colon format, e.g. `4029:12345`)                                                                                 |
+| `get_styles`                   | Get all local paint, text, effect, and grid styles                                                                                                |
+| `get_metadata`                 | Get file name, pages, and current page info                                                                                                       |
+| `get_design_context`           | Reference code, design tokens, exported assets and a screenshot for a node — one call ([guide](docs/guides/design-context.md))                    |
+| `get_variable_defs`            | Get all variable collections, modes, and values (design tokens)                                                                                   |
+| `get_screenshot`               | Export nodes as PNG/SVG/JPG/PDF (base64-encoded)                                                                                                  |
+| `save_screenshots`             | Export and save screenshots directly to the local filesystem                                                                                      |
+| `get_motion_styles`            | List all available animation presets (beta)                                                                                                       |
+| `get_node_motion`              | Read a node's current animation styles and properties (beta)                                                                                      |
+| `apply_animation_style`        | Apply a preset animation style to a node (beta)                                                                                                   |
+| `remove_animation_style`       | Remove an applied animation style from a node (beta)                                                                                              |
+| `apply_manual_keyframe_track`  | Apply a manual keyframe track to a node property (beta)                                                                                           |
+| `remove_manual_keyframe_track` | Remove a manual keyframe track from a node property (beta)                                                                                        |
+| `set_timeline_duration`        | Set the duration of a timeline in seconds (beta)                                                                                                  |
+| `set_node_visibility`          | Show or hide specific nodes                                                                                                                       |
+| `set_text_content`             | Replace the contents of a text node                                                                                                               |
+| `set_text_properties`          | Patch font, size, alignment, auto-resize, color, and bounds on a text node                                                                        |
+| `set_node_properties`          | Patch common node properties: name, position, size, visibility, opacity, corner radius                                                            |
+| `set_solid_fill`               | Replace a node's fill or stroke with a single solid paint                                                                                         |
+| `set_gradient_fill`            | Replace a node's fill or stroke with a linear/radial/angular/diamond gradient                                                                     |
+| `set_effects`                  | Replace a node's effects list (drop/inner shadows, layer/background blurs)                                                                        |
+| `set_stroke_properties`        | Patch stroke weight, align, dash pattern, cap, and join                                                                                           |
+| `set_auto_layout`              | Configure auto-layout direction, padding, gap, alignment, sizing, and wrap                                                                        |
+| `create_page`                  | Create a new page in the document, optionally switching to it                                                                                     |
+| `create_frame`                 | Create a new frame, optionally under a parent                                                                                                     |
+| `create_text`                  | Create a new text node                                                                                                                            |
+| `create_shape`                 | Create a rectangle, ellipse, or line                                                                                                              |
+| `create_image`                 | Create an image-backed rectangle from a local path, URL, or data URI                                                                              |
+| `import_html_layers`           | Bulk-import an html-figma layer tree (JSON) as frames, text, rectangles, and vectors                                                              |
+| `duplicate_nodes`              | Duplicate nodes in place                                                                                                                          |
+| `reparent_nodes`               | Move nodes into another parent                                                                                                                    |
+| `group_nodes`                  | Wrap a list of nodes (sharing a parent) in a new group                                                                                            |
+| `ungroup_node`                 | Ungroup a group or frame — children move up to its parent                                                                                         |
+| `set_selection`                | Set the page selection to a list of node IDs (works in every editor)                                                                              |
+| `scroll_and_zoom_into_view`    | Frame the viewport around the given nodes (works in every editor)                                                                                 |
+| `delete_nodes`                 | Delete nodes with explicit confirmation                                                                                                           |
+| `run_script`                   | Execute JavaScript against the Figma Plugin API — the escape hatch for anything the other tools do not cover ([guide](docs/guides/run-script.md)) |
+| `get_code_connect_map`         | Map Figma components to workspace components, read from local `*.figma.tsx` files ([guide](docs/guides/code-connect.md))                          |
+| `get_context_for_code_connect` | A component's properties and variant axes, for authoring a mapping                                                                                |
+| `get_code_connect_suggestions` | Propose mappings by matching Figma component names against workspace exports                                                                      |
+| `add_code_connect_map`         | Write a Code Connect mapping file into the workspace — a local file, not a Figma cloud record                                                     |
+| `whoami`                       | Report the Figma user signed in to the connected plugin                                                                                           |
+| `get_libraries`                | List enabled team libraries by their published variable collections, and a collection's variable keys ([guide](docs/guides/libraries.md))         |
+| `import_library_asset`         | Import a published component, component set, style or variable by key                                                                             |
+| `search_design_system`         | Search components and instances on the current page and published variable collections — scoped, see the guide                                    |
+| `create_sticky`                | Create a FigJam sticky note ([guide](docs/guides/figjam.md))                                                                                      |
+| `create_shape_with_text`       | Create a FigJam shape with text inside it                                                                                                         |
+| `create_connector`             | Connect two FigJam nodes, optionally with a label                                                                                                 |
+| `create_section`               | Create a section in a FigJam board or design file                                                                                                 |
+| `generate_diagram`             | Render Mermaid source as a FigJam diagram — flowchart, sequence, ER, state, within a documented subset                                            |
 
 All tools accept an optional `fileKey` parameter when multiple Figma files are connected. Use `list_files` to discover connected files and their keys.
 
 ### Editing Notes
 
-- The plugin runs in design files, FigJam boards and Slides decks, and tools are gated by editor: `create_page` and the design write tools need a design file, sticky notes, shapes-with-text, connectors and diagrams need FigJam, and Slides support is limited to reads plus edits inside existing slides ([scope](docs/slides.md)). A tool used in the wrong editor is refused up front with a message naming the editor it needs. `list_files` and `get_metadata` report each file's `editorType`.
+- The plugin runs in design files, FigJam boards and Slides decks, and tools are gated by editor: `create_page` and the design write tools need a design file, sticky notes, shapes-with-text, connectors and diagrams need FigJam, and Slides support is limited to reads plus edits inside existing slides ([scope](docs/guides/slides.md)). A tool used in the wrong editor is refused up front with a message naming the editor it needs. `list_files` and `get_metadata` report each file's `editorType`.
 - The plugin does not run in Dev Mode. Figma does not let one plugin declare both Dev Mode and FigJam, and FigJam won; every read Dev Mode offered works in the design editor.
 - The current user must have permission to edit the target file.
 - `delete_nodes` is intentionally gated behind `confirm: true`.
@@ -150,12 +150,12 @@ All tools accept an optional `fileKey` parameter when multiple Figma files are c
 - `create_image` reads local paths relative to the MCP server working directory unless you pass an absolute path.
 - `import_html_layers` takes a JSON file produced by [html-figma](https://github.com/sergcen/html-to-figma)'s browser `htmlToFigma()`. The path resolves relative to the MCP server working directory and must stay inside it, even when absolute. Everything lands inside one wrapper frame, and the response reports `layerCount` against `expectedLayerCount` so partial imports are visible.
 - `create_page` returns the new page's ID — pass it as `parentId` to `create_frame` / `create_text` / `create_shape` / `create_image` to author content on that page without switching the editor.
-- `run_script` executes agent-authored JavaScript with the full Plugin API in scope. It is the escape hatch for components, variables, styles, boolean operations, prototyping, and any other API the dedicated tools do not cover. Unlike the dedicated tools it is **not atomic** — a script that throws part-way leaves its earlier mutations in the file, because the Plugin API has no rollback. See [docs/run-script.md](docs/run-script.md) for the full contract, limits, and gotchas.
-- Serialized nodes carry design-system identity, not just geometry: instances report their main component and set properties, fills bound to variables report the token name, named styles report the style name, and auto-layout children report hug/fill intent. Fields are omitted when a node carries nothing for them, so plain nodes serialize exactly as before. See [docs/serialized-nodes.md](docs/serialized-nodes.md).
-- `get_design_context` exports icons and images as files under `assetDir` rather than returning expiring URLs, because a committed file is what code you keep actually needs. The path must stay inside the MCP server working directory. See [docs/design-context.md](docs/design-context.md) for the response contract.
-- Code Connect on the relay is entirely local: mappings are read from and written to `*.figma.tsx` files in your repository, never Figma's cloud. There is no `send_code_connect_mappings` equivalent — committing the file is the publish step, which also makes the mapping reviewable. Mapped components show up at the top of `get_design_context`. See [docs/code-connect.md](docs/code-connect.md).
-- `generate_diagram` supports flowchart, sequenceDiagram, erDiagram and stateDiagram-v2, each within a documented subset. Anything else — another diagram type, a subgraph, a note, a styling directive — is refused with its line number and nothing is drawn: the relay will not draw an approximation of a diagram it does not understand. See [docs/figjam.md](docs/figjam.md).
-- Team library tools (`get_libraries`, `import_library_asset`, `search_design_system`) need the `teamlibrary` permission and a Figma plan that allows team library APIs. Without them `get_libraries` and `import_library_asset` return an explicit error naming the requirement, `search_design_system` falls back to the current page and says why, and every other tool is unaffected. `search_design_system` is much narrower than Figma's own: the Plugin API cannot full-text search published component libraries, so it searches the current page (including instances of library components) and published variable collections only — an empty result is not proof a component does not exist. See [docs/libraries.md](docs/libraries.md).
+- `run_script` executes agent-authored JavaScript with the full Plugin API in scope. It is the escape hatch for components, variables, styles, boolean operations, prototyping, and any other API the dedicated tools do not cover. Unlike the dedicated tools it is **not atomic** — a script that throws part-way leaves its earlier mutations in the file, because the Plugin API has no rollback. See [docs/guides/run-script.md](docs/guides/run-script.md) for the full contract, limits, and gotchas.
+- Serialized nodes carry design-system identity, not just geometry: instances report their main component and set properties, fills bound to variables report the token name, named styles report the style name, and auto-layout children report hug/fill intent. Fields are omitted when a node carries nothing for them, so plain nodes serialize exactly as before. See [docs/reference/serialized-nodes.md](docs/reference/serialized-nodes.md).
+- `get_design_context` exports icons and images as files under `assetDir` rather than returning expiring URLs, because a committed file is what code you keep actually needs. The path must stay inside the MCP server working directory. See [docs/guides/design-context.md](docs/guides/design-context.md) for the response contract.
+- Code Connect on the relay is entirely local: mappings are read from and written to `*.figma.tsx` files in your repository, never Figma's cloud. There is no `send_code_connect_mappings` equivalent — committing the file is the publish step, which also makes the mapping reviewable. Mapped components show up at the top of `get_design_context`. See [docs/guides/code-connect.md](docs/guides/code-connect.md).
+- `generate_diagram` supports flowchart, sequenceDiagram, erDiagram and stateDiagram-v2, each within a documented subset. Anything else — another diagram type, a subgraph, a note, a styling directive — is refused with its line number and nothing is drawn: the relay will not draw an approximation of a diagram it does not understand. See [docs/guides/figjam.md](docs/guides/figjam.md).
+- Team library tools (`get_libraries`, `import_library_asset`, `search_design_system`) need the `teamlibrary` permission and a Figma plan that allows team library APIs. Without them `get_libraries` and `import_library_asset` return an explicit error naming the requirement, `search_design_system` falls back to the current page and says why, and every other tool is unaffected. `search_design_system` is much narrower than Figma's own: the Plugin API cannot full-text search published component libraries, so it searches the current page (including instances of library components) and published variable collections only — an empty result is not proof a component does not exist. See [docs/guides/libraries.md](docs/guides/libraries.md).
 
 ### What You Can Build
 
@@ -249,6 +249,8 @@ GitHub Actions runs all of the above on every push and pull request.
 ```
 Figma-Design-Relay/
 ├── CHANGELOG.md  # What changed in each version
+├── CLAUDE.md     # Contributor notes for AI agents; .claude/ holds its path-scoped rules and skills
+├── docs/         # guides/ per tool family, reference/, and superpowers/ specs and plans
 ├── scripts/      # check-version.mjs: one version across server, plugin and changelog
 ├── plugin/       # Figma plugin (TypeScript/React)
 └── server/       # MCP server (TypeScript/Node.js)

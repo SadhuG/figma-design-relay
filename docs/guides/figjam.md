@@ -29,7 +29,7 @@ and FigJam is what this support needed.
 ## Reading a board
 
 `get_document`, `get_node` and `get_selection` serialize FigJam nodes with the fields that carry their
-meaning (full table in [serialized-nodes.md](serialized-nodes.md#figjam-fields)):
+meaning (full table in [serialized-nodes.md](../reference/serialized-nodes.md#figjam-fields)):
 
 ```json
 { "id": "4:1", "type": "STICKY", "text": "Ship it", "authorName": "Sam" }

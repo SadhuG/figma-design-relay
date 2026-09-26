@@ -112,7 +112,7 @@ builds ignore it and describe the selection instead.
 | `r6-error-path.js`        | R6 — a throwing script surfaces as an MCP error result       |
 
 R7's Dev Mode gate is **not** here: Dev Mode needs a paid Figma seat. It is covered by
-`plugin/src/main/editor-gate.test.ts` instead. Annotations are different: a person can only type
+`plugin/src/main/capabilities.test.ts` instead. Annotations are different: a person can only type
 one in Dev Mode, but a `run_script` can write one from the design editor with
 `node.annotations = [{ label: "…" }]`, so the serializer's annotation field can be checked live
 without the seat.

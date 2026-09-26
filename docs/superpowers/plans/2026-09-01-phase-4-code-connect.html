@@ -2112,7 +2112,7 @@ git commit -m "feat(server): write Code Connect mappings as workspace files"</co
                     <span class="verb">Modify</span><code>README.md</code> — tool table and Editing
                     Notes
                   </li>
-                  <li><span class="verb">Create</span><code>docs/code-connect.md</code></li>
+                  <li><span class="verb">Create</span><code>docs/guides/code-connect.md</code></li>
                 </ul>
               </dd>
               <dt>Interfaces</dt>
@@ -2261,13 +2261,13 @@ collect(tree);</code></pre>
                 </div>
                 <div class="step__body">
                   <p>
-                    Create <code>docs/code-connect.md</code> covering: where mappings live and that
-                    they are committed files; the four tools and what each does; the discovery rules
-                    (<code>**/*.figma.{ts,tsx,js,jsx}</code>, ignored directories, containment); the
-                    parser's supported shapes and what it reports as unreadable; why there is no
-                    <code>send_code_connect_mappings</code> — the bridge's equivalent is
-                    <code>git commit</code>, which makes the mapping reviewable in a way a cloud
-                    record is not; and the hint priority from the spec's R25.
+                    Create <code>docs/guides/code-connect.md</code> covering: where mappings live
+                    and that they are committed files; the four tools and what each does; the
+                    discovery rules (<code>**/*.figma.{ts,tsx,js,jsx}</code>, ignored directories,
+                    containment); the parser's supported shapes and what it reports as unreadable;
+                    why there is no <code>send_code_connect_mappings</code> — the bridge's
+                    equivalent is <code>git commit</code>, which makes the mapping reviewable in a
+                    way a cloud record is not; and the hint priority from the spec's R25.
                   </p>
                 </div>
               </li>
@@ -2279,7 +2279,7 @@ collect(tree);</code></pre>
                 </div>
                 <div class="step__body">
                   <p>Add four rows to the tool table:</p>
-                  <pre><code>| `get_code_connect_map` | Map Figma nodes to workspace components, read from local `*.figma.ts` files ([guide](docs/code-connect.md)) |
+                  <pre><code>| `get_code_connect_map` | Map Figma nodes to workspace components, read from local `*.figma.ts` files ([guide](docs/guides/code-connect.md)) |
 | `get_context_for_code_connect` | A component's properties and variant axes, for authoring a mapping |
 | `get_code_connect_suggestions` | Propose mappings by matching Figma component names against workspace exports |
 | `add_code_connect_map` | Write a Code Connect mapping file into the workspace |</code></pre>
@@ -2310,7 +2310,7 @@ cd ../plugin &amp;&amp; bun run test &amp;&amp; bunx tsc --noEmit -p tsconfig.js
                   <label class="step__label" for="codeconnectt8s9">Commit</label>
                 </div>
                 <div class="step__body">
-                  <pre><code>git add server/src/tools.ts server/src/design-context.test.ts README.md docs/code-connect.md
+                  <pre><code>git add server/src/tools.ts server/src/design-context.test.ts README.md docs/guides/code-connect.md
 git commit -m "feat: surface Code Connect mappings in design context"</code></pre>
                   <p>---</p>
                 </div>
@@ -2349,8 +2349,8 @@ git commit -m "feat: surface Code Connect mappings in design context"</code></pr
                 mapped.
               </li>
               <li>
-                <code>docs/code-connect.md</code> explains the local-file model and why there is no
-                publish step.
+                <code>docs/guides/code-connect.md</code> explains the local-file model and why there
+                is no publish step.
               </li>
             </ul>
           </section>
@@ -2358,7 +2358,9 @@ git commit -m "feat: surface Code Connect mappings in design context"</code></pr
           <footer class="colophon">
             <span>Figma Design Relay</span>
             <span>Plan · Phase 4 · 2026-09-01</span>
-            <span>Source: <code>docs/superpowers/plans/2026-09-01-code-connect.md</code></span>
+            <span
+              >Source: <code>docs/superpowers/plans/2026-09-01-phase-4-code-connect.md</code></span
+            >
             <span
               ><a href="../specs/2026-09-01-official-figma-mcp-parity.html">← Parity spec</a></span
             >

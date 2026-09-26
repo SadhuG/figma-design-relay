@@ -1260,7 +1260,7 @@ git commit -m "feat: add FigJam sticky, shape, connector and section tools"</cod
                     <span class="verb">Modify</span
                     ><code>plugin/src/main/capabilities.test.ts</code> — Slides expectations
                   </li>
-                  <li><span class="verb">Create</span><code>docs/slides.md</code></li>
+                  <li><span class="verb">Create</span><code>docs/guides/slides.md</code></li>
                 </ul>
               </dd>
               <dt>Interfaces</dt>
@@ -1324,7 +1324,7 @@ git commit -m "feat: add FigJam sticky, shape, connector and section tools"</cod
                 </div>
                 <div class="step__body">
                   <p>
-                    Create <code>docs/slides.md</code> stating: what works (every read tool,
+                    Create <code>docs/guides/slides.md</code> stating: what works (every read tool,
                     <code>get_screenshot</code>, <code>save_screenshots</code>, and text and
                     property edits on nodes inside existing slides); what does not and why (creating
                     slides, slide rows and slide grids is deliberately unimplemented in phase 6 —
@@ -1341,7 +1341,7 @@ git commit -m "feat: add FigJam sticky, shape, connector and section tools"</cod
                   <label class="step__label" for="figjamt5s4">Commit</label>
                 </div>
                 <div class="step__body">
-                  <pre><code>git add plugin/src/main/capabilities.test.ts docs/slides.md
+                  <pre><code>git add plugin/src/main/capabilities.test.ts docs/guides/slides.md
 git commit -m "docs: state the Slides support scope"</code></pre>
                   <p>---</p>
                 </div>
@@ -2211,7 +2211,7 @@ git commit -m "feat: render Mermaid diagrams into FigJam boards"</code></pre>
                     <span class="verb">Modify</span><code>README.md</code> — tool table, Editing
                     Notes, plugin install section
                   </li>
-                  <li><span class="verb">Create</span><code>docs/figjam.md</code></li>
+                  <li><span class="verb">Create</span><code>docs/guides/figjam.md</code></li>
                 </ul>
               </dd>
               <dt>Interfaces</dt>
@@ -2330,7 +2330,7 @@ describe("capability regression", () =&gt; {
                 </div>
                 <div class="step__body">
                   <p>
-                    Create <code>docs/figjam.md</code> covering: which editors the plugin now
+                    Create <code>docs/guides/figjam.md</code> covering: which editors the plugin now
                     supports and how to tell which one you are in (<code>get_metadata</code> reports
                     <code>editorType</code>); what a serialized FigJam board looks like, especially
                     connector endpoints and why topology matters; the four write tools and their
@@ -2348,7 +2348,7 @@ describe("capability regression", () =&gt; {
                 </div>
                 <div class="step__body">
                   <p>Add five rows to the tool table:</p>
-                  <pre><code>| `create_sticky` | Create a FigJam sticky note ([guide](docs/figjam.md)) |
+                  <pre><code>| `create_sticky` | Create a FigJam sticky note ([guide](docs/guides/figjam.md)) |
 | `create_shape_with_text` | Create a FigJam shape with text inside it |
 | `create_connector` | Connect two FigJam nodes, optionally with a label |
 | `create_section` | Create a section in a FigJam board or design file |
@@ -2357,7 +2357,7 @@ describe("capability regression", () =&gt; {
                     Update the plugin install section to say the plugin now runs in design files,
                     FigJam boards and Slides (not Dev Mode — see R43), and append to Editing Notes:
                   </p>
-                  <pre><code>- Tools are gated by editor, not just by Dev Mode: `create_page` and the design write tools need a design file, sticky notes and connectors need FigJam, and Slides support is limited to reads plus text edits inside existing slides ([scope](docs/slides.md)). A tool used in the wrong editor is refused up front with a message naming the editor it needs.
+                  <pre><code>- Tools are gated by editor, not just by Dev Mode: `create_page` and the design write tools need a design file, sticky notes and connectors need FigJam, and Slides support is limited to reads plus text edits inside existing slides ([scope](docs/guides/slides.md)). A tool used in the wrong editor is refused up front with a message naming the editor it needs.
 - `generate_diagram` supports flowchart, sequenceDiagram, erDiagram and stateDiagram-v2. Anything else is refused by name — the bridge will not draw an approximation of a diagram type it does not understand.</code></pre>
                 </div>
               </li>
@@ -2384,7 +2384,7 @@ cd ../plugin &amp;&amp; bun run test &amp;&amp; bunx tsc --noEmit -p tsconfig.js
                   <label class="step__label" for="figjamt8s7">Commit</label>
                 </div>
                 <div class="step__body">
-                  <pre><code>git add plugin/src/main/capabilities.regression.test.ts README.md docs/figjam.md
+                  <pre><code>git add plugin/src/main/capabilities.regression.test.ts README.md docs/guides/figjam.md
 git commit -m "docs: document FigJam, Slides and diagram support"</code></pre>
                   <p>---</p>
                 </div>
@@ -2423,8 +2423,8 @@ git commit -m "docs: document FigJam, Slides and diagram support"</code></pre>
                 fifth by name without drawing anything.
               </li>
               <li>
-                <code>docs/figjam.md</code> and <code>docs/slides.md</code> state what is supported
-                and what is deliberately not.
+                <code>docs/guides/figjam.md</code> and <code>docs/guides/slides.md</code> state what
+                is supported and what is deliberately not.
               </li>
             </ul>
           </section>
@@ -2434,7 +2434,7 @@ git commit -m "docs: document FigJam, Slides and diagram support"</code></pre>
             <span>Plan · Phase 6 · 2026-09-01</span>
             <span
               >Source:
-              <code>docs/superpowers/plans/2026-09-01-figjam-slides-diagrams.md</code></span
+              <code>docs/superpowers/plans/2026-09-01-phase-6-figjam-slides-diagrams.md</code></span
             >
             <span
               ><a href="../specs/2026-09-01-official-figma-mcp-parity.html">← Parity spec</a></span
