@@ -5,12 +5,12 @@ libraries the file can use, and how to bring a published asset into the file. Th
 **narrower than Figma's own MCP server**, because the Plugin API exposes much less than Figma's REST
 and internal APIs do. This page says exactly what each tool can and cannot reach.
 
-| Tool                   | What it does                                                                     | Writes? |
-| ---------------------- | -------------------------------------------------------------------------------- | ------- |
-| `whoami`               | The signed-in user as `{ id, name, photoUrl }`, or `user: null` with a note      | no      |
-| `get_libraries`        | Enabled libraries by their published variable collections; one collection's keys | no      |
-| `import_library_asset` | Import a published component, component set, style or variable by key            | yes     |
-| `search_design_system` | Search components and instances on the current page, plus variable collections   | no      |
+| Tool                   | What it does                                                                                   | Writes? |
+| ---------------------- | ---------------------------------------------------------------------------------------------- | ------- |
+| `whoami`               | The signed-in user as `{ id, name, photoUrl }`, or `user: null` with a note                    | no      |
+| `get_libraries`        | Enabled libraries by their published variable collections; one collection's keys               | no      |
+| `import_library_asset` | Import a published component, component set, style or variable by key                          | yes     |
+| `search_design_system` | Search components and instances on the current page (or every page), plus variable collections | no      |
 
 ## Permissions
 
@@ -110,17 +110,25 @@ return { createdNodeIds: [instance.id] };
 
 **An empty result is not proof that a component does not exist.** The Figma Plugin API cannot
 full-text search an organisation's published component libraries. If a search comes back empty and
-the component should exist, ask the user to open the library file with the plugin and search there.
+the component should exist, retry with `allPages: true`, then ask the user to open the library file
+with the plugin and search there.
 
 The tool searches only what the plugin can enumerate:
 
-1. **Components and component sets on the current page.** A variant is represented by its set,
+1. **Components and component sets on the searched pages.** A variant is represented by its set,
    because a variant's own name is its property string (`Size=Large`), not what anyone searches for.
-2. **The main components of instances on the current page.** This is the only way a _library_
+2. **The main components of instances on the searched pages.** This is the only way a _library_
    component is found: when an instance of it has been placed. Such hits carry `remote: true`.
 3. **Published variable collections** of enabled libraries, when the permission and plan allow it.
 
-Other pages are not searched. Every hit carries its `kind`, its `key`, and a `score`:
+By default only the **current page** is searched. The plugin runs with dynamic page loading, so
+other pages are not in memory; `allPages: true` calls `figma.loadAllPagesAsync()` and then searches
+the whole document. That is slow on a large file — and the load counts against the bridge's
+three-minute request timeout — so it is opt-in, and the note on a current-page result suggests it.
+`searched` then reads `components and component instances on every page`. Other connected files
+are never searched: route to one with `fileKey`.
+
+Every hit carries its `kind`, its `key`, and a `score`:
 
 | Score | Match                                    | Example for `button`     |
 | ----- | ---------------------------------------- | ------------------------ |

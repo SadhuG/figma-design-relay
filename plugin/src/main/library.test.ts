@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   getLibraries,
   importLibraryAsset,
+  findSearchableNodes,
   searchDesignSystem,
   type SearchableNode,
   whoami,
@@ -256,6 +257,60 @@ describe("searchDesignSystem", () => {
     await expect(
       searchDesignSystem("  ", { nodes, readTeamLibrary: stubTeamLibrary() })
     ).rejects.toThrow(/query/);
+  });
+
+  test("names the current page as its scope and points at allPages", async () => {
+    const result = await searchDesignSystem("zzz", { nodes, readTeamLibrary: stubTeamLibrary() });
+    expect(result.searched[0]).toBe("components and component instances on the current page");
+    expect(result.note).toContain("allPages: true");
+  });
+
+  test("names every page as its scope when allPages was used", async () => {
+    const result = await searchDesignSystem("zzz", {
+      nodes,
+      allPages: true,
+      readTeamLibrary: stubTeamLibrary(),
+    });
+    expect(result.searched[0]).toBe("components and component instances on every page");
+    expect(result.note).not.toContain("allPages: true");
+  });
+});
+
+describe("findSearchableNodes", () => {
+  const stubFigma = () => {
+    const calls: string[] = [];
+    const finder = (where: string) => ({
+      findAllWithCriteria: (criteria: { types: string[] }) => {
+        calls.push(`${where}:${criteria.types.join(",")}`);
+        return [{ id: where, name: where, type: "COMPONENT" }];
+      },
+    });
+    return {
+      calls,
+      figma: {
+        currentPage: finder("page"),
+        root: finder("root"),
+        loadAllPagesAsync: async () => {
+          calls.push("loadAllPages");
+        },
+      },
+    };
+  };
+
+  // Dynamic page loading is why the default stays on one page: loading every
+  // page is slow on a large file, so it happens only when asked for.
+  test("searches the current page without loading the others by default", async () => {
+    const { calls, figma } = stubFigma();
+    const found = await findSearchableNodes(figma, false);
+    expect(found.map((node) => node.id)).toEqual(["page"]);
+    expect(calls).toEqual(["page:COMPONENT,COMPONENT_SET,INSTANCE"]);
+  });
+
+  test("loads every page first, then searches the whole document, when allPages is set", async () => {
+    const { calls, figma } = stubFigma();
+    const found = await findSearchableNodes(figma, true);
+    expect(found.map((node) => node.id)).toEqual(["root"]);
+    expect(calls).toEqual(["loadAllPages", "root:COMPONENT,COMPONENT_SET,INSTANCE"]);
   });
 });
 

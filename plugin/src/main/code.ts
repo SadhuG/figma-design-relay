@@ -17,11 +17,12 @@ import {
 import type { Box } from "./intent";
 import { describeForCodeConnect, type NodeLike } from "./component-identity";
 import {
+  findSearchableNodes,
   getLibraries,
   importLibraryAsset,
   searchDesignSystem,
   whoami,
-  type SearchableNode,
+  type SearchRoots,
 } from "./library";
 
 export type RequestType =
@@ -2101,9 +2102,11 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
           data: await searchDesignSystem(
             request.params?.query,
             {
-              nodes: figma.currentPage.findAllWithCriteria({
-                types: ["COMPONENT", "COMPONENT_SET", "INSTANCE"],
-              }) as unknown as SearchableNode[],
+              nodes: await findSearchableNodes(
+                figma as unknown as SearchRoots,
+                request.params?.allPages === true
+              ),
+              allPages: request.params?.allPages === true,
               readTeamLibrary: () => figma.teamLibrary,
             },
             request.params?.limit

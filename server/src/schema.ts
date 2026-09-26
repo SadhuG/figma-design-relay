@@ -1072,6 +1072,12 @@ export const toolInputSchemas = {
       .describe(
         "Most hits to return, strongest first (default 50, max 200). The result's total says how many matched when some were cut."
       ),
+    allPages: z
+      .boolean({ invalid_type_error: "allPages must be true or false" })
+      .optional()
+      .describe(
+        "Search components and instances on every page instead of only the current one (default false). Loads every page first, which is slow on a large file; use it when a current-page search came back empty or incomplete."
+      ),
     fileKey: fileKeyField,
   }),
 

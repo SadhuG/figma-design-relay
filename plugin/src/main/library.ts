@@ -177,8 +177,10 @@ export interface SearchableNode {
 }
 
 export interface SearchSources {
-  /** COMPONENT, COMPONENT_SET and INSTANCE nodes on the current page. */
+  /** COMPONENT, COMPONENT_SET and INSTANCE nodes from {@link findSearchableNodes}. */
   nodes: readonly SearchableNode[];
+  /** True when `nodes` came from every page rather than the current one. */
+  allPages?: boolean;
   /** Reads `figma.teamLibrary`; the read itself throws without the permission. */
   readTeamLibrary: () => TeamLibraryLike;
 }
@@ -196,7 +198,36 @@ export interface SearchResult {
 }
 
 const PAGE_SCOPE = "components and component instances on the current page";
+const DOCUMENT_SCOPE = "components and component instances on every page";
 const LIBRARY_SCOPE = "published variable collections";
+const SEARCHABLE_TYPES = ["COMPONENT", "COMPONENT_SET", "INSTANCE"];
+
+/** The parts of the `figma` global {@link findSearchableNodes} reads. */
+export interface SearchRoots {
+  currentPage: { findAllWithCriteria: (criteria: { types: string[] }) => readonly unknown[] };
+  root: { findAllWithCriteria: (criteria: { types: string[] }) => readonly unknown[] };
+  loadAllPagesAsync: () => Promise<void>;
+}
+
+/**
+ * Collects the nodes `search_design_system` ranks. Under dynamic page loading
+ * only the current page is loaded, and loading the rest is slow on a large
+ * file — so every page is searched only when the caller asks for it.
+ * @param roots - `figma`, or a stub of it.
+ * @param allPages - Load and search every page instead of the current one.
+ */
+export const findSearchableNodes = async (
+  roots: SearchRoots,
+  allPages: boolean
+): Promise<SearchableNode[]> => {
+  if (!allPages) {
+    return roots.currentPage.findAllWithCriteria({
+      types: SEARCHABLE_TYPES,
+    }) as SearchableNode[];
+  }
+  await roots.loadAllPagesAsync();
+  return roots.root.findAllWithCriteria({ types: SEARCHABLE_TYPES }) as SearchableNode[];
+};
 
 export const DEFAULT_SEARCH_LIMIT = 50;
 const MAIN_COMPONENT_BATCH = 64;
@@ -269,7 +300,7 @@ export const searchDesignSystem = async (
     }
   }
 
-  const searched = [PAGE_SCOPE];
+  const searched = [sources.allPages ? DOCUMENT_SCOPE : PAGE_SCOPE];
   let libraryError: string | undefined;
   try {
     const collections = await sources
@@ -297,6 +328,11 @@ export const searchDesignSystem = async (
     "full-text search an organisation's published component libraries, so an empty result " +
     "does not mean the component does not exist — ask the user to open the library file " +
     "with the plugin and search again there.";
+  if (!sources.allPages) {
+    note +=
+      " Only the current page was searched; pass allPages: true to search every page of " +
+      "this file (slower on a large file).";
+  }
   if (hits.length > cap) {
     note +=
       ` Only the ${cap} strongest of ${hits.length} hits are returned; narrow the query or ` +

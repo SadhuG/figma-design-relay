@@ -208,6 +208,20 @@ describe("validateRpc search_design_system", () => {
     expect(result.params).toEqual({ query: "button", limit: 5 });
   });
 
+  test("forwards allPages", () => {
+    const result = validateRpc("search_design_system", undefined, {
+      query: "button",
+      allPages: true,
+    });
+    expect(result.params).toEqual({ query: "button", allPages: true });
+  });
+
+  test("rejects a non-boolean allPages", () => {
+    expect(
+      validateRpc("search_design_system", undefined, { query: "button", allPages: "yes" }).error
+    ).toMatch(/allPages/);
+  });
+
   test.each([0, 201, 2.5])("rejects a limit of %p", (limit) => {
     expect(
       validateRpc("search_design_system", undefined, { query: "button", limit }).error
