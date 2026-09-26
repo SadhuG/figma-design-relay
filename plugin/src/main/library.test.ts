@@ -291,3 +291,22 @@ describe("reading figma.teamLibrary itself", () => {
     expect(result.libraryError).toContain("manifest.json");
   });
 });
+
+describe("searchDesignSystem with a broken instance", () => {
+  test("skips an instance whose main component cannot be read, keeping every other hit", async () => {
+    const card: SearchableNode = { id: "11:1", name: "Card", type: "COMPONENT" };
+    const broken: SearchableNode = {
+      id: "30:9",
+      name: "Card copy",
+      type: "INSTANCE",
+      getMainComponentAsync: async () => {
+        throw new Error("The main component of this instance could not be loaded");
+      },
+    };
+    const result = await searchDesignSystem("card", {
+      nodes: [card, broken],
+      readTeamLibrary: stubTeamLibrary(),
+    });
+    expect(result.results.map((hit) => hit.id)).toEqual(["11:1"]);
+  });
+});

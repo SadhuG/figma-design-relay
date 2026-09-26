@@ -233,7 +233,8 @@ export const searchDesignSystem = async (
   const mains = await Promise.all(
     sources.nodes.map((node) =>
       node.type === "INSTANCE" && node.getMainComponentAsync
-        ? node.getMainComponentAsync()
+        ? // One unreadable main component must not sink the whole search.
+          node.getMainComponentAsync().catch(() => null)
         : Promise.resolve(node)
     )
   );
