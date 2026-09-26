@@ -22,9 +22,18 @@ export interface SearchHit extends SearchCandidate {
   score: number;
 }
 
-const normalise = (value: string): string => value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+// Whitespace and ASCII punctuation. Everything else is kept, so a query in any
+// script still has something to match. A `\p{L}` class would say this more
+// directly, but the plugin builds to es2015 and the sandbox is not promised to
+// support Unicode property escapes.
+const SEPARATORS = /[\s!-/:-@[-`{-~]+/g;
+
+const normalise = (value: string): string =>
+  value.normalize("NFC").toLowerCase().replace(SEPARATORS, "");
 
 const segments = (name: string): string[] => name.split("/").map(normalise).filter(Boolean);
+
+const words = (name: string): string[] => name.split(SEPARATORS).map(normalise).filter(Boolean);
 
 /**
  * Reports whether a name matches a query, ignoring case and separators.
@@ -35,6 +44,23 @@ export const matchesQuery = (query: string, name: string): boolean => {
   const needle = normalise(query);
   if (needle === "") return false;
   return normalise(name).includes(needle);
+};
+
+/**
+ * Scores a matching name: 1 for the whole name or one `/` segment, 0.9 for a
+ * whole word, 0.8 for a prefix of the name, 0.7 for a prefix of a word, 0.5
+ * for any other substring.
+ * @param needle - The normalised query.
+ * @param name - The candidate's raw name.
+ */
+const scoreName = (needle: string, name: string): number => {
+  const whole = normalise(name);
+  if (whole === needle || segments(name).includes(needle)) return 1;
+  const nameWords = words(name);
+  if (nameWords.includes(needle)) return 0.9;
+  if (whole.startsWith(needle)) return 0.8;
+  if (nameWords.some((word) => word.startsWith(needle))) return 0.7;
+  return 0.5;
 };
 
 /**
@@ -49,11 +75,6 @@ export const rankResults = (query: string, candidates: SearchCandidate[]): Searc
 
   return candidates
     .filter((candidate) => matchesQuery(query, candidate.name))
-    .map((candidate) => {
-      const exactSegment = segments(candidate.name).some((segment) => segment === needle);
-      const startsWith = normalise(candidate.name).startsWith(needle);
-      const score = exactSegment ? 1 : startsWith ? 0.8 : 0.5;
-      return { ...candidate, score };
-    })
+    .map((candidate) => ({ ...candidate, score: scoreName(needle, candidate.name) }))
     .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
 };
