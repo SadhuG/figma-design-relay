@@ -2,6 +2,16 @@ import { serializeNode } from "./serializer";
 import { addLayersToFrame } from "../html-figma/figma";
 import { runScript } from "./script-runner";
 import { assertEditorSupports, type EditorType } from "./capabilities";
+import {
+  capFor,
+  placementOrigin,
+  readDiagramPayload,
+  shapeFor,
+  strokeFor,
+  type Box,
+  type RenderEdge,
+  type RenderSegment,
+} from "./diagram";
 import { describeForCodeConnect, type NodeLike } from "./component-identity";
 import {
   getLibraries,
@@ -58,7 +68,8 @@ export type RequestType =
   | "create_sticky"
   | "create_shape_with_text"
   | "create_connector"
-  | "create_section";
+  | "create_section"
+  | "render_diagram";
 
 type ServerRequestParams = Record<string, unknown> & {
   format?: "PNG" | "SVG" | "JPG" | "PDF";
@@ -360,6 +371,22 @@ const describeCreated = (node: SceneNode) => ({
   width: node.width,
   height: node.height,
 });
+
+/** Caps, stroke and label shared by node-to-node edges and free segments. */
+const styleConnector = async (
+  connector: ConnectorNode,
+  line: RenderEdge | RenderSegment
+): Promise<void> => {
+  connector.connectorStartStrokeCap = capFor(line.startCap, "start");
+  connector.connectorEndStrokeCap = capFor(line.endCap, "end");
+  const { dashPattern, strokeWeight } = strokeFor(line.style);
+  connector.dashPattern = dashPattern;
+  connector.strokeWeight = strokeWeight;
+  if (line.label) {
+    await figma.loadFontAsync(connector.text.fontName as FontName);
+    connector.text.characters = line.label;
+  }
+};
 
 const handleRequest = async (request: ServerRequest): Promise<PluginResponse> => {
   try {
@@ -1943,6 +1970,81 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
         }
         positionNode(section, params.x, params.y);
         return { type: request.type, requestId: request.requestId, data: describeCreated(section) };
+      }
+      case "render_diagram": {
+        // Parsed and laid out server-side; readDiagramPayload refuses anything
+        // this case could not draw exactly, before anything is created.
+        const diagram = readDiagramPayload(request.params?.diagram);
+        const origin = placementOrigin(
+          figma.currentPage.children
+            .map((child) => child.absoluteBoundingBox)
+            .filter((box): box is Box => box !== null)
+        );
+        const created: SceneNode[] = [];
+        const shapes = new Map<string, ShapeWithTextNode>();
+        try {
+          for (const item of diagram.nodes) {
+            const shape = figma.createShapeWithText();
+            created.push(shape);
+            shape.shapeType = shapeFor(item.shape);
+            await figma.loadFontAsync(shape.text.fontName as FontName);
+            shape.text.characters = item.label;
+            shape.resize(item.width, item.height);
+            shape.x = origin.x + item.x;
+            shape.y = origin.y + item.y;
+            if (item.shape === "start" || item.shape === "end") {
+              shape.fills = [{ type: "SOLID", color: { r: 0.12, g: 0.12, b: 0.12 } }];
+            }
+            shapes.set(item.id, shape);
+          }
+
+          for (const edge of diagram.edges) {
+            const connector = figma.createConnector();
+            created.push(connector);
+            const start = (shapes.get(edge.from) as ShapeWithTextNode).id;
+            const end = (shapes.get(edge.to) as ShapeWithTextNode).id;
+            // A self-loop needs distinct magnets, or it collapses to a point.
+            const loop = edge.from === edge.to;
+            connector.connectorStart = { endpointNodeId: start, magnet: loop ? "RIGHT" : "AUTO" };
+            connector.connectorEnd = { endpointNodeId: end, magnet: loop ? "TOP" : "AUTO" };
+            await styleConnector(connector, edge);
+          }
+
+          for (const segment of diagram.segments) {
+            const connector = figma.createConnector();
+            created.push(connector);
+            connector.connectorLineType = "STRAIGHT";
+            connector.connectorStart = {
+              position: { x: origin.x + segment.start.x, y: origin.y + segment.start.y },
+            };
+            connector.connectorEnd = {
+              position: { x: origin.x + segment.end.x, y: origin.y + segment.end.y },
+            };
+            await styleConnector(connector, segment);
+          }
+        } catch (err) {
+          // Scripts are not atomic, but this tool can be: take back everything
+          // it drew so a failure never leaves half a diagram on the board.
+          for (const node of created) if (!node.removed) node.remove();
+          const reason = err instanceof Error ? err.message : String(err);
+          throw new Error(
+            `Drawing the diagram failed, and nothing was left on the board: ${reason}`
+          );
+        }
+
+        figma.currentPage.selection = created;
+        figma.viewport.scrollAndZoomIntoView(created);
+        return {
+          type: request.type,
+          requestId: request.requestId,
+          data: {
+            kind: diagram.kind,
+            createdNodeIds: created.map((node) => node.id),
+            nodeCount: diagram.nodes.length,
+            connectorCount: diagram.edges.length + diagram.segments.length,
+            origin,
+          },
+        };
       }
       case "whoami":
         // A read, so absent from CAPABILITIES: it works in every editor.

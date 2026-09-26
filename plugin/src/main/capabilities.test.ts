@@ -90,6 +90,13 @@ describe("assertEditorSupports", () => {
     expect(() => assertEditorSupports("get_libraries", "dev")).not.toThrow();
   });
 
+  // The table is keyed by the request type the plugin receives. generate_diagram
+  // is the MCP tool; what reaches the dispatcher is render_diagram.
+  test("the diagram renderer is gated under the request type the plugin receives", () => {
+    expect(() => assertEditorSupports("render_diagram", "figma")).toThrow(/FigJam board/);
+    expect(() => assertEditorSupports("render_diagram", "figjam")).not.toThrow();
+  });
+
   test("an unknown tool is allowed rather than blocked", () => {
     expect(() => assertEditorSupports("some_future_tool", "figjam")).not.toThrow();
   });

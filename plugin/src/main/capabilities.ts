@@ -94,7 +94,8 @@ export const CAPABILITIES: Record<string, Capability> = {
     reason: "shapes-with-text exist only in FigJam",
   },
   create_section: { editors: ["figma", "figjam"] },
-  generate_diagram: { editors: FIGJAM_ONLY, reason: "diagrams are rendered as FigJam boards" },
+  // The request generate_diagram sends once the server has parsed and laid out the Mermaid.
+  render_diagram: { editors: FIGJAM_ONLY, reason: "diagrams are rendered as FigJam boards" },
 };
 
 /**

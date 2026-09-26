@@ -271,3 +271,17 @@ describe("validateRpc create_section", () => {
     expect(validateRpc("create_section", undefined, { width: 400 }).error).not.toBeNull();
   });
 });
+
+describe("validateRpc generate_diagram", () => {
+  test("forwards the Mermaid source", () => {
+    const result = validateRpc("generate_diagram", undefined, {
+      mermaid: "flowchart TD\n A --> B",
+    });
+    expect(result.error).toBeNull();
+    expect(result.params).toEqual({ mermaid: "flowchart TD\n A --> B" });
+  });
+
+  test("rejects empty source", () => {
+    expect(validateRpc("generate_diagram", undefined, { mermaid: "" }).error).not.toBeNull();
+  });
+});

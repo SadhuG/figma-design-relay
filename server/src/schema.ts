@@ -1070,6 +1070,17 @@ export const toolInputSchemas = {
   create_shape_with_text: createShapeWithTextInput,
   create_connector: createConnectorInput,
   create_section: createSectionInput,
+
+  generate_diagram: z.object({
+    mermaid: z
+      .string()
+      .min(1, "mermaid must not be empty")
+      .max(100_000)
+      .describe(
+        "Mermaid source. Supported: flowchart (or graph), sequenceDiagram, erDiagram, stateDiagram-v2 — see the tool description for the exact subset."
+      ),
+    fileKey: fileKeyField,
+  }),
 } as const;
 
 type ToolName = keyof typeof toolInputSchemas;
@@ -1182,6 +1193,7 @@ const rpcToArgs: Record<
   create_shape_with_text: (_nodeIds, params) => ({ ...params }),
   create_connector: (_nodeIds, params) => ({ ...params }),
   create_section: (_nodeIds, params) => ({ ...params }),
+  generate_diagram: (_nodeIds, params) => ({ ...params }),
 };
 
 /**

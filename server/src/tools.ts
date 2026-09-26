@@ -57,6 +57,8 @@ import {
 import type { Mapping } from "./code-connect/parse.js";
 import { findExportedComponents, scoreCandidates } from "./code-connect/suggest.js";
 import { writeMapping } from "./code-connect/write.js";
+import { layoutDiagram } from "./mermaid/layout.js";
+import { parseMermaid } from "./mermaid/parse.js";
 
 const MAX_IMAGE_BYTES = 32 * 1024 * 1024;
 const IMAGE_FETCH_TIMEOUT_MS = 15_000;
@@ -975,6 +977,32 @@ export function registerTools(server: McpServer, node: Node, port: number): void
       const { fileKey, ...params } = parsed.data;
       return renderResponse(() =>
         node.sendWithParams("create_section", undefined, params, fileKey)
+      );
+    }
+  );
+
+  server.tool(
+    "generate_diagram",
+    "Render Mermaid source as a native, editable diagram on a FigJam board — shapes-with-text joined by connectors, placed to the right of the board's existing content. FigJam boards only; refused in design files and Slides. Narrower than Mermaid itself, by design: flowchart/graph (node shapes A[ ], A( ), A([ ]), A[[ ]], A[( )], A(( )), A{ }, A{{ }}, A[/ /], A[\\ \\], A[/ \\]; links -->, ---, -.->, ==>, --o, <-->, with -->|label| or -- label --> text; chains), sequenceDiagram (participant/actor [as Label], autonumber, messages ->>, -->>, ->, -->, -), --) — drawn with lifelines, one row per message), erDiagram (attribute blocks, relationships with crow's-foot cardinality) and stateDiagram-v2 ([*], transitions with labels, state \"…\" as X, X : description, <<choice>>, direction). Anything else — subgraphs, classDef/style, notes, loop/alt blocks, composite states, other diagram types — is refused with the line number and nothing is drawn; there is no approximate rendering. Limit 200 nodes and 400 edges per call. When multiple files are connected, specify fileKey.",
+    toolInputSchemas.generate_diagram.shape,
+    async ({ mermaid, fileKey }): Promise<ToolResult> => {
+      let diagram;
+      try {
+        // Parse and lay out here, where a failing test can reach it; the
+        // plugin only creates what it is handed.
+        diagram = layoutDiagram(parseMermaid(mermaid));
+      } catch (err) {
+        return {
+          content: [
+            textBlock(
+              `${err instanceof Error ? err.message : String(err)} Nothing was drawn. Fix the source and call generate_diagram again.`
+            ),
+          ],
+          isError: true,
+        };
+      }
+      return renderResponse(() =>
+        node.sendWithParams("render_diagram", undefined, { diagram }, fileKey)
       );
     }
   );
