@@ -99,3 +99,55 @@ export const getLibraries = async (
       "back as collectionKey to list its variables; use search_design_system for components.",
   };
 };
+
+export const IMPORTABLE_KINDS = ["component", "componentSet", "style", "variable"] as const;
+export type ImportableKind = (typeof IMPORTABLE_KINDS)[number];
+
+interface Imported {
+  id: string;
+  name: string;
+  type?: string;
+}
+
+/**
+ * Figma's four import-by-key calls, one per kind: `importComponentByKeyAsync`,
+ * `importComponentSetByKeyAsync`, `importStyleByKeyAsync` and
+ * `variables.importVariableByKeyAsync`.
+ */
+export type LibraryImporters = Record<ImportableKind, (key: string) => Promise<Imported>>;
+
+export interface ImportResult {
+  kind: ImportableKind;
+  id: string;
+  name: string;
+  /** The node or style type; absent for a variable, which has none. */
+  type?: string;
+}
+
+const isImportableKind = (kind: unknown): kind is ImportableKind =>
+  (IMPORTABLE_KINDS as readonly unknown[]).includes(kind);
+
+/**
+ * Imports a published asset by key and returns the id a later call can place
+ * or bind.
+ * @param importers - The Plugin API's import-by-key calls.
+ * @param kind - Which importer the key belongs to.
+ * @param key - The published key.
+ */
+export const importLibraryAsset = async (
+  importers: LibraryImporters,
+  kind: unknown,
+  key: unknown
+): Promise<ImportResult> => {
+  if (!isImportableKind(kind)) {
+    throw new Error(`Unknown kind "${String(kind)}". Use one of: ${IMPORTABLE_KINDS.join(", ")}.`);
+  }
+  if (typeof key !== "string" || key === "") {
+    throw new Error("import_library_asset requires a non-empty `key` string parameter.");
+  }
+
+  const imported = await withPermissionContext("teamLibrary", () => importers[kind](key));
+  const result: ImportResult = { kind, id: imported.id, name: imported.name };
+  if (imported.type !== undefined) result.type = imported.type;
+  return result;
+};

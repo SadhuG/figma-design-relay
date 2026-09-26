@@ -171,3 +171,23 @@ describe("validateRpc get_libraries", () => {
     expect(validateRpc("get_libraries", undefined, { collectionKey: "" }).error).not.toBeNull();
   });
 });
+
+describe("validateRpc import_library_asset", () => {
+  test("forwards kind and key", () => {
+    const result = validateRpc("import_library_asset", undefined, { kind: "style", key: "abc" });
+    expect(result.error).toBeNull();
+    expect(result.params).toEqual({ kind: "style", key: "abc" });
+  });
+
+  test("rejects an unknown kind", () => {
+    expect(
+      validateRpc("import_library_asset", undefined, { kind: "page", key: "abc" }).error
+    ).not.toBeNull();
+  });
+
+  test("rejects an empty key", () => {
+    expect(
+      validateRpc("import_library_asset", undefined, { kind: "component", key: "" }).error
+    ).not.toBeNull();
+  });
+});

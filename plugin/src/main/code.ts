@@ -3,7 +3,7 @@ import { addLayersToFrame } from "../html-figma/figma";
 import { runScript } from "./script-runner";
 import { EDIT_REQUEST_TYPES, requireEditorMode } from "./editor-gate";
 import { describeForCodeConnect, type NodeLike } from "./component-identity";
-import { getLibraries, whoami } from "./library";
+import { getLibraries, importLibraryAsset, whoami } from "./library";
 
 export type RequestType =
   | "get_document"
@@ -46,7 +46,8 @@ export type RequestType =
   | "run_script"
   | "get_context_for_code_connect"
   | "whoami"
-  | "get_libraries";
+  | "get_libraries"
+  | "import_library_asset";
 
 type ServerRequestParams = Record<string, unknown> & {
   format?: "PNG" | "SVG" | "JPG" | "PDF";
@@ -1866,6 +1867,21 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
           ),
         };
       }
+      case "import_library_asset":
+        return {
+          type: request.type,
+          requestId: request.requestId,
+          data: await importLibraryAsset(
+            {
+              component: (key) => figma.importComponentByKeyAsync(key),
+              componentSet: (key) => figma.importComponentSetByKeyAsync(key),
+              style: (key) => figma.importStyleByKeyAsync(key),
+              variable: (key) => figma.variables.importVariableByKeyAsync(key),
+            },
+            request.params?.kind,
+            request.params?.key
+          ),
+        };
       default:
         throw new Error(`Unknown request type: ${request.type}`);
     }
