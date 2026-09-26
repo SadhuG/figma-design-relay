@@ -220,6 +220,11 @@ Use `superpowers:subagent-driven-development` or `superpowers:executing-plans` t
   Not everything that looks Dev-Mode-only needs the seat, though: **annotations can be written from
   the design editor** with `node.annotations = [{ label: "…" }]` in a `run_script`, even though only
   Dev Mode lets a person type one. Phase 2's live check of the annotation field was done that way.
+- **No account here can use team library APIs.** They need an Organization or Enterprise plan, and
+  no published library is available, so a successful `get_libraries` listing, library import or
+  library search hit cannot be produced live. Cover those paths with stubbed `figma.teamLibrary` and
+  importers (`plugin/src/main/library.test.ts`), check the refusal path live instead, and do not
+  budget a live team-library step in a plan. `docs/libraries.md` lists what is still unverified.
 - **Scripts are not atomic.** The Plugin API has no rollback, so a `run_script` that throws part-way
   leaves its earlier mutations. Say so in docs; do not paper over it.
 - **The leader binds `127.0.0.1`, never `0.0.0.0`.** `/rpc` runs every tool — `run_script`

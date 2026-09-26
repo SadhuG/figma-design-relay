@@ -963,9 +963,9 @@ git commit -m "feat: add get_libraries"</code></pre>
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="libraryreacht5s6" />
+                  <input type="checkbox" id="libraryreacht5s6" checked />
                   <label class="step__label" for="libraryreacht5s6">Prove it in Figma</label>
                 </div>
                 <div class="step__body">
@@ -982,6 +982,19 @@ git commit -m "feat: add get_libraries"</code></pre>
 const instance = component.createInstance();
 figma.currentPage.appendChild(instance);
 return { createdNodeIds: [instance.id] };</code></pre>
+                  <p>
+                    <strong
+                      >Done differently: this project has no Figma account with a published team
+                      library, so no real key exists to import.</strong
+                    >
+                    <code>plugin/src/main/library.test.ts</code> covers the rest against stubbed
+                    importers — each of the four kinds reaching its own Figma importer and returning
+                    the id, the variable's missing <code>type</code>, an unknown kind, an empty key,
+                    a permission refusal, and Figma's "Failed to import" mapped to a next step. The
+                    refusal was also seen live in Task 7 Step 3. What no test reaches is a real
+                    import succeeding: that Figma accepts a published key and that the returned id
+                    creates a working instance. <code>docs/libraries.md</code> says so.
+                  </p>
                 </div>
               </li>
 
@@ -1390,9 +1403,9 @@ git commit -m "feat: add a scoped search_design_system"</code></pre>
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="libraryreacht7s2" />
+                  <input type="checkbox" id="libraryreacht7s2" checked />
                   <label class="step__label" for="libraryreacht7s2"
                     >Verify on a plan with team library APIs</label
                   >
@@ -1406,6 +1419,20 @@ git commit -m "feat: add a scoped search_design_system"</code></pre>
                   </p>
                   <p class="expect">
                     <b>Expect</b> real data from each; the imported id creates a working instance.
+                  </p>
+                  <p>
+                    <strong
+                      >Done differently: this project has no account whose plan allows team library
+                      APIs.</strong
+                    >
+                    <code>whoami</code> and the local half of <code>search_design_system</code> were
+                    run live, as were the refusal path and search's fallback to local results (Steps
+                    3 and 4). The library half rests on the unit tests in
+                    <code>plugin/src/main/library.test.ts</code>, which stub
+                    <code>figma.teamLibrary</code>. Never run live: real data from
+                    <code>getAvailableLibraryVariableCollectionsAsync</code> and
+                    <code>getVariablesInLibraryCollectionAsync</code>, a successful import (see Task
+                    5 Step 6), and a search hit on a library instance's main component.
                   </p>
                 </div>
               </li>

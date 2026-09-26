@@ -513,7 +513,7 @@ server.tool(
 Run: `cd server && bun run build && cd ../plugin && bunx tsc --noEmit -p tsconfig.json && bun run build`
 Expected: PASS — no errors
 
-- [ ] **Step 6: Prove it in Figma**
+- [x] **Step 6: Prove it in Figma**
 
 Get a published component's key from `get_libraries` or from a serialized instance's `design.mainComponent.key`, then call `import_library_asset` with `kind: "component"`.
 
@@ -525,6 +525,14 @@ const instance = component.createInstance();
 figma.currentPage.appendChild(instance);
 return { createdNodeIds: [instance.id] };
 ```
+
+**Done differently: this project has no Figma account with a published team library, so no real
+key exists to import.** `plugin/src/main/library.test.ts` covers the rest against stubbed importers
+— each of the four kinds reaching its own Figma importer and returning the id, the variable's
+missing `type`, an unknown kind, an empty key, a permission refusal, and Figma's "Failed to import"
+mapped to a next step. The refusal was also seen live in Task 7 Step 3. What no test reaches is a
+real import succeeding: that Figma accepts a published key and that the returned id creates a
+working instance. `docs/libraries.md` says so.
 
 - [x] **Step 7: Commit**
 
@@ -801,11 +809,18 @@ Four tools, two of which depend on a plan the developer running this plan may no
 Run: `cd plugin && bun run test && cd ../server && bun run test`
 Expected: PASS — plugin and server suites both green, including the permissions and search modules from this phase
 
-- [ ] **Step 2: Verify on a plan with team library APIs**
+- [x] **Step 2: Verify on a plan with team library APIs**
 
 If you have an Organization or Enterprise account, run `whoami`, `get_libraries`, `import_library_asset` and `search_design_system` against a file with a published library enabled.
 
 Expected: real data from each; the imported id creates a working instance.
+
+**Done differently: this project has no account whose plan allows team library APIs.** `whoami`
+and the local half of `search_design_system` were run live, as were the refusal path and search's
+fallback to local results (Steps 3 and 4). The library half rests on the unit tests in
+`plugin/src/main/library.test.ts`, which stub `figma.teamLibrary`. Never run live: real data from
+`getAvailableLibraryVariableCollectionsAsync` and `getVariablesInLibraryCollectionAsync`, a
+successful import (see Task 5 Step 6), and a search hit on a library instance's main component.
 
 - [x] **Step 3: Verify the refusal path**
 

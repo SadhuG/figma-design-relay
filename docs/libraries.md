@@ -137,3 +137,14 @@ The response states its own reach, so an agent never has to guess it:
 
 When team library reach is refused, `searched` drops the collections entry and `libraryError`
 carries the reason, while the local results are still returned.
+
+## What has been verified against real Figma
+
+The project has no Figma account whose plan allows team library APIs, so the library half of these
+tools has only been tested against stubbed `figma.teamLibrary` and importer objects in
+`plugin/src/main/library.test.ts`. Checked against a live file: `whoami`, `search_design_system`'s
+local results, and the refusal path — `get_libraries` naming the missing permission, and search
+falling back to the current page with `libraryError`. **Never exercised live:** real data from
+`get_libraries`, a successful `import_library_asset`, and a search hit found through a library
+instance. If one of those misbehaves on a plan that allows them, that is the untested ground, and a
+report of what Figma returned is the quickest way to close it.
