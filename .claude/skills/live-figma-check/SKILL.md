@@ -40,6 +40,7 @@ node .smoke/call.mjs get_selection
 | A node-addressed tool acts on the wrong node through a follower | `validateRpc` strips `nodeId`; send the id on `nodeIds`.                                                                                                          |
 | `fileKey` looks like `unsaved-…`                                | Normal — Figma exposes `figma.fileKey` only to private plugins. Pass the real key from the file URL where one is needed.                                          |
 | Agent gets Figma's raw permission message                       | A permission-gated global (`figma.teamLibrary`, `figma.currentUser`) was read outside `withPermissionContext`. Pass a getter.                                     |
+| Every file drops off `list_files` after a plain rebuild         | Seen twice on 2026-09-27 with an unchanged manifest: the rebuild closed the plugin in every open file instead of hot-reloading it. Ask for a relaunch per file.   |
 | Plugin drops off `list_files` after a rebuild and never returns | Figma rejected the manifest (e.g. `dev` and `figjam` together in `editorType`) and closed the plugin. Fix it and relaunch from the Development menu.              |
 | A regex or `\` in shipped source silently wrong                 | It was written through a shell heredoc or `bun -e`, which collapses `\\`. Write it with Edit/Write, use `String.raw` for `new RegExp`, check the compiled output. |
 

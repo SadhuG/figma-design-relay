@@ -7,7 +7,7 @@ paths:
 
 ## Landmarks
 
-- `plugin/src/main/code.ts:401` — the dispatcher calls `assertEditorSupports` before any tool runs.
+- `plugin/src/main/code.ts:402` — the dispatcher calls `assertEditorSupports` before any tool runs.
 - `plugin/src/main/capabilities.ts:58` — `CAPABILITIES`; `:113` — `assertEditorSupports`, which
   takes the editor as a parameter rather than reading `figma.editorType`, so the gate is
   unit-testable. **The table is keyed by the request type the plugin receives, not the MCP tool
@@ -20,7 +20,7 @@ paths:
   `data` as `unknown` and will happily ship an unresolved promise. The `figma` lookups it hands to
   `references.ts` live at `:412`; the helper modules never name the global.
   `docs/reference/serialized-nodes.md` documents the emitted shape — update it with the serializer.
-- `plugin/src/main/code.ts:2127` — the UI-collapse block that closes the file: window sizing, the
+- `plugin/src/main/code.ts:2124` — the UI-collapse block that closes the file: window sizing, the
   `ui-collapsed` `figma.clientStorage` key, and the `request-ui-state` / `set-ui-collapsed`
   messages. `figma.showUI` runs with `visible: false` and the panel is shown only once the stored
   state resolves, so anything that returns early before `figma.ui.show()` leaves the window
@@ -48,6 +48,11 @@ paths:
   Slides. `figma.createPage()` exists only in design files; `createSticky`, `createConnector` and
   `createShapeWithText` only in FigJam. **A new write tool gets a `CAPABILITIES` entry in the same
   commit.**
+- **A new FigJam connector is not in a known state.** It takes the line type last picked in the
+  user's toolbar, and a `STRAIGHT` one refuses every magnet but `CENTER` and `NONE`; its
+  `text.fontName` is `{ family: "", style: "" }` until it has text, and loading that throws. Attach
+  through `attachConnector` and load label fonts through `labelFont` (`diagram.ts`). Both passed
+  every unit test and failed on the first live board.
 - **`editorType` cannot hold both `dev` and `figjam`.** A manifest Figma rejects closes the plugin
   instead of hot-reloading it — it drops off `list_files` and no rebuild revives it; relaunch from
   the Development menu. Phase 6 dropped `dev` (R43). The table still carries Dev Mode rules so `dev`

@@ -580,9 +580,9 @@ assertEditorSupports(request.type, figma.editorType as EditorType);</code></pre>
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt2s5" />
+                  <input type="checkbox" id="figjamt2s5" checked />
                   <label class="step__label" for="figjamt2s5">Verify the new editors connect</label>
                 </div>
                 <div class="step__body">
@@ -598,9 +598,9 @@ assertEditorSupports(request.type, figma.editorType as EditorType);</code></pre>
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt2s6" />
+                  <input type="checkbox" id="figjamt2s6" checked />
                   <label class="step__label" for="figjamt2s6">Verify a cross-editor refusal</label>
                 </div>
                 <div class="step__body">
@@ -920,9 +920,9 @@ if (figjam &amp;&amp; Object.keys(figjam).length &gt; 0) Object.assign(base, fig
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt3s6" />
+                  <input type="checkbox" id="figjamt3s6" checked />
                   <label class="step__label" for="figjamt3s6">Prove it on a real board</label>
                 </div>
                 <div class="step__body">
@@ -1195,9 +1195,9 @@ git commit -m "feat(plugin): serialize FigJam stickies, connectors and shapes"</
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt4s6" />
+                  <input type="checkbox" id="figjamt4s6" checked />
                   <label class="step__label" for="figjamt4s6">Verify and prove in FigJam</label>
                 </div>
                 <div class="step__body">
@@ -1214,6 +1214,11 @@ git commit -m "feat(plugin): serialize FigJam stickies, connectors and shapes"</
                     <b>Expect</b> both shapes appear with their text, and a connector joins them.
                     Calling <code>create_sticky</code> in a <strong>design</strong> file is refused
                     with the FigJam message from task 1.
+                  </p>
+                  <p>
+                    Run live on 2026-09-27 (0.7.3). The first run found two connector bugs no unit
+                    test had caught — a new connector's empty label font, and its line type
+                    inherited from the FigJam toolbar — both fixed before these steps were ticked.
                   </p>
                 </div>
               </li>
@@ -2129,9 +2134,9 @@ export const layoutDiagram = (diagram: Diagram): PositionedDiagram =&gt; {
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt7s7" />
+                  <input type="checkbox" id="figjamt7s7" checked />
                   <label class="step__label" for="figjamt7s7">Verify and prove in FigJam</label>
                 </div>
                 <div class="step__body">

@@ -41,7 +41,7 @@ This file holds only what applies to every task. The rest loads when it is relev
 | `server/` | `bun test`                                | 251 tests: schemas, rpc guards, codegen, assets, Code Connect, Mermaid    |
 | `plugin/` | `bun run typecheck`                       | `tsc --noEmit`; must stay at zero errors                                  |
 | `plugin/` | `bun run build`                           | typecheck, then two Vite passes: UI, then `main`                          |
-| `plugin/` | `bun test`                                | 192 tests: scripts, serializer, capability table, library tools, diagrams |
+| `plugin/` | `bun test`                                | 196 tests: scripts, serializer, capability table, library tools, diagrams |
 
 Tests live beside the code as `*.test.ts` (excluded from both tsconfigs). CI (`.github/workflows/ci.yml`)
 runs all of the above on every push to every branch.
@@ -72,7 +72,8 @@ plugin/src/
   main/intent.ts            layout intent, reactions, annotations, exports
   main/capabilities.ts      which tool runs in which editor; the dispatcher's up-front gate
   main/figjam-serializer.ts stickies, connectors (with endpoints), shapes, code blocks, tables
-  main/diagram.ts           render_diagram's payload check, shape/cap mapping, placement
+  main/diagram.ts           render_diagram's payload check, shape/cap mapping, placement,
+                            connector attaching and label fonts
   main/script-runner.ts     run_script; eval-direct.ts + script-result.ts beside it
   main/library.ts           whoami, get_libraries, import_library_asset, search_design_system
   main/permissions.ts       permission and plan refusals → actionable errors

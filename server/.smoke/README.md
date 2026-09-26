@@ -91,6 +91,9 @@ minutes. Closing the plugin panel and running it again from the Development menu
 instantly (the same lookup then takes ~300 ms). Do that after any `bun run build` in `plugin/`
 before trusting a probe's timing or token names.
 
+The rebuild does not always hot-reload. Twice on 2026-09-27, with the manifest unchanged, it closed
+the plugin in every open file instead, and `list_files` stayed empty until each was relaunched.
+
 ## Checking the wiring when it will not connect
 
 `netstat -ano | grep 1994` answers most of it. `LISTENING` on `127.0.0.1` means a leader is up (a

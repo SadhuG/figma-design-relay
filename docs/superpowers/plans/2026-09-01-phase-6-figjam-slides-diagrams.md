@@ -310,13 +310,13 @@ Then, in a **design** file, run the plugin and call `get_document`, `create_fram
 
 Expected: identical behaviour to before this phase. If anything is refused, the capability table is wrong — fix the table, not the caller.
 
-- [ ] **Step 5: Verify the new editors connect**
+- [x] **Step 5: Verify the new editors connect**
 
 Open a FigJam board (`figma.com/board/...`) and a Slides file (`figma.com/slides/...`), run the plugin in each, and call `list_files` and `get_metadata`.
 
 Expected: both appear as connected files, each reporting its own `editorType`.
 
-- [ ] **Step 6: Verify a cross-editor refusal**
+- [x] **Step 6: Verify a cross-editor refusal**
 
 In the FigJam board, call `create_page`.
 
@@ -552,7 +552,7 @@ Add the `FigJamFields` members to `SerializedNode` as optional fields so the typ
 Run: `cd plugin && bun run test && bunx tsc --noEmit -p tsconfig.json && bun run build`
 Expected: PASS — 7 new tests green, no type errors, clean build
 
-- [ ] **Step 6: Prove it on a real board**
+- [x] **Step 6: Prove it on a real board**
 
 In a FigJam board with two stickies joined by a labelled connector, call `get_document`.
 
@@ -747,7 +747,7 @@ server.tool(
 );
 ```
 
-- [ ] **Step 6: Verify and prove in FigJam**
+- [x] **Step 6: Verify and prove in FigJam**
 
 Run: `cd server && bun run build && cd ../plugin && bunx tsc --noEmit -p tsconfig.json && bun run build`
 Expected: PASS — no errors from either
@@ -755,6 +755,8 @@ Expected: PASS — no errors from either
 Then in a FigJam board create two shapes-with-text and connect them.
 
 Expected: both shapes appear with their text, and a connector joins them. Calling `create_sticky` in a **design** file is refused with the FigJam message from task 1.
+
+Run live on 2026-09-27 (0.7.3). The first run found two connector bugs no unit test had caught — a new connector's empty label font, and its line type inherited from the FigJam toolbar — both fixed before these steps were ticked.
 
 - [x] **Step 7: Commit**
 
@@ -1484,7 +1486,7 @@ server.tool(
 );
 ```
 
-- [ ] **Step 7: Verify and prove in FigJam**
+- [x] **Step 7: Verify and prove in FigJam**
 
 Run: `cd server && bun run test && bun run build && cd ../plugin && bunx tsc --noEmit -p tsconfig.json && bun run build`
 Expected: PASS — every test green, both builds clean

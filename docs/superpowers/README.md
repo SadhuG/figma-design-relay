@@ -53,22 +53,18 @@ is one piece of R40.
 
 #### 2. Live checks still open
 
-The code, unit tests and commits for these are done. The steps stay unchecked because they need a
-Figma setup that was not available when phase 6 finished; tick them in the markdown (and rebuild)
-once they have been run.
+The code and unit tests for these are done; they have not been run against real Figma yet.
 
-| Plan    | Step                                                                      | Needs                                                                          |
-| ------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| phase 6 | Task 2, steps 5–6 — connect in FigJam/Slides, refusal path                | a FigJam board and a Slides deck                                               |
-| phase 6 | Task 3, step 6 — stickies and a connector through `get_document`          | a FigJam board                                                                 |
-| phase 6 | Task 4, step 6 — create and connect shapes-with-text                      | a FigJam board                                                                 |
-| phase 6 | Task 7, step 7 — `generate_diagram` on a real board                       | a FigJam board                                                                 |
-| 0.7.2   | R25 hints in `get_design_context`; `search_design_system` with `allPages` | a design file with an annotated, described component instance on a second page |
+| Change | Check                                                                     | Needs                                                                          |
+| ------ | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| 0.7.2  | R25 hints in `get_design_context`; `search_design_system` with `allPages` | a design file with an annotated, described component instance on a second page |
 
-**Why not yet:** no FigJam board or Slides deck was open with the plugin running when the phase was
-finished. **When:** now. A free Figma account can create FigJam boards (check whether your plan includes Slides), so nothing
-external blocks this — it needs one session with a board open, driven by the `live-figma-check`
-skill. It is the highest-value item on this page: FigJam support has never touched real Figma.
+**When:** now. Nothing external blocks it; it needs one session with such a file open, driven by
+the `live-figma-check` skill.
+
+Phase 6's live checks — connecting in FigJam and Slides, the cross-editor refusals, stickies and
+connectors, shapes with text, and `generate_diagram` — all passed on 2026-09-27. That first run
+found two connector bugs no unit test had caught; 0.7.3 fixed both.
 
 #### 3. Verified differently, and blocked on a paid plan
 
@@ -92,7 +88,7 @@ Not deferred work — the spec decided against these, and the user-facing docs s
 | `generate_figma_design`      | A Figma-hosted generative model (Gap 7). `import_html_layers` covers an overlapping need.                                                                                                                  | No.                                                                                                                        |
 | Atomic `run_script`          | The Plugin API has no rollback (Gap 7). Documented in `docs/guides/run-script.md`.                                                                                                                         | Only if Figma adds transactions.                                                                                           |
 | `send_code_connect_mappings` | R34: mappings are workspace files under version control; committing is the publish step. Documented in `docs/guides/code-connect.md`.                                                                      | No — by design.                                                                                                            |
-| Creating slide structure     | R47 scoped Slides to read, screenshot and text edits in existing slides. Documented in `docs/guides/slides.md`.                                                                                            | Yes — a future phase, once the phase 6 Slides live checks have passed. `run_script` can already do it.                     |
+| Creating slide structure     | R47 scoped Slides to read, screenshot and text edits in existing slides. Documented in `docs/guides/slides.md`.                                                                                            | Yes — a future phase; the phase 6 Slides checks passed in 0.7.3. `run_script` can already do it.                           |
 | `upload_assets`              | The spec lists it among the official tools but never assigns it a requirement. `create_image` places a local file, URL or data URI as an image fill, and R24 exports assets to disk rather than uploading. | Worth an explicit decision in the spec if a user asks for it; today its absence is unexplained anywhere a user would look. |
 
 ## Executing a plan

@@ -18,6 +18,20 @@ with its tag.
 
 ## [Unreleased]
 
+## [0.7.3] - 2026-09-27
+
+Phase 6's FigJam and Slides support, run against real Figma for the first time. Every live check
+passed once two connector bugs were fixed.
+
+### Fixed
+
+- `create_connector` with `text`, and `generate_diagram` with a labelled edge, failed with
+  `Cannot load font family ""`: a new connector has no font until it holds text. The label now
+  loads FigJam's default, Inter Medium.
+- `create_connector` and `generate_diagram` failed with "Straight connector endpoints may only use
+  the CENTER or NONE magnets" whenever the FigJam toolbar was set to straight lines, because a new
+  connector takes the line type last picked there. Connectors are now always elbowed.
+
 ## [0.7.2] - 2026-09-26
 
 Closes the two places the parity plans delivered less than the spec asked for (R25, R40).
@@ -272,7 +286,8 @@ Phase 1: `run_script`, the Plugin API escape hatch (R1–R10). The first version
 
 The upstream `@gethopp/figma-mcp-bridge` code this fork started from.
 
-[Unreleased]: https://github.com/SadhuG/figma-design-relay/compare/v0.7.2...HEAD
+[Unreleased]: https://github.com/SadhuG/figma-design-relay/compare/v0.7.3...HEAD
+[0.7.3]: https://github.com/SadhuG/figma-design-relay/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/SadhuG/figma-design-relay/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/SadhuG/figma-design-relay/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/SadhuG/figma-design-relay/compare/v0.6.0...v0.7.0
