@@ -241,6 +241,14 @@ export const fontLoader = (
   };
 };
 
+/**
+ * The font to load before writing a label. A new connector has no text and
+ * reports `{ family: "", style: "" }`, which `loadFontAsync` rejects; FigJam
+ * gives the label Inter Medium, as it does stickies and shapes.
+ */
+export const labelFont = (font: FontName): FontName =>
+  font.family === "" ? { family: "Inter", style: "Medium" } : font;
+
 /** How a link style is stroked. */
 export const strokeFor = (style: string): { dashPattern: number[]; strokeWeight: number } => {
   if (style === "dashed") return { dashPattern: [8, 8], strokeWeight: 2 };

@@ -3,6 +3,7 @@ import {
   capFor,
   connectorMagnets,
   fontLoader,
+  labelFont,
   placementOrigin,
   readDiagramPayload,
   removeOnFailure,
@@ -171,6 +172,21 @@ describe("fontLoader", () => {
     await expect(load({ family: "Inter", style: "Medium" })).rejects.toThrow("offline");
     await load({ family: "Inter", style: "Medium" });
     expect(attempts).toBe(2);
+  });
+});
+
+describe("labelFont", () => {
+  // Seen live: a new connector reports { family: "", style: "" } until it has
+  // text, and loading that font throws.
+  test("falls back to FigJam's default font for an empty connector", () => {
+    expect(labelFont({ family: "", style: "" })).toEqual({ family: "Inter", style: "Medium" });
+  });
+
+  test("keeps a font the node already has", () => {
+    expect(labelFont({ family: "Roboto", style: "Bold" })).toEqual({
+      family: "Roboto",
+      style: "Bold",
+    });
   });
 });
 

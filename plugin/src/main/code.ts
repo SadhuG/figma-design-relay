@@ -6,6 +6,7 @@ import {
   capFor,
   connectorMagnets,
   fontLoader,
+  labelFont,
   placementOrigin,
   readDiagramPayload,
   removeOnFailure,
@@ -388,7 +389,7 @@ const styleConnector = async (
   connector.dashPattern = dashPattern;
   connector.strokeWeight = strokeWeight;
   if (line.label) {
-    await loadFont(connector.text.fontName as FontName);
+    await loadFont(labelFont(connector.text.fontName as FontName));
     connector.text.characters = line.label;
   }
 };
@@ -1958,7 +1959,7 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
           connector.connectorStart = { endpointNodeId: startId, magnet: magnets.start };
           connector.connectorEnd = { endpointNodeId: endId, magnet: magnets.end };
           if (typeof params.text === "string" && params.text !== "") {
-            await figma.loadFontAsync(connector.text.fontName as FontName);
+            await figma.loadFontAsync(labelFont(connector.text.fontName as FontName));
             connector.text.characters = params.text;
           }
           return connector;
