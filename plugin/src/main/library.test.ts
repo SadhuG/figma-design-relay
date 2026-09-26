@@ -271,6 +271,53 @@ describe("importLibraryAsset failures", () => {
       /published.*enabled.*local/s
     );
   });
+
+  test("joins Figma's sentence and the guidance cleanly", async () => {
+    const importers = stubImporters();
+    importers.component = async () => {
+      throw new Error("Could not find a published component with key abc.");
+    };
+    const error = await importLibraryAsset(importers, "component", "abc").catch((e: Error) => e);
+    expect((error as Error).message).toStartWith(
+      "Could not find a published component with key abc. The key must belong"
+    );
+  });
+
+  test("treats an access refusal as a key problem, not a missing manifest permission", async () => {
+    const importers = stubImporters();
+    importers.component = async () => {
+      throw new Error("You do not have permission to access this component");
+    };
+    const error = await importLibraryAsset(importers, "component", "abc").catch((e: Error) => e);
+    expect((error as Error).message).toContain("enabled for this file");
+    expect((error as Error).message).not.toContain("manifest.json");
+  });
+
+  test("maps an importer that throws synchronously", async () => {
+    const importers = stubImporters();
+    importers.style = (() => {
+      throw new Error("Invalid key");
+    }) as unknown as LibraryImporters["style"];
+    await expect(importLibraryAsset(importers, "style", "abc")).rejects.toThrow(
+      /Invalid key\. The key must belong to a style/
+    );
+  });
+});
+
+describe("getLibraries failures", () => {
+  test("says where a collection key comes from when Figma rejects it", async () => {
+    const failing = getLibraries(
+      stubTeamLibrary({
+        getVariablesInLibraryCollectionAsync: async () => {
+          throw new Error("Collection not found");
+        },
+      }),
+      "nope"
+    );
+    await expect(failing).rejects.toThrow(
+      /^Collection not found\. Pass a collection key returned by get_libraries/
+    );
+  });
 });
 
 describe("reading figma.teamLibrary itself", () => {
@@ -289,6 +336,87 @@ describe("reading figma.teamLibrary itself", () => {
     const result = await searchDesignSystem("card", { nodes: [card], readTeamLibrary: refuse });
     expect(result.results.map((hit) => hit.id)).toEqual(["11:1"]);
     expect(result.libraryError).toContain("manifest.json");
+  });
+});
+
+describe("searchDesignSystem limits", () => {
+  const many: SearchableNode[] = Array.from({ length: 60 }, (_, i) => ({
+    id: `40:${i}`,
+    name: `Button ${String(i).padStart(2, "0")}`,
+    type: "COMPONENT",
+  }));
+
+  test("returns at most 50 hits by default and says how many matched", async () => {
+    const result = await searchDesignSystem("button", {
+      nodes: many,
+      readTeamLibrary: stubTeamLibrary(),
+    });
+    expect(result.results).toHaveLength(50);
+    expect(result.total).toBe(60);
+    expect(result.note).toContain("limit");
+  });
+
+  test("honours a caller's limit", async () => {
+    const result = await searchDesignSystem(
+      "button",
+      { nodes: many, readTeamLibrary: stubTeamLibrary() },
+      3
+    );
+    expect(result.results.map((hit) => hit.name)).toEqual(["Button 00", "Button 01", "Button 02"]);
+    expect(result.total).toBe(60);
+  });
+
+  test("omits total when nothing was cut", async () => {
+    const result = await searchDesignSystem("card", {
+      nodes: [{ id: "11:1", name: "Card", type: "COMPONENT" }],
+      readTeamLibrary: stubTeamLibrary(),
+    });
+    expect(result.total).toBeUndefined();
+  });
+
+  test("never has more than 64 main-component lookups in flight", async () => {
+    let inFlight = 0;
+    let peak = 0;
+    const main: SearchableNode = { id: "50:1", name: "Chip", type: "COMPONENT" };
+    const instances: SearchableNode[] = Array.from({ length: 200 }, (_, i) => ({
+      id: `51:${i}`,
+      name: "Chip",
+      type: "INSTANCE",
+      getMainComponentAsync: async () => {
+        inFlight++;
+        peak = Math.max(peak, inFlight);
+        await new Promise((resolve) => setTimeout(resolve, 1));
+        inFlight--;
+        return main;
+      },
+    }));
+    const result = await searchDesignSystem("chip", {
+      nodes: instances,
+      readTeamLibrary: stubTeamLibrary(),
+    });
+    expect(peak).toBeLessThanOrEqual(64);
+    expect(result.results.map((hit) => hit.id)).toEqual(["50:1"]);
+  });
+
+  test("stops resolving instances once a whole batch fails, and says why", async () => {
+    let calls = 0;
+    const instances: SearchableNode[] = Array.from({ length: 200 }, (_, i) => ({
+      id: `52:${i}`,
+      name: "Chip",
+      type: "INSTANCE",
+      getMainComponentAsync: async () => {
+        calls++;
+        throw new Error("Failed to load");
+      },
+    }));
+    const card: SearchableNode = { id: "11:1", name: "Card", type: "COMPONENT" };
+    const result = await searchDesignSystem("card", {
+      nodes: [card, ...instances],
+      readTeamLibrary: stubTeamLibrary(),
+    });
+    expect(calls).toBe(64);
+    expect(result.results.map((hit) => hit.id)).toEqual(["11:1"]);
+    expect(result.instanceError).toContain("Development menu");
   });
 });
 

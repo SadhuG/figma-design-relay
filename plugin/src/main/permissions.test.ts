@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { describeApiError, withPermissionContext } from "./permissions";
+import { classifyApiError, describeApiError, withPermissionContext } from "./permissions";
 
 describe("describeApiError", () => {
   test("names the permission when the manifest is missing it", () => {
@@ -19,7 +19,25 @@ describe("describeApiError", () => {
 
   test("does not read a plan refusal into a word that merely contains 'plan'", () => {
     const message = describeApiError(new Error("No explanation available"), "teamLibrary");
-    expect(message).toBe("Error: No explanation available");
+    expect(message).toBe("No explanation available");
+  });
+
+  test("does not read an access refusal as a missing manifest permission", () => {
+    const text = "You do not have permission to access this library";
+    const message = describeApiError(new Error(text), "teamLibrary");
+    expect(message).toBe(text);
+    expect(classifyApiError(new Error(text))).toBeNull();
+  });
+
+  test("recognises Figma's own missing-permission message", () => {
+    const error = new Error(
+      'in get_teamLibrary: "teamlibrary" permission not specified in manifest.json.'
+    );
+    expect(classifyApiError(error)).toBe("permission");
+  });
+
+  test("classifies a plan refusal", () => {
+    expect(classifyApiError(new Error("Only available in Organization plans"))).toBe("plan");
   });
 
   test("keeps an unrelated error readable rather than reinterpreting it", () => {

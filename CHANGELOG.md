@@ -18,6 +18,31 @@ with its tag.
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-09-26
+
+Fixes from a review of phase 5.
+
+### Added
+
+- `search_design_system` takes a `limit` (default 50, at most 200) and reports `total` when hits
+  were cut.
+
+### Fixed
+
+- `search_design_system` found nothing for a query in a non-Latin script and dropped accented
+  letters from names; it now strips only whitespace and ASCII punctuation.
+- Search ranking scores a full path query (`button/primary`) as exact and ranks whole words (0.9)
+  and word prefixes (0.7) above bare substrings.
+- Instance main components are resolved 64 at a time instead of all at once; when a whole batch
+  fails, the rest are skipped and `instanceError` says to relaunch the plugin.
+- Library errors no longer read `Error: <message>.. The key must…`: plain errors lose the name
+  prefix and the next step is joined after a single full stop.
+- "You do not have permission to access this library" is no longer misreported as a missing
+  manifest permission; only a message naming the manifest or the permission is.
+- `get_libraries` with a bad `collectionKey` says where a valid key comes from.
+- `search_design_system` and `import_library_asset` no longer claim a local component's key is
+  importable; only a remote hit's key is known to be published.
+
 ## [0.6.0] - 2026-09-26
 
 Phase 5 of the parity plan set: library reach and identity (R36–R42).

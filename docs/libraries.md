@@ -91,6 +91,9 @@ to place an instance or bind a variable:
 The key must belong to an asset **published** in a library that is **enabled for this file**. A
 component that only exists locally is not importable, and does not need to be: use its node id.
 When Figma cannot resolve a key, the error says this rather than stopping at "Failed to import".
+So does a refusal to access the library, which is a sharing problem: only a message naming the
+manifest or the permission, as Figma's own refusal does, is reported as a missing manifest
+permission.
 
 Importing writes into the document, so the tool is rejected in Dev Mode. To place a component once
 it is imported, use `run_script`:
@@ -116,9 +119,26 @@ The tool searches only what the plugin can enumerate:
    component is found: when an instance of it has been placed. Such hits carry `remote: true`.
 3. **Published variable collections** of enabled libraries, when the permission and plan allow it.
 
-Other pages are not searched. Every hit carries its `kind`, its `key` for `import_library_asset`,
-and a `score` (1 for an exact name segment, 0.8 for a prefix, 0.5 for a substring). Matching ignores
-case and separators, so `button primary` matches `Button/Primary`.
+Other pages are not searched. Every hit carries its `kind`, its `key`, and a `score`:
+
+| Score | Match                                    | Example for `button`     |
+| ----- | ---------------------------------------- | ------------------------ |
+| 1     | the whole name, or one `/` segment of it | `Button`, `Forms/Button` |
+| 0.9   | a whole word                             | `Icon Button`            |
+| 0.8   | a prefix of the name                     | `Buttons`                |
+| 0.7   | a prefix of a word                       | `Icon Buttons`           |
+| 0.5   | any other substring                      | `Iconbutton`             |
+
+Matching ignores case, whitespace and ASCII punctuation, so `button primary` and `button/primary`
+both match `Button/Primary` exactly. Every other character is kept, so a query in any script works
+(`ボタン`, `Botón`).
+
+**Only a `remote: true` hit's key is known to be importable.** A local component's key imports
+only if that component has been published, and the Plugin API cannot tell whether it has. In the
+file that holds it, use its node id instead.
+
+Hits are ranked and capped at `limit` (default 50, at most 200). When some were cut, `total` says
+how many matched and the note says so.
 
 The response states its own reach, so an agent never has to guess it:
 
@@ -137,6 +157,12 @@ The response states its own reach, so an agent never has to guess it:
 
 When team library reach is refused, `searched` drops the collections entry and `libraryError`
 carries the reason, while the local results are still returned.
+
+Instances are resolved to their main components 64 at a time rather than all at once. If a whole
+batch of 64 fails, the sandbox cannot load main components at all — the usual cause is a plugin
+hot-reloaded after a rebuild, where each lookup takes seconds and then throws — so the remaining
+instances are skipped and `instanceError` says to relaunch the plugin. A single broken instance is
+skipped silently.
 
 ## What has been verified against real Figma
 

@@ -70,8 +70,11 @@ export const getLibraries = async (
   collectionKey?: string
 ): Promise<LibrariesResult> => {
   if (collectionKey) {
-    const variables = await withPermissionContext("teamLibrary", () =>
-      readTeamLibrary().getVariablesInLibraryCollectionAsync(collectionKey)
+    const variables = await withPermissionContext(
+      "teamLibrary",
+      () => readTeamLibrary().getVariablesInLibraryCollectionAsync(collectionKey),
+      "Pass a collection key returned by get_libraries without a collectionKey, for this file — " +
+        "collection keys are not node ids or variable keys."
     );
     return {
       collectionKey,
@@ -148,17 +151,14 @@ export const importLibraryAsset = async (
     throw new Error("import_library_asset requires a non-empty `key` string parameter.");
   }
 
-  const imported = await withPermissionContext("teamLibrary", () => importers[kind](key)).catch(
-    (error: Error) => {
-      // A permission or plan refusal already names its fix; anything else is
-      // almost always a key Figma cannot resolve, and its message stops there.
-      if (/permission|\bplans?\b/i.test(error.message)) throw error;
-      throw new Error(
-        `${error.message}. The key must belong to a ${kind} published in a library that is ` +
-          `enabled for this file (Assets → Libraries). A component that only exists locally ` +
-          `in this file is not importable — use its node id directly instead.`
-      );
-    }
+  // A permission or plan refusal already names its fix; anything else is
+  // almost always a key Figma cannot resolve, and its message stops there.
+  const imported = await withPermissionContext(
+    "teamLibrary",
+    () => importers[kind](key),
+    `The key must belong to a ${kind} published in a library that is enabled for this file ` +
+      `(Assets → Libraries). A component that only exists locally in this file is not ` +
+      `importable — use its node id directly instead.`
   );
   const result: ImportResult = { kind, id: imported.id, name: imported.name };
   if (imported.type !== undefined) result.type = imported.type;
@@ -186,13 +186,20 @@ export interface SearchSources {
 export interface SearchResult {
   results: SearchHit[];
   searched: string[];
+  /** How many hits matched, present only when `results` was cut to the limit. */
+  total?: number;
   /** Why published variable collections were not searched, when they were not. */
   libraryError?: string;
+  /** Why instances were skipped, when their main components could not be read. */
+  instanceError?: string;
   note: string;
 }
 
 const PAGE_SCOPE = "components and component instances on the current page";
 const LIBRARY_SCOPE = "published variable collections";
+
+export const DEFAULT_SEARCH_LIMIT = 50;
+const MAIN_COMPONENT_BATCH = 64;
 
 const toCandidate = (node: SearchableNode): SearchCandidate | null => {
   // A variant's own name is its property string; the set is what gets searched
@@ -216,10 +223,12 @@ const toCandidate = (node: SearchableNode): SearchCandidate | null => {
  * found), and published variable collections when the plan allows it.
  * @param query - The caller's search text.
  * @param sources - The page's component-ish nodes and `figma.teamLibrary`.
+ * @param limit - Most hits to return; {@link DEFAULT_SEARCH_LIMIT} when absent.
  */
 export const searchDesignSystem = async (
   query: unknown,
-  sources: SearchSources
+  sources: SearchSources,
+  limit?: unknown
 ): Promise<SearchResult> => {
   if (typeof query !== "string" || query.trim() === "") {
     throw new Error("search_design_system requires a non-empty `query` string parameter.");
@@ -230,15 +239,35 @@ export const searchDesignSystem = async (
     if (candidate && !byId.has(candidate.id)) byId.set(candidate.id, candidate);
   };
 
-  const mains = await Promise.all(
-    sources.nodes.map((node) =>
-      node.type === "INSTANCE" && node.getMainComponentAsync
-        ? // One unreadable main component must not sink the whole search.
-          node.getMainComponentAsync().catch(() => null)
-        : Promise.resolve(node)
-    )
-  );
-  for (const node of mains) if (node) add(toCandidate(node));
+  const instances: SearchableNode[] = [];
+  for (const node of sources.nodes) {
+    if (node.type === "INSTANCE" && node.getMainComponentAsync) instances.push(node);
+    else add(toCandidate(node));
+  }
+
+  // Resolve instances a batch at a time: a large page holds thousands, and
+  // Figma is not asked to load every main component at once.
+  let instanceError: string | undefined;
+  for (let start = 0; start < instances.length; start += MAIN_COMPONENT_BATCH) {
+    const batch = instances.slice(start, start + MAIN_COMPONENT_BATCH);
+    const mains = await Promise.all(
+      // One unreadable main component must not sink the whole search.
+      batch.map((node) => node.getMainComponentAsync!().catch(() => null))
+    );
+    for (const main of mains) if (main) add(toCandidate(main));
+
+    // A whole batch failing is not one broken instance but a sandbox that cannot
+    // load main components — after a hot reload each lookup takes seconds and
+    // throws — so the rest would only fail the same way, slowly.
+    if (batch.length === MAIN_COMPONENT_BATCH && mains.every((main) => main === null)) {
+      instanceError =
+        `The main components of ${MAIN_COMPONENT_BATCH} instances in a row could not be read, ` +
+        `so the remaining ${instances.length - start - batch.length} instances were skipped. ` +
+        `If the plugin was hot-reloaded after a rebuild, close it and run it again from ` +
+        `Figma's Development menu, then retry.`;
+      break;
+    }
+  }
 
   const searched = [PAGE_SCOPE];
   let libraryError: string | undefined;
@@ -261,15 +290,22 @@ export const searchDesignSystem = async (
     libraryError = describeApiError(error, "teamLibrary");
   }
 
-  const result: SearchResult = {
-    results: rankResults(query, [...byId.values()]),
-    searched,
-    note:
-      "This search covers only what is listed under `searched`. The Figma Plugin API cannot " +
-      "full-text search an organisation's published component libraries, so an empty result " +
-      "does not mean the component does not exist — ask the user to open the library file " +
-      "with the plugin and search again there.",
-  };
+  const hits = rankResults(query, [...byId.values()]);
+  const cap = typeof limit === "number" && limit >= 1 ? Math.floor(limit) : DEFAULT_SEARCH_LIMIT;
+  let note =
+    "This search covers only what is listed under `searched`. The Figma Plugin API cannot " +
+    "full-text search an organisation's published component libraries, so an empty result " +
+    "does not mean the component does not exist — ask the user to open the library file " +
+    "with the plugin and search again there.";
+  if (hits.length > cap) {
+    note +=
+      ` Only the ${cap} strongest of ${hits.length} hits are returned; narrow the query or ` +
+      `raise limit to see more.`;
+  }
+
+  const result: SearchResult = { results: hits.slice(0, cap), searched, note };
+  if (hits.length > cap) result.total = hits.length;
   if (libraryError) result.libraryError = libraryError;
+  if (instanceError) result.instanceError = instanceError;
   return result;
 };

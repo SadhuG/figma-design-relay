@@ -14,17 +14,41 @@ const MANIFEST_PERMISSION: Record<GatedApi, string> = {
   currentUser: "currentuser",
 };
 
+const messageOf = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
+
+/**
+ * Says whether Figma refused a call for a missing manifest permission, for the
+ * account's plan, or for neither.
+ * @param error - Whatever was thrown.
+ */
+export const classifyApiError = (error: unknown): "permission" | "plan" | null => {
+  const text = messageOf(error);
+  // Figma's own refusal names the manifest and the permission
+  // ('"teamlibrary" permission not specified in manifest.json'). Requiring that
+  // keeps "you do not have permission to access this library" — a sharing
+  // problem the manifest cannot fix — out of this branch.
+  if (/permission/i.test(text) && /manifest|currentuser|teamlibrary/i.test(text)) {
+    return "permission";
+  }
+  // Word boundaries so "explanation" and the like do not read as a plan refusal.
+  if (/\b(organization|enterprise|plans?)\b/i.test(text)) return "plan";
+  return null;
+};
+
 /**
  * Maps a thrown value to an actionable message.
  * @param error - Whatever was thrown.
  * @param api - The API surface the call belonged to.
- * @returns The message to surface, unchanged when the error is unrelated.
+ * @returns The message to surface, unchanged when the error is unrelated. A
+ *   plain `Error` carries no name prefix, since the relay reports every failure
+ *   as an error already; a more specific type such as `TypeError` keeps its name.
  */
 export const describeApiError = (error: unknown, api: GatedApi): string => {
-  const raw = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
-  const text = error instanceof Error ? error.message : String(error);
+  const text = messageOf(error);
+  const kind = classifyApiError(error);
 
-  if (/permission/i.test(text)) {
+  if (kind === "permission") {
     return (
       `Figma refused the ${api} call because the plugin does not have the ` +
       `"${MANIFEST_PERMISSION[api]}" permission. Add it to the "permissions" array in ` +
@@ -32,8 +56,7 @@ export const describeApiError = (error: unknown, api: GatedApi): string => {
     );
   }
 
-  // Word boundaries so "explanation" and the like do not read as a plan refusal.
-  if (/\b(organization|enterprise|plans?)\b/i.test(text)) {
+  if (kind === "plan") {
     return (
       `Figma refused the ${api} call because it is not available on this account's plan ` +
       `(Figma said: "${text}"). Team library APIs need the "${MANIFEST_PERMISSION[api]}" ` +
@@ -42,18 +65,27 @@ export const describeApiError = (error: unknown, api: GatedApi): string => {
     );
   }
 
-  return raw;
+  return error instanceof Error && error.name !== "Error" ? `${error.name}: ${text}` : text;
 };
 
 /**
  * Runs a permission-gated call and rethrows with an actionable message.
  * @param api - The API surface being called.
  * @param fn - The call.
+ * @param nextStep - Appended to an error that is neither a permission nor a
+ *   plan refusal, which would otherwise reach the agent with no next step.
  */
-export const withPermissionContext = async <T>(api: GatedApi, fn: () => Promise<T>): Promise<T> => {
+export const withPermissionContext = async <T>(
+  api: GatedApi,
+  fn: () => Promise<T>,
+  nextStep?: string
+): Promise<T> => {
   try {
     return await fn();
   } catch (error) {
-    throw new Error(describeApiError(error, api));
+    const message = describeApiError(error, api);
+    if (!nextStep || classifyApiError(error)) throw new Error(message);
+    // Figma's messages sometimes end in a full stop and sometimes do not.
+    throw new Error(`${message.replace(/[.\s]+$/, "")}. ${nextStep}`);
   }
 };
