@@ -945,6 +945,10 @@ export const toolInputSchemas = {
       ),
     fileKey: fileKeyField,
   }),
+
+  whoami: z.object({
+    fileKey: fileKeyField,
+  }),
 } as const;
 
 type ToolName = keyof typeof toolInputSchemas;
@@ -1049,6 +1053,7 @@ const rpcToArgs: Record<
   get_context_for_code_connect: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
   get_code_connect_suggestions: (nodeIds, params) => ({ nodeIds, ...params }),
   add_code_connect_map: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
+  whoami: (_nodeIds, params) => ({ ...params }),
 };
 
 /**

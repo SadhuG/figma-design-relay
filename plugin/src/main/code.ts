@@ -3,6 +3,7 @@ import { addLayersToFrame } from "../html-figma/figma";
 import { runScript } from "./script-runner";
 import { EDIT_REQUEST_TYPES, requireEditorMode } from "./editor-gate";
 import { describeForCodeConnect, type NodeLike } from "./component-identity";
+import { whoami } from "./library";
 
 export type RequestType =
   | "get_document"
@@ -43,7 +44,8 @@ export type RequestType =
   | "remove_manual_keyframe_track"
   | "set_timeline_duration"
   | "run_script"
-  | "get_context_for_code_connect";
+  | "get_context_for_code_connect"
+  | "whoami";
 
 type ServerRequestParams = Record<string, unknown> & {
   format?: "PNG" | "SVG" | "JPG" | "PDF";
@@ -1845,6 +1847,13 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
           data: describeForCodeConnect(node as unknown as NodeLike, main?.id),
         };
       }
+      case "whoami":
+        // A read, so not in EDIT_REQUEST_TYPES: it works in Dev Mode.
+        return {
+          type: request.type,
+          requestId: request.requestId,
+          data: await whoami(() => figma.currentUser),
+        };
       default:
         throw new Error(`Unknown request type: ${request.type}`);
     }

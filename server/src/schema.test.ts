@@ -148,3 +148,11 @@ describe("validateRpc add_code_connect_map component", () => {
     ).not.toBeNull();
   });
 });
+
+describe("validateRpc whoami", () => {
+  test("accepts a bare call and forwards no params", () => {
+    const result = validateRpc("whoami", undefined, { fileKey: "abc" });
+    expect(result.error).toBeNull();
+    expect(result.params).toEqual({});
+  });
+});

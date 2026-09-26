@@ -886,6 +886,15 @@ export function registerTools(server: McpServer, node: Node, port: number): void
   );
 
   server.tool(
+    "whoami",
+    "Report the Figma user signed in to the connected plugin as { id, name, photoUrl }. Returns user: null with an explanation when Figma exposes no current user. When multiple files are connected, specify fileKey.",
+    toolInputSchemas.whoami.shape,
+    async ({ fileKey }): Promise<ToolResult> => {
+      return renderResponse(() => node.sendWithParams("whoami", undefined, undefined, fileKey));
+    }
+  );
+
+  server.tool(
     "get_code_connect_map",
     "Map Figma nodes to the components that implement them, read from the *.figma.ts files in this workspace — local files under version control, not Figma cloud records, matched by node id, so unlike Figma's own server it cannot match a library component from a file that consumes the library. Call it before writing code from a design: a mapped node should be implemented with the mapped component, not a new one. Map the COMPONENT or COMPONENT_SET, not an instance; get_design_context already resolves instances to their mappings. Ids listed under ambiguous are mapped in more than one Figma file and no real file key said which — they are mapped, so pass the file key from the file URL rather than writing a new component. Files the parser cannot read are listed under errors — a component there may be mapped even though it is missing from mappings.",
     toolInputSchemas.get_code_connect_map.shape,
