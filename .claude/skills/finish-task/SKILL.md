@@ -50,16 +50,20 @@ same commit (`.claude/rules/release.md`).
 ## 4. Review by a separate agent
 
 **No merge into `dev` or `main` happens before this step passes.** The review must cover exactly
-what step 5 will merge, so first bring the branch up to date on the feature branch itself:
+what step 5 will merge, so commit everything, then bring the branch up to date on the feature branch
+itself — one merge at a time, so a conflict arrives alone:
 
 ```bash
 git fetch origin
-git merge --no-edit origin/dev origin/main   # anything that landed on either directly
+git merge --no-edit origin/dev    # anything that landed on dev directly
+git merge --no-edit origin/main   # ...or on main
+git rev-parse origin/dev origin/main   # note these: they are what the review covers
 ```
 
-If that brought something in, re-run steps 1–2. Commit everything, then spawn a fresh agent (the
-Agent tool — never review your own work and call it done) to do a full code review of
-`git diff origin/dev...<branch>`. Give it the branch name, what the task set out to do, and ask for
+If that brought something in, re-run steps 1–3 (a release that landed on `main` may clash with this
+task's bump). Then spawn a fresh agent (the Agent tool — never review your own work and call it
+done) to do a full code review of `git diff origin/dev...<branch>`. Give it the branch name, what
+the task set out to do, and ask for
 correctness bugs, missed wiring (the `add-mcp-tool` checklist, when a tool changed), stale docs,
 and violations of CLAUDE.md's rules — ranked by severity, with file and line.
 
@@ -75,8 +79,9 @@ Then act on it:
 ## 5. Merge: feature → dev → main
 
 Real merges only — no rebase, no squash — so the branches keep sharing history. Each push runs CI.
-Start with `git fetch origin`: if `origin/dev` or `origin/main` moved since the review, go back to
-step 4 — what arrived has not been reviewed.
+Start with `git fetch origin`: if `origin/dev` or `origin/main` is not at the commit noted in step
+4, go back to step 4 — what arrived has not been reviewed. Likewise if local `dev` or `main` holds
+commits the remote does not (`git log origin/dev..dev`, `git log origin/main..main` must be empty).
 
 ```bash
 git switch dev && git pull --ff-only && git merge --no-edit <branch> && git push origin dev
