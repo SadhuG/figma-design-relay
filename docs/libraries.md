@@ -35,7 +35,7 @@ falls back to the current page and reports why under `libraryError`.
 
 Returns `{ user: { id, name, photoUrl } }`. `figma.currentUser` can be `null` even with the
 permission granted, so the tool then returns `{ user: null, note }` rather than an empty object. It is
-a read, so it works in Dev Mode.
+a read, so it works in every editor the plugin runs in.
 
 ## `get_libraries`
 
@@ -92,7 +92,8 @@ The key must belong to an asset **published** in a library that is **enabled for
 component that only exists locally is not importable, and does not need to be: use its node id.
 When Figma cannot resolve a key, the error says this rather than stopping at "Failed to import".
 
-Importing writes into the document, so the tool is rejected in Dev Mode. To place a component once
+Importing writes into the document and needs the design-file API, so the tool works in design files
+only; FigJam and Slides refuse it up front. To place a component once
 it is imported, use `run_script`:
 
 ```js

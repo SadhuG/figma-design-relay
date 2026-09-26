@@ -82,7 +82,7 @@ RULES — violating these is the usual cause of confusing failures:
 
 RESULT SHAPE: \`{ ok: true, value }\` on success, or \`{ ok: true, truncated: true, valuePreview }\` when the serialised value exceeds 200000 characters. Figma nodes in the returned value collapse to \`{ id, name, type }\`; \`figma.mixed\` serialises as "mixed"; cycles become "[circular]". Return ids and read them back rather than returning whole node objects.
 
-LIMITS: 100000 characters of source; results capped at depth 12 and 500 items per array; the relay times out after 3 minutes. Requires the plugin to be open in Figma's design editor — Dev Mode is read-only and will reject this tool.`;
+LIMITS: 100000 characters of source; results capped at depth 12 and 500 items per array; the relay times out after 3 minutes. Runs in design files, FigJam boards and Slides decks, whose APIs differ — figma.createPage() exists only in design files, figma.createSticky() only in FigJam — so check figma.editorType (list_files shows it too) before using an editor-specific call.`;
 
 export type ExportFormat = "PNG" | "SVG" | "JPG" | "PDF";
 
@@ -723,7 +723,7 @@ export function registerTools(server: McpServer, node: Node, port: number): void
 
   server.tool(
     "set_selection",
-    "Set the current page selection to a list of node IDs. Pass an empty array to clear the selection. Works in both design editor and Dev Mode.",
+    "Set the current page selection to a list of node IDs. Pass an empty array to clear the selection. Works in every editor the plugin runs in.",
     setSelectionInput.shape,
     async ({ nodeIds, fileKey }): Promise<ToolResult> => {
       return renderResponse(() =>
@@ -734,7 +734,7 @@ export function registerTools(server: McpServer, node: Node, port: number): void
 
   server.tool(
     "scroll_and_zoom_into_view",
-    "Scroll and zoom the Figma viewport so the given nodes are framed in view. Works in both design editor and Dev Mode.",
+    "Scroll and zoom the Figma viewport so the given nodes are framed in view. Works in every editor the plugin runs in.",
     scrollAndZoomIntoViewInput.shape,
     async ({ nodeIds, fileKey }): Promise<ToolResult> => {
       return renderResponse(() =>

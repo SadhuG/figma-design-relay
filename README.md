@@ -62,6 +62,8 @@ Then add the following to your AI tool's MCP configuration (e.g. Cursor, Windsur
 
 In Figma go to `Plugins > Development > Import plugin from manifest` and select `manifest.json` from the unzipped `plugin/` folder.
 
+The plugin runs in design files, FigJam boards and Slides decks. It does not run in Dev Mode: Figma does not let one plugin support both Dev Mode and FigJam.
+
 The plugin requests two permissions, which Figma shows when you import it:
 
 - `currentuser` — so `whoami` can report who is signed in.
@@ -117,8 +119,8 @@ If you want to know more about how it works, read the [How it works](#how-it-wor
 | `reparent_nodes`               | Move nodes into another parent                                                                                                             |
 | `group_nodes`                  | Wrap a list of nodes (sharing a parent) in a new group                                                                                     |
 | `ungroup_node`                 | Ungroup a group or frame — children move up to its parent                                                                                  |
-| `set_selection`                | Set the page selection to a list of node IDs (works in Dev Mode)                                                                           |
-| `scroll_and_zoom_into_view`    | Frame the viewport around the given nodes (works in Dev Mode)                                                                              |
+| `set_selection`                | Set the page selection to a list of node IDs (works in every editor)                                                                       |
+| `scroll_and_zoom_into_view`    | Frame the viewport around the given nodes (works in every editor)                                                                          |
 | `delete_nodes`                 | Delete nodes with explicit confirmation                                                                                                    |
 | `run_script`                   | Execute JavaScript against the Figma Plugin API — the escape hatch for anything the other tools do not cover ([guide](docs/run-script.md)) |
 | `get_code_connect_map`         | Map Figma components to workspace components, read from local `*.figma.tsx` files ([guide](docs/code-connect.md))                          |
@@ -129,12 +131,18 @@ If you want to know more about how it works, read the [How it works](#how-it-wor
 | `get_libraries`                | List enabled team libraries by their published variable collections, and a collection's variable keys ([guide](docs/libraries.md))         |
 | `import_library_asset`         | Import a published component, component set, style or variable by key                                                                      |
 | `search_design_system`         | Search components and instances on the current page and published variable collections — scoped, see the guide                             |
+| `create_sticky`                | Create a FigJam sticky note ([guide](docs/figjam.md))                                                                                      |
+| `create_shape_with_text`       | Create a FigJam shape with text inside it                                                                                                  |
+| `create_connector`             | Connect two FigJam nodes, optionally with a label                                                                                          |
+| `create_section`               | Create a section in a FigJam board or design file                                                                                          |
+| `generate_diagram`             | Render Mermaid source as a FigJam diagram — flowchart, sequence, ER, state, within a documented subset                                     |
 
 All tools accept an optional `fileKey` parameter when multiple Figma files are connected. Use `list_files` to discover connected files and their keys.
 
 ### Editing Notes
 
-- Edit tools work only when the plugin is opened in Figma's design editor (Dev Mode is read-only — they will return a clear error there).
+- The plugin runs in design files, FigJam boards and Slides decks, and tools are gated by editor: `create_page` and the design write tools need a design file, sticky notes, shapes-with-text, connectors and diagrams need FigJam, and Slides support is limited to reads plus edits inside existing slides ([scope](docs/slides.md)). A tool used in the wrong editor is refused up front with a message naming the editor it needs. `list_files` and `get_metadata` report each file's `editorType`.
+- The plugin does not run in Dev Mode. Figma does not let one plugin declare both Dev Mode and FigJam, and FigJam won; every read Dev Mode offered works in the design editor.
 - The current user must have permission to edit the target file.
 - `delete_nodes` is intentionally gated behind `confirm: true`.
 - Text edits automatically load the fonts currently used by the target text node before applying the new content.
@@ -146,6 +154,7 @@ All tools accept an optional `fileKey` parameter when multiple Figma files are c
 - Serialized nodes carry design-system identity, not just geometry: instances report their main component and set properties, fills bound to variables report the token name, named styles report the style name, and auto-layout children report hug/fill intent. Fields are omitted when a node carries nothing for them, so plain nodes serialize exactly as before. See [docs/serialized-nodes.md](docs/serialized-nodes.md).
 - `get_design_context` exports icons and images as files under `assetDir` rather than returning expiring URLs, because a committed file is what code you keep actually needs. The path must stay inside the MCP server working directory. See [docs/design-context.md](docs/design-context.md) for the response contract.
 - Code Connect on the relay is entirely local: mappings are read from and written to `*.figma.tsx` files in your repository, never Figma's cloud. There is no `send_code_connect_mappings` equivalent — committing the file is the publish step, which also makes the mapping reviewable. Mapped components show up at the top of `get_design_context`. See [docs/code-connect.md](docs/code-connect.md).
+- `generate_diagram` supports flowchart, sequenceDiagram, erDiagram and stateDiagram-v2, each within a documented subset. Anything else — another diagram type, a subgraph, a note, a styling directive — is refused with its line number and nothing is drawn: the relay will not draw an approximation of a diagram it does not understand. See [docs/figjam.md](docs/figjam.md).
 - Team library tools (`get_libraries`, `import_library_asset`, `search_design_system`) need the `teamlibrary` permission and a Figma plan that allows team library APIs. Without them `get_libraries` and `import_library_asset` return an explicit error naming the requirement, `search_design_system` falls back to the current page and says why, and every other tool is unaffected. `search_design_system` is much narrower than Figma's own: the Plugin API cannot full-text search published component libraries, so it searches the current page (including instances of library components) and published variable collections only — an empty result is not proof a component does not exist. See [docs/libraries.md](docs/libraries.md).
 
 ### What You Can Build
@@ -221,8 +230,10 @@ bun run format:check  # verify formatting without writing (useful in CI)
 ### Tests and type-checking
 
 ```bash
-cd server && bun test       # schemas, /rpc guards, codegen, content blocks, asset export, Code Connect
-cd plugin && bun test       # run_script, serializer and its helpers, Code Connect context, editor gate,
+cd server && bun test       # schemas, /rpc guards, codegen, content blocks, asset export, Code Connect,
+                            # the Mermaid parser and diagram layout
+cd plugin && bun test       # run_script, serializer and its helpers (FigJam nodes too), Code Connect context,
+                            # the editor capability table and its regression guard, diagram payloads,
                             # library tools and search against stubbed figma.teamLibrary / currentUser
 cd plugin && bun run typecheck   # tsc --noEmit; also runs as part of `bun run build`
 ```
@@ -254,6 +265,7 @@ Figma-Design-Relay/
         ├── assets.ts     # Exports design assets into the workspace
         ├── codegen/      # Tokens and React / HTML / CSS reference code
         ├── code-connect/ # Reads, suggests and writes local Code Connect mappings
+        ├── mermaid/      # Parses the Mermaid subset and lays diagrams out for FigJam
         └── types.ts      # Shared types
 ```
 
