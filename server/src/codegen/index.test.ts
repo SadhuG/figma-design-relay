@@ -16,6 +16,12 @@ describe("generateCode", () => {
     expect(html).not.toContain("className");
   });
 
+  test("html turns the component description and annotation hints into HTML comments", () => {
+    const html = generateCode(tree, "html");
+    expect(html).toContain("<!-- component description: Primary call to action. -->");
+    expect(html).toContain("<!-- annotation: Pinned to the card's bottom edge [layoutAlign] -->");
+  });
+
   test("css emits one rule per named node and uses the token", () => {
     const css = generateCode(tree, "css");
     expect(css).toContain(".card {");

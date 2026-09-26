@@ -95,6 +95,86 @@ describe("toReact instances", () => {
   });
 });
 
+// R25: Code Connect → component description → annotation → token → raw value,
+// each line naming its source so the agent can weigh it.
+describe("toReact hint priority", () => {
+  const annotated = {
+    id: "6:1",
+    name: "Delete",
+    type: "INSTANCE",
+    annotations: [
+      { label: "Confirm before deleting", properties: ["fills"] },
+      { properties: ["cornerRadius"] },
+    ],
+    design: {
+      mainComponent: {
+        id: "9:1",
+        key: "btn",
+        name: "Button/Danger",
+        description: "Destructive action.\nOne per view.",
+      },
+    },
+  } as unknown as SerializedNode;
+
+  test("emits the component description, then annotations, below the component line", () => {
+    const lines = toReact(annotated).split("\n");
+    expect(lines.slice(0, 4)).toEqual([
+      "{/* Figma component: Button/Danger — map with Code Connect */}",
+      "{/* component description: Destructive action. One per view. */}",
+      "{/* annotation: Confirm before deleting [fills] */}",
+      "{/* annotation: [cornerRadius] */}",
+    ]);
+  });
+
+  test("keeps both below a Code Connect mapping, which still ranks first", () => {
+    const lines = toReact(annotated, {
+      mappings: { "6:1": { component: "DangerButton", source: "src/DangerButton.figma.tsx" } },
+    }).split("\n");
+    expect(lines[0]).toBe("{/* Code Connect: DangerButton — src/DangerButton.figma.tsx */}");
+    expect(lines[1]).toContain("component description:");
+    expect(lines[2]).toContain("annotation: Confirm before deleting");
+  });
+
+  test("annotates plain frames and text, with an annotation above the text style", () => {
+    const out = toReact({
+      id: "6:2",
+      name: "Row",
+      type: "FRAME",
+      annotations: [{ label: "Sticky on scroll" }],
+      children: [
+        {
+          id: "6:3",
+          name: "Title",
+          type: "TEXT",
+          characters: "Hi",
+          annotations: [{ label: "Truncate at one line" }],
+          design: { styles: { text: { id: "S:1", name: "Heading/M" } } },
+        },
+      ],
+    } as unknown as SerializedNode);
+    expect(out.split("\n")).toEqual([
+      "{/* annotation: Sticky on scroll */}",
+      "<div>",
+      "  {/* annotation: Truncate at one line */}",
+      "  {/* text style: Heading/M */}",
+      "  <span>Hi</span>",
+      "</div>",
+    ]);
+  });
+
+  // Designer copy lands inside a comment: a stray `*/` would end it early and
+  // leave the rest as code, and `-->` would do the same in the HTML format.
+  test("cannot close its own comment early", () => {
+    const out = toReact({
+      id: "6:4",
+      name: "Box",
+      type: "FRAME",
+      annotations: [{ label: "a */ b --> c" }],
+    } as unknown as SerializedNode);
+    expect(out).toContain("{/* annotation: a * / b -- > c */}");
+  });
+});
+
 describe("toReact real-data hygiene", () => {
   test("names the component set for a variant instance", () => {
     const out = toReact({

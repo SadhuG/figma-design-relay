@@ -108,6 +108,35 @@ describe("serializeInstanceIdentity", () => {
     });
   });
 
+  // R25 ranks the component description second, after Code Connect. A variant
+  // usually leaves its own description empty and documents the set instead.
+  test("carries the main component's description, falling back to the set's", async () => {
+    const own = await serializeInstanceIdentity({
+      getMainComponentAsync: async () => ({
+        id: "1:2",
+        name: "Size=M",
+        description: "Medium button",
+        parent: { id: "1:1", type: "COMPONENT_SET", name: "Button", description: "Set docs" },
+      }),
+    });
+    expect(own?.mainComponent?.description).toBe("Medium button");
+
+    const inherited = await serializeInstanceIdentity({
+      getMainComponentAsync: async () => ({
+        id: "1:2",
+        name: "Size=M",
+        description: "",
+        parent: { id: "1:1", type: "COMPONENT_SET", name: "Button", description: "Set docs" },
+      }),
+    });
+    expect(inherited?.mainComponent?.description).toBe("Set docs");
+
+    const none = await serializeInstanceIdentity({
+      getMainComponentAsync: async () => ({ id: "2:1", name: "Divider", description: "  " }),
+    });
+    expect(none?.mainComponent).not.toHaveProperty("description");
+  });
+
   test("returns undefined for a detached instance with no properties", async () => {
     const out = await serializeInstanceIdentity({ getMainComponentAsync: async () => null });
     expect(out).toBeUndefined();

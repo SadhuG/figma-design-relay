@@ -28,7 +28,17 @@
       "name": "Confirm",
       "type": "INSTANCE",
       "styles": {},
-      "design": { "mainComponent": { "id": "9:1", "key": "btn", "name": "Button/Primary" } }
+      "annotations": [
+        { "label": "Pinned to the card's bottom edge", "properties": ["layoutAlign"] }
+      ],
+      "design": {
+        "mainComponent": {
+          "id": "9:1",
+          "key": "btn",
+          "name": "Button/Primary",
+          "description": "Primary call to action."
+        }
+      }
     }
   ]
 }

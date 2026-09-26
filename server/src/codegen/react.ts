@@ -136,6 +136,38 @@ export const escapeText = (text: string): string =>
     .replace(/{/g, "&#123;")
     .replace(/}/g, "&#125;");
 
+/**
+ * Makes designer copy safe inside a one-line comment: newlines collapse, and
+ * neither JSX's `*\/` nor HTML's `-->` (the HTML generator rewrites these
+ * comments) can end the comment early.
+ */
+const commentText = (text: string): string =>
+  text.replace(/\s+/g, " ").trim().replace(/\*\//g, "* /").replace(/-->/g, "-- >");
+
+/**
+ * The hints R25 ranks below Code Connect and above tokens, in that order: the
+ * main component's description (for a node rendered as a component), then each
+ * Dev Mode annotation. Each line names its source.
+ */
+const hintLines = (node: SerializedNode, pad: string, withDescription: boolean): string[] => {
+  const lines: string[] = [];
+  const description = withDescription ? node.design?.mainComponent?.description : undefined;
+  if (description && description.trim() !== "") {
+    lines.push(`${pad}{/* component description: ${commentText(description)} */}`);
+  }
+  for (const annotation of node.annotations ?? []) {
+    const parts: string[] = [];
+    if (annotation.label && annotation.label.trim() !== "") {
+      parts.push(commentText(annotation.label));
+    }
+    if (annotation.properties && annotation.properties.length > 0) {
+      parts.push(`[${annotation.properties.map(commentText).join(", ")}]`);
+    }
+    if (parts.length > 0) lines.push(`${pad}{/* annotation: ${parts.join(" ")} */}`);
+  }
+  return lines;
+};
+
 const render = (
   node: SerializedNode,
   depth: number,
@@ -150,6 +182,7 @@ const render = (
   // would be exactly the hand-drawn markup the asset contract forbids.
   const file = assets[node.id];
   if (file) {
+    lines.push(...hintLines(node, pad, false));
     lines.push(
       `${pad}<img src="${file}" alt="${escapeText(node.name)}" data-figma-node="${node.id}" />`
     );
@@ -164,6 +197,7 @@ const render = (
   const mapped = node.type === "INSTANCE" ? mappings[node.id] : undefined;
   if (mapped) {
     lines.push(`${pad}{/* Code Connect: ${mapped.component} — ${mapped.source} */}`);
+    lines.push(...hintLines(node, pad, true));
     const inner = node.children ?? [];
     if (inner.length === 0) {
       lines.push(`${pad}<${mapped.component} data-figma-node="${node.id}" />`);
@@ -179,6 +213,7 @@ const render = (
     lines.push(
       `${pad}{/* Figma component: ${componentLabel(node.design.mainComponent)} — map with Code Connect */}`
     );
+    lines.push(...hintLines(node, pad, true));
     const inner = node.children ?? [];
     if (inner.length === 0) {
       lines.push(`${pad}<div${attributes(node)} data-figma-node="${node.id}" />`);
@@ -189,6 +224,10 @@ const render = (
     lines.push(`${pad}</div>`);
     return lines;
   }
+
+  // Every remaining node is a plain element: its annotations are its only hint
+  // above the token rank (a text style sits with the tokens, below them).
+  lines.push(...hintLines(node, pad, false));
 
   if (node.type === "TEXT") {
     const style = node.design?.styles?.text;

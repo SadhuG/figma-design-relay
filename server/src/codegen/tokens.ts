@@ -27,8 +27,12 @@ export interface SerializedNode {
       setId?: string;
       setName?: string;
       remote?: boolean;
+      /** The variant's description, else its set's. */
+      description?: string;
     };
   };
+  /** Dev Mode annotations: the designer's note and the properties it pins. */
+  annotations?: Array<{ label?: string; properties?: string[] }>;
   children?: SerializedNode[];
   [key: string]: unknown;
 }

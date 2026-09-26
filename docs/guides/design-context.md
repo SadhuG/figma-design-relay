@@ -90,12 +90,22 @@ available, in this order:
    component, and the comment above it says `Code Connect` rather than
    `Figma component … map with Code Connect`, so a mapped component never reads
    like a guessed one. See [code-connect.md](code-connect.md).
-2. **Component identity** — an instance's main component name, surfaced as a
-   comment so the agent can tell a component from a plain frame.
-3. **Style name** — a named text style, surfaced as a comment.
-4. **Design token** — a bound variable, emitted as `var(--token-name)`.
+2. **Component description** — an instance's main component name, then the
+   designer's description of that component (the variant's own, else its
+   set's), as a `component description:` comment. It appears under a Code
+   Connect line too: the mapping names the code, the description says how it
+   is meant to be used.
+3. **Annotation** — each Dev Mode annotation on the node, as an
+   `annotation: <note> [<pinned properties>]` comment, on any node type.
+4. **Design token** — a bound variable, emitted as `var(--token-name)`; a named
+   text style is surfaced as a `text style:` comment at this rank.
 5. **Raw value** — the resolved hex or pixel value, only when nothing above
    applies.
+
+Every hint comment names its source, so a mapped component, a documented one
+and a guessed one read differently. Designer text is collapsed to one line, and
+`*/` and `-->` are broken up so a note can never close its own comment. HTML
+output carries the same hints as `<!-- … -->` comments; CSS carries none.
 
 The rule that matters most is **token over value**: a fill bound to
 `color/surface` is emitted as `var(--color-surface)` and the hex it resolves to

@@ -31,6 +31,8 @@ export interface ComponentRef {
   setId?: string;
   /** Set when the component comes from a library rather than this file. */
   remote?: true;
+  /** The designer's documentation: the variant's own, else its set's. R25's second-ranked hint. */
+  description?: string;
 }
 
 export interface ComponentIdentity {
@@ -44,7 +46,8 @@ export interface MainComponentLike {
   id: string;
   key?: string;
   name?: string;
-  parent?: { id?: string; type: string; name?: string } | null;
+  description?: string;
+  parent?: { id?: string; type: string; name?: string; description?: string } | null;
   remote?: boolean;
 }
 
@@ -111,6 +114,11 @@ export const serializeInstanceIdentity = async (
       if (main.parent.id) identity.mainComponent.setId = main.parent.id;
       identity.mainComponent.setName = main.parent.name;
     }
+    // A variant usually leaves its own description empty and documents the set.
+    const description = [main.description, main.parent?.description].find(
+      (text): text is string => typeof text === "string" && text.trim() !== ""
+    );
+    if (description) identity.mainComponent.description = description;
   }
   if (hasProperties) identity.componentProperties = properties;
   return identity;
