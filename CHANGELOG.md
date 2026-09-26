@@ -18,6 +18,30 @@ with its tag.
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-09-26
+
+Fixes from the phase 6 code review.
+
+### Fixed
+
+- `generate_diagram` no longer draws a wrong flowchart without saying so. `A --o B --> C` drew
+  one edge A→C labelled "o B"; `--o` is now always a circle-ended link. Link text stops at `--`,
+  and a bare `--` is not a link, so `A -- a -- B --> C` is refused instead of inventing or dropping
+  a node.
+- `%%` inside a quoted Mermaid label no longer starts a comment.
+- Flowchart node ids such as `End`, `Style` or `Class` are accepted; only Mermaid's own lowercase
+  keywords are refused.
+- A diagram header, shape or cap named `constructor` or `toString` is refused instead of being
+  read as a built-in object property.
+- `create_connector` removes the connector if attaching an end or setting the label fails,
+  instead of leaving an empty one on the board.
+- `create_connector` from a node to itself draws a visible loop instead of collapsing to a point.
+- `render_diagram` loads each font once rather than once per shape and label.
+- `list_files` no longer lists `dev` as a possible `editorType`, and `import_library_asset` says
+  in its first sentence that it runs only in design files.
+- A `list_files` leader test could pass or fail depending on when the previous test's socket
+  closed.
+
 ## [0.7.0] - 2026-09-26
 
 Phase 6 of the parity plan set: FigJam, Slides and diagrams (R43–R50).

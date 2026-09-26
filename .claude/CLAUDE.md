@@ -38,10 +38,10 @@ This file holds only what applies to every task. The rest loads when it is relev
 | root      | `bun run format` / `bun run format:check` | Prettier 3.9.6 over everything                                            |
 | root      | `bun scripts/check-version.mjs`           | server + plugin versions agree and have a changelog entry                 |
 | `server/` | `bun run build`                           | `tsc` → `dist/`; this is the server's type-check                          |
-| `server/` | `bun test`                                | 237 tests: schemas, rpc guards, codegen, assets, Code Connect, Mermaid    |
+| `server/` | `bun test`                                | 244 tests: schemas, rpc guards, codegen, assets, Code Connect, Mermaid    |
 | `plugin/` | `bun run typecheck`                       | `tsc --noEmit`; must stay at zero errors                                  |
 | `plugin/` | `bun run build`                           | typecheck, then two Vite passes: UI, then `main`                          |
-| `plugin/` | `bun test`                                | 180 tests: scripts, serializer, capability table, library tools, diagrams |
+| `plugin/` | `bun test`                                | 187 tests: scripts, serializer, capability table, library tools, diagrams |
 
 Tests live beside the code as `*.test.ts` (excluded from both tsconfigs). CI (`.github/workflows/ci.yml`)
 runs all of the above on every push to every branch.
