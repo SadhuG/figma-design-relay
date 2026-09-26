@@ -36,8 +36,9 @@ import {
   toolInputSchemas,
 } from "./schema.js";
 import { LOOPBACK_HOST } from "./types.js";
-import type { BridgeResponse } from "./types.js";
+import type { BridgeResponse, ConnectedFile } from "./types.js";
 import { Follower } from "./follower.js";
+import { searchAcrossFiles } from "./search/index.js";
 import { imageBlock, textBlock, type ContentBlock, type ToolResult } from "./content.js";
 import { generateCode, type CodeFormat } from "./codegen/index.js";
 import { collectTokens, type SerializedNode, type TokenUse } from "./codegen/tokens.js";
@@ -277,17 +278,17 @@ export function composeDesignContext(input: DesignContextInput): ContentBlock[] 
  * @param port - The port used for follower-to-leader HTTP calls.
  */
 export function registerTools(server: McpServer, node: Node, port: number): void {
+  // The leader knows its files; a follower asks the leader.
+  const connectedFiles = async (): Promise<ConnectedFile[]> =>
+    node.listConnectedFiles() ??
+    new Follower(`http://${LOOPBACK_HOST}:${port}`).listConnectedFiles();
+
   server.tool(
     "list_files",
     "List all currently connected Figma files. Returns fileKey, fileName and editorType (figma, figjam or slides) for each — which tools work depends on the editor, so check it before picking one. Use the fileKey to target a specific file in other tools.",
     async (): Promise<ToolResult> => {
       try {
-        let files = node.listConnectedFiles();
-        if (files === undefined) {
-          // Follower: fetch via RPC from leader
-          const follower = new Follower(`http://${LOOPBACK_HOST}:${port}`);
-          files = await follower.listConnectedFiles();
-        }
+        const files = await connectedFiles();
         return {
           content: [{ type: "text", text: JSON.stringify(files) }],
         };
@@ -924,12 +925,25 @@ export function registerTools(server: McpServer, node: Node, port: number): void
 
   server.tool(
     "search_design_system",
-    "Search a NARROW slice of the design system — much narrower than Figma's own server: only components and component instances in the one connected file (its current page, or every page with allPages: true), plus published variable collections. The Figma Plugin API cannot full-text search an organisation's published component libraries, so an empty result does NOT mean the component does not exist; retry with allPages: true, then ask the user to open the library file with the plugin and search there. allPages loads every page first, which is slow on a large file. A library component is found when an instance of it sits on a searched page; each hit carries its kind, its key, and remote: true when it comes from a library. Only a remote hit's key is known to be importable with import_library_asset: a local component's key imports only if that component has been published, which the Plugin API cannot tell — in this file, use its node id. Hits are ranked and capped at limit (default 50); total says how many matched when some were cut. The result lists what was searched; libraryError says why collections were skipped when the plan or permission refused them, and instanceError why instances were skipped when their main components could not be read. When multiple files are connected, specify fileKey.",
+    "Search a NARROW slice of the design system — much narrower than Figma's own server: only components and component instances in the open design files (each file's current page, or every page with allPages: true), plus published variable collections. The Figma Plugin API cannot full-text search an organisation's published component libraries, so an empty result does NOT mean the component does not exist; retry with allPages: true, then ask the user to open the library file with the plugin and search there. Every open design file is searched at once unless files names some (by name or fileKey) — when many files are open, check their names with list_files and pass only the relevant ones; fileKey still searches exactly one file. FigJam boards and Slides decks are skipped. Each component appears once: fileKey and fileName say where the hit is, pointing at the original when an open file holds it, and alsoIn lists every other file it appears in with that file's node id. Each hit carries its kind, its key, and remote: true when it comes from a library. Only a remote hit's key is known to be importable with import_library_asset: a local component's key imports only if that component has been published, which the Plugin API cannot tell — in its own file, use its node id. Hits are ranked and capped at limit (default 50); total says how many matched when some were cut. files.searched and files.skipped say which files answered and why any did not; a file that failed does not fail the search. libraryError says why collections were skipped, and instanceError (instanceErrors, per file, when several were searched) why instances were skipped. allPages loads every page of every searched file first, which is slow on large files.",
     toolInputSchemas.search_design_system.shape,
-    async ({ query, limit, allPages, fileKey }): Promise<ToolResult> => {
-      return renderResponse(() =>
-        node.sendWithParams("search_design_system", undefined, { query, limit, allPages }, fileKey)
-      );
+    async ({ query, limit, allPages, fileKey, files }): Promise<ToolResult> => {
+      try {
+        const result = await searchAcrossFiles(
+          {
+            listFiles: connectedFiles,
+            send: (params, key) =>
+              node.sendWithParams("search_design_system", undefined, params, key),
+          },
+          { query, limit, allPages, fileKey, files }
+        );
+        return { content: [{ type: "text", text: JSON.stringify(result) }] };
+      } catch (err) {
+        return {
+          content: [{ type: "text", text: err instanceof Error ? err.message : String(err) }],
+          isError: true,
+        };
+      }
     }
   );
 

@@ -1078,6 +1078,16 @@ export const toolInputSchemas = {
       .describe(
         "Search components and instances on every page instead of only the current one (default false). Loads every page first, which is slow on a large file; use it when a current-page search came back empty or incomplete."
       ),
+    files: z
+      .array(z.string().trim().min(1, "files entries must not be empty"), {
+        invalid_type_error: "files must be a list of file names or fileKeys",
+      })
+      .min(1, "files must name at least one file")
+      .max(20, "files can name at most 20 files")
+      .optional()
+      .describe(
+        "Only search these open files, by name (as list_files shows it, ignoring case) or fileKey. Omit to search every open design file. When many files are open, check their names with list_files and pass only the relevant ones. Cannot be combined with fileKey."
+      ),
     fileKey: fileKeyField,
   }),
 

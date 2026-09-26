@@ -222,6 +222,23 @@ describe("validateRpc search_design_system", () => {
     ).toMatch(/allPages/);
   });
 
+  test("forwards files", () => {
+    const result = validateRpc("search_design_system", undefined, {
+      query: "button",
+      files: ["Acme"],
+    });
+    expect(result.params).toEqual({ query: "button", files: ["Acme"] });
+  });
+
+  test.each([[[]], [[""]], [Array.from({ length: 21 }, (_, i) => `f${i}`)]])(
+    "rejects files of %p",
+    (files) => {
+      expect(
+        validateRpc("search_design_system", undefined, { query: "button", files }).error
+      ).toMatch(/files/);
+    }
+  );
+
   test.each([0, 201, 2.5])("rejects a limit of %p", (limit) => {
     expect(
       validateRpc("search_design_system", undefined, { query: "button", limit }).error
