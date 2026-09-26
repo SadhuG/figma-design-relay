@@ -969,8 +969,17 @@ export const toolInputSchemas = {
       .string()
       .min(1, "key must not be empty")
       .describe(
-        "The published key — not a node id. Component and component set keys: `key` on a serialized COMPONENT/COMPONENT_SET, `mainComponent.key` on an instance, or `key` on a search_design_system hit. Variable keys: get_libraries with a collectionKey. Style keys: read `style.key` in the library file with run_script."
+        "The published key, not a node id. Component and component set keys: `key` on a serialized COMPONENT/COMPONENT_SET, `mainComponent.key` on an instance, or `key` on a search_design_system hit. Variable keys: get_libraries with a collectionKey. Style keys: read `style.key` in the library file with run_script."
       ),
+    fileKey: fileKeyField,
+  }),
+
+  search_design_system: z.object({
+    query: z
+      .string()
+      .trim()
+      .min(1, "query must not be empty")
+      .describe("Name or partial name to search for, e.g. `button` or `button/primary`."),
     fileKey: fileKeyField,
   }),
 } as const;
@@ -1080,6 +1089,7 @@ const rpcToArgs: Record<
   whoami: (_nodeIds, params) => ({ ...params }),
   get_libraries: (_nodeIds, params) => ({ ...params }),
   import_library_asset: (_nodeIds, params) => ({ ...params }),
+  search_design_system: (_nodeIds, params) => ({ ...params }),
 };
 
 /**

@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 import {
   getLibraries,
   importLibraryAsset,
+  searchDesignSystem,
+  type SearchableNode,
   whoami,
   type LibraryImporters,
   type TeamLibraryLike,
@@ -154,5 +156,97 @@ describe("importLibraryAsset", () => {
     await expect(importLibraryAsset(importers, "component", "k1")).rejects.toThrow(
       /manifest\.json/
     );
+  });
+});
+
+describe("searchDesignSystem", () => {
+  const set: SearchableNode = { id: "10:1", name: "Button", type: "COMPONENT_SET", key: "set-key" };
+  const variant: SearchableNode = {
+    id: "10:2",
+    name: "Size=Large",
+    type: "COMPONENT",
+    key: "variant-key",
+    parent: set,
+  };
+  const card: SearchableNode = { id: "11:1", name: "Card", type: "COMPONENT", key: "card-key" };
+  const remoteSet: SearchableNode = {
+    id: "20:1",
+    name: "Button/Ghost",
+    type: "COMPONENT_SET",
+    key: "remote-set-key",
+    remote: true,
+  };
+  const remoteVariant: SearchableNode = {
+    id: "20:2",
+    name: "State=Hover",
+    type: "COMPONENT",
+    key: "rv",
+    remote: true,
+    parent: remoteSet,
+  };
+  const instance: SearchableNode = {
+    id: "30:1",
+    name: "Ghost button",
+    type: "INSTANCE",
+    getMainComponentAsync: async () => remoteVariant,
+  };
+  const nodes = [set, variant, card, instance, { ...instance, id: "30:2" }];
+
+  test("finds local components, representing a variant by its set", async () => {
+    const result = await searchDesignSystem("button", { nodes, teamLibrary: stubTeamLibrary() });
+    const ids = result.results.map((hit) => hit.id);
+    expect(ids).toContain("10:1");
+    expect(ids).not.toContain("10:2");
+  });
+
+  test("finds a library component through an instance of it, once, with its import key", async () => {
+    const result = await searchDesignSystem("ghost", { nodes, teamLibrary: stubTeamLibrary() });
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0]).toMatchObject({
+      id: "20:1",
+      kind: "componentSet",
+      key: "remote-set-key",
+      remote: true,
+    });
+  });
+
+  test("includes published variable collections with their library", async () => {
+    const result = await searchDesignSystem("colors", { nodes, teamLibrary: stubTeamLibrary() });
+    expect(result.results).toEqual([
+      {
+        id: "c1",
+        key: "c1",
+        name: "Colors",
+        kind: "variableCollection",
+        libraryName: "Core",
+        score: 1,
+      },
+    ]);
+  });
+
+  test("still returns local results when team library reach is refused, and says so", async () => {
+    const result = await searchDesignSystem("card", {
+      nodes,
+      teamLibrary: stubTeamLibrary({
+        getAvailableLibraryVariableCollectionsAsync: async () => {
+          throw new Error("Missing permission: teamlibrary");
+        },
+      }),
+    });
+    expect(result.results.map((hit) => hit.id)).toEqual(["11:1"]);
+    expect(result.libraryError).toContain("manifest.json");
+    expect(result.searched).not.toContain("published variable collections");
+  });
+
+  test("always says an empty result is not proof of absence", async () => {
+    const result = await searchDesignSystem("zzz", { nodes, teamLibrary: stubTeamLibrary() });
+    expect(result.results).toEqual([]);
+    expect(result.note).toContain("does not mean");
+  });
+
+  test("rejects an empty query", async () => {
+    await expect(
+      searchDesignSystem("  ", { nodes, teamLibrary: stubTeamLibrary() })
+    ).rejects.toThrow(/query/);
   });
 });

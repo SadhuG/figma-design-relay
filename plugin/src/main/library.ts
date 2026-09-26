@@ -6,7 +6,8 @@
  * objects and never needs a Figma session.
  */
 
-import { withPermissionContext } from "./permissions";
+import { describeApiError, withPermissionContext } from "./permissions";
+import { rankResults, type SearchCandidate, type SearchHit } from "./search";
 
 /** The fields of Figma's `User` this module reads. */
 export interface CurrentUserLike {
@@ -149,5 +150,110 @@ export const importLibraryAsset = async (
   const imported = await withPermissionContext("teamLibrary", () => importers[kind](key));
   const result: ImportResult = { kind, id: imported.id, name: imported.name };
   if (imported.type !== undefined) result.type = imported.type;
+  return result;
+};
+
+/** The fields of a COMPONENT, COMPONENT_SET or INSTANCE node the search reads. */
+export interface SearchableNode {
+  id: string;
+  name: string;
+  type: string;
+  key?: string;
+  remote?: boolean;
+  parent?: SearchableNode | null;
+  getMainComponentAsync?: () => Promise<SearchableNode | null>;
+}
+
+export interface SearchSources {
+  /** COMPONENT, COMPONENT_SET and INSTANCE nodes on the current page. */
+  nodes: readonly SearchableNode[];
+  teamLibrary: TeamLibraryLike;
+}
+
+export interface SearchResult {
+  results: SearchHit[];
+  searched: string[];
+  /** Why published variable collections were not searched, when they were not. */
+  libraryError?: string;
+  note: string;
+}
+
+const PAGE_SCOPE = "components and component instances on the current page";
+const LIBRARY_SCOPE = "published variable collections";
+
+const toCandidate = (node: SearchableNode): SearchCandidate | null => {
+  // A variant's own name is its property string; the set is what gets searched
+  // for and imported.
+  const target =
+    node.type === "COMPONENT" && node.parent?.type === "COMPONENT_SET" ? node.parent : node;
+  if (target.type !== "COMPONENT" && target.type !== "COMPONENT_SET") return null;
+  const candidate: SearchCandidate = {
+    id: target.id,
+    name: target.name,
+    kind: target.type === "COMPONENT_SET" ? "componentSet" : "component",
+  };
+  if (target.key) candidate.key = target.key;
+  if (target.remote) candidate.remote = true;
+  return candidate;
+};
+
+/**
+ * Searches what the plugin can actually reach: components on the current page,
+ * the main components of instances there (which is how library components are
+ * found), and published variable collections when the plan allows it.
+ * @param query - The caller's search text.
+ * @param sources - The page's component-ish nodes and `figma.teamLibrary`.
+ */
+export const searchDesignSystem = async (
+  query: unknown,
+  sources: SearchSources
+): Promise<SearchResult> => {
+  if (typeof query !== "string" || query.trim() === "") {
+    throw new Error("search_design_system requires a non-empty `query` string parameter.");
+  }
+
+  const byId = new Map<string, SearchCandidate>();
+  const add = (candidate: SearchCandidate | null) => {
+    if (candidate && !byId.has(candidate.id)) byId.set(candidate.id, candidate);
+  };
+
+  const mains = await Promise.all(
+    sources.nodes.map((node) =>
+      node.type === "INSTANCE" && node.getMainComponentAsync
+        ? node.getMainComponentAsync()
+        : Promise.resolve(node)
+    )
+  );
+  for (const node of mains) if (node) add(toCandidate(node));
+
+  const searched = [PAGE_SCOPE];
+  let libraryError: string | undefined;
+  try {
+    const collections = await sources.teamLibrary.getAvailableLibraryVariableCollectionsAsync();
+    for (const collection of collections) {
+      add({
+        id: collection.key,
+        key: collection.key,
+        name: collection.name,
+        kind: "variableCollection",
+        libraryName: collection.libraryName,
+      });
+    }
+    searched.push(LIBRARY_SCOPE);
+  } catch (error) {
+    // Library reach is optional: local results are still worth returning.
+    libraryError = describeApiError(error, "teamLibrary");
+  }
+
+  const result: SearchResult = {
+    results: rankResults(query, [...byId.values()]),
+    searched,
+    note:
+      "This search covers only what is listed under `searched`. The Figma Plugin API cannot " +
+      "full-text search an organisation's published component libraries, so an empty result " +
+      "does not mean the component does not exist — ask the user to open the library file " +
+      "with the plugin and search again there.",
+  };
+  if (libraryError) result.libraryError = libraryError;
   return result;
 };

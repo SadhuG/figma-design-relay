@@ -3,7 +3,13 @@ import { addLayersToFrame } from "../html-figma/figma";
 import { runScript } from "./script-runner";
 import { EDIT_REQUEST_TYPES, requireEditorMode } from "./editor-gate";
 import { describeForCodeConnect, type NodeLike } from "./component-identity";
-import { getLibraries, importLibraryAsset, whoami } from "./library";
+import {
+  getLibraries,
+  importLibraryAsset,
+  searchDesignSystem,
+  whoami,
+  type SearchableNode,
+} from "./library";
 
 export type RequestType =
   | "get_document"
@@ -47,7 +53,8 @@ export type RequestType =
   | "get_context_for_code_connect"
   | "whoami"
   | "get_libraries"
-  | "import_library_asset";
+  | "import_library_asset"
+  | "search_design_system";
 
 type ServerRequestParams = Record<string, unknown> & {
   format?: "PNG" | "SVG" | "JPG" | "PDF";
@@ -1881,6 +1888,17 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
             request.params?.kind,
             request.params?.key
           ),
+        };
+      case "search_design_system":
+        return {
+          type: request.type,
+          requestId: request.requestId,
+          data: await searchDesignSystem(request.params?.query, {
+            nodes: figma.currentPage.findAllWithCriteria({
+              types: ["COMPONENT", "COMPONENT_SET", "INSTANCE"],
+            }) as unknown as SearchableNode[],
+            teamLibrary: figma.teamLibrary,
+          }),
         };
       default:
         throw new Error(`Unknown request type: ${request.type}`);

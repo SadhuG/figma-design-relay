@@ -191,3 +191,15 @@ describe("validateRpc import_library_asset", () => {
     ).not.toBeNull();
   });
 });
+
+describe("validateRpc search_design_system", () => {
+  test("forwards the query", () => {
+    const result = validateRpc("search_design_system", undefined, { query: "button" });
+    expect(result.error).toBeNull();
+    expect(result.params).toEqual({ query: "button" });
+  });
+
+  test("rejects a blank query", () => {
+    expect(validateRpc("search_design_system", undefined, { query: "  " }).error).not.toBeNull();
+  });
+});

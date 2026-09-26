@@ -917,6 +917,17 @@ export function registerTools(server: McpServer, node: Node, port: number): void
   );
 
   server.tool(
+    "search_design_system",
+    "Search a NARROW slice of the design system — much narrower than Figma's own server: only components and component instances on the connected file's current page, plus published variable collections. The Figma Plugin API cannot full-text search an organisation's published component libraries, so an empty result does NOT mean the component does not exist; ask the user to open the library file with the plugin and search there. A library component is found when an instance of it sits on the current page; each hit carries its kind, its published key for import_library_asset, and remote: true when it comes from a library. The result lists what was searched, and libraryError says why collections were skipped when the plan or permission refused them. When multiple files are connected, specify fileKey.",
+    toolInputSchemas.search_design_system.shape,
+    async ({ query, fileKey }): Promise<ToolResult> => {
+      return renderResponse(() =>
+        node.sendWithParams("search_design_system", undefined, { query }, fileKey)
+      );
+    }
+  );
+
+  server.tool(
     "get_code_connect_map",
     "Map Figma nodes to the components that implement them, read from the *.figma.ts files in this workspace — local files under version control, not Figma cloud records, matched by node id, so unlike Figma's own server it cannot match a library component from a file that consumes the library. Call it before writing code from a design: a mapped node should be implemented with the mapped component, not a new one. Map the COMPONENT or COMPONENT_SET, not an instance; get_design_context already resolves instances to their mappings. Ids listed under ambiguous are mapped in more than one Figma file and no real file key said which — they are mapped, so pass the file key from the file URL rather than writing a new component. Files the parser cannot read are listed under errors — a component there may be mapped even though it is missing from mappings.",
     toolInputSchemas.get_code_connect_map.shape,
