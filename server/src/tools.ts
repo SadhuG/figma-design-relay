@@ -279,7 +279,7 @@ export function composeDesignContext(input: DesignContextInput): ContentBlock[] 
 export function registerTools(server: McpServer, node: Node, port: number): void {
   server.tool(
     "list_files",
-    "List all currently connected Figma files. Returns fileKey, fileName and editorType (figma, figjam, slides or dev) for each — which tools work depends on the editor, so check it before picking one. Use the fileKey to target a specific file in other tools.",
+    "List all currently connected Figma files. Returns fileKey, fileName and editorType (figma, figjam or slides) for each — which tools work depends on the editor, so check it before picking one. Use the fileKey to target a specific file in other tools.",
     async (): Promise<ToolResult> => {
       try {
         let files = node.listConnectedFiles();
@@ -913,7 +913,7 @@ export function registerTools(server: McpServer, node: Node, port: number): void
 
   server.tool(
     "import_library_asset",
-    "Import a published component, component set, style or variable into the connected file by its key, and return the imported object's id — use that id to place an instance (e.g. with run_script: `(await figma.getNodeByIdAsync(id)).createInstance()`) or bind a variable. Importing is a write: it is rejected in Dev Mode. Requires the teamlibrary permission and a Figma plan with team libraries; without them the error says which is missing. When multiple files are connected, specify fileKey.",
+    "Import a published component, component set, style or variable into the connected design file by its key, and return the imported object's id — design files only: refused in FigJam boards and Slides decks (list_files shows each file's editorType). Use the id to place an instance (e.g. with run_script: `(await figma.getNodeByIdAsync(id)).createInstance()`) or bind a variable. Requires the teamlibrary permission and a Figma plan with team libraries; without them the error says which is missing. When multiple files are connected, specify fileKey.",
     toolInputSchemas.import_library_asset.shape,
     async ({ kind, key, fileKey }): Promise<ToolResult> => {
       return renderResponse(() =>

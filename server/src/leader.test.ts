@@ -97,22 +97,26 @@ describe("list_files reports the editor", () => {
   };
 
   // The server registers the socket on the upgrade, a tick after the client's
-  // open event; poll rather than sleep a guessed interval.
-  const waitForFiles = async (count: number): Promise<unknown> => {
+  // open event, and drops a closed one just as lazily — so poll for the file
+  // this test connected, never a count another test's socket could satisfy.
+  const waitForFile = async (fileKey: string): Promise<Record<string, unknown>> => {
     for (let attempt = 0; attempt < 50; attempt++) {
-      const files = (await listFiles()) as unknown[];
-      if (files.length >= count) return files;
+      const files = (await listFiles()) as Array<Record<string, unknown>>;
+      const file = files.find((entry) => entry.fileKey === fileKey);
+      if (file) return file;
       await Bun.sleep(10);
     }
-    throw new Error(`expected ${count} connected files`);
+    throw new Error(`expected ${fileKey} to be connected`);
   };
 
   test("carries the editorType the plugin connected with", async () => {
     const socket = await connect("fileKey=board&fileName=Board&editorType=figjam");
     try {
-      expect(await waitForFiles(1)).toEqual([
-        { fileKey: "board", fileName: "Board", editorType: "figjam" },
-      ]);
+      expect(await waitForFile("board")).toEqual({
+        fileKey: "board",
+        fileName: "Board",
+        editorType: "figjam",
+      });
     } finally {
       socket.close();
     }
@@ -121,9 +125,7 @@ describe("list_files reports the editor", () => {
   test("omits an editorType it does not recognise", async () => {
     const socket = await connect("fileKey=odd&fileName=Odd&editorType=bogus");
     try {
-      const files = (await waitForFiles(1)) as Array<Record<string, unknown>>;
-      const odd = files.find((file) => file.fileKey === "odd");
-      expect(odd).toEqual({ fileKey: "odd", fileName: "Odd" });
+      expect(await waitForFile("odd")).toEqual({ fileKey: "odd", fileName: "Odd" });
     } finally {
       socket.close();
     }
