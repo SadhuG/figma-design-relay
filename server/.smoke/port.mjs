@@ -18,9 +18,10 @@ function slotPort() {
       `.dev-slot.json is not valid JSON. Delete it and run bun scripts/dev-slot.mjs.`
     );
   }
-  if (!Number.isInteger(port)) {
+  // Same range the server enforces (src/port.ts), so 1994 is never a slot.
+  if (!Number.isInteger(port) || port < 1995 || port > 2019) {
     throw new Error(
-      `.dev-slot.json has no integer port. Delete it and run bun scripts/dev-slot.mjs.`
+      `.dev-slot.json needs an integer port between 1995 and 2019. Delete it and run bun scripts/dev-slot.mjs.`
     );
   }
   return String(port);

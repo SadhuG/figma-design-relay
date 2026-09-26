@@ -58,11 +58,15 @@ if (slot) {
     process.exit(1);
   }
   // parseDevSlot applies the same rules the build will, so a bad name fails here.
+  let port;
   try {
-    slot = parseDevSlot(
-      JSON.stringify({ name, port: pickSlotPort(others.map((other) => other.port)) }),
-      "the requested slot"
-    );
+    port = pickSlotPort(others.map((other) => other.port));
+  } catch (err) {
+    console.error(err.message);
+    process.exit(1);
+  }
+  try {
+    slot = parseDevSlot(JSON.stringify({ name, port }), "the requested slot");
   } catch (err) {
     console.error(
       `${err.message}\nPass a name of lowercase letters, digits and dashes: bun scripts/dev-slot.mjs <name>`
