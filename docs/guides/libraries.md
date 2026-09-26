@@ -35,7 +35,7 @@ falls back to the current page and reports why under `libraryError`.
 
 Returns `{ user: { id, name, photoUrl } }`. `figma.currentUser` can be `null` even with the
 permission granted, so the tool then returns `{ user: null, note }` rather than an empty object. It is
-a read, so it works in Dev Mode.
+a read, so it works in every editor the plugin runs in.
 
 ## `get_libraries`
 
@@ -95,7 +95,8 @@ So does a refusal to access the library, which is a sharing problem: only a mess
 manifest or the permission, as Figma's own refusal does, is reported as a missing manifest
 permission.
 
-Importing writes into the document, so the tool is rejected in Dev Mode. To place a component once
+Importing writes into the document and needs the design-file API, so the tool works in design files
+only; FigJam and Slides refuse it up front. To place a component once
 it is imported, use `run_script`:
 
 ```js

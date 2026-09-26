@@ -993,7 +993,7 @@ return { createdNodeIds: [instance.id] };</code></pre>
                     a permission refusal, and Figma's "Failed to import" mapped to a next step. The
                     refusal was also seen live in Task 7 Step 3. What no test reaches is a real
                     import succeeding: that Figma accepts a published key and that the returned id
-                    creates a working instance. <code>docs/libraries.md</code> says so.
+                    creates a working instance. <code>docs/guides/libraries.md</code> says so.
                   </p>
                 </div>
               </li>
@@ -1372,7 +1372,7 @@ git commit -m "feat: add a scoped search_design_system"</code></pre>
                     <span class="verb">Modify</span><code>README.md</code> — tool table and Editing
                     Notes
                   </li>
-                  <li><span class="verb">Create</span><code>docs/libraries.md</code></li>
+                  <li><span class="verb">Create</span><code>docs/guides/libraries.md</code></li>
                 </ul>
               </dd>
               <dt>Interfaces</dt>
@@ -1482,14 +1482,15 @@ git commit -m "feat: add a scoped search_design_system"</code></pre>
                 </div>
                 <div class="step__body">
                   <p>
-                    Create <code>docs/libraries.md</code> covering: the two manifest permissions and
-                    what each unlocks; that team library APIs are plan-gated and what happens when
-                    they are not available; what <code>get_libraries</code> returns and why it is
-                    collections rather than a catalogue; the four kinds
-                    <code>import_library_asset</code> accepts and where each key comes from; and —
-                    most importantly — <code>search_design_system</code>'s real scope, with the
-                    sentence an agent needs: an empty result is not proof of absence, and the fix is
-                    to ask the user to open the library file with the plugin.
+                    Create <code>docs/guides/libraries.md</code> covering: the two manifest
+                    permissions and what each unlocks; that team library APIs are plan-gated and
+                    what happens when they are not available; what
+                    <code>get_libraries</code> returns and why it is collections rather than a
+                    catalogue; the four kinds <code>import_library_asset</code> accepts and where
+                    each key comes from; and — most importantly —
+                    <code>search_design_system</code>'s real scope, with the sentence an agent
+                    needs: an empty result is not proof of absence, and the fix is to ask the user
+                    to open the library file with the plugin.
                   </p>
                 </div>
               </li>
@@ -1502,7 +1503,7 @@ git commit -m "feat: add a scoped search_design_system"</code></pre>
                 <div class="step__body">
                   <p>Add four rows to the tool table:</p>
                   <pre><code>| `whoami` | Report the Figma user signed in to the connected plugin |
-| `get_libraries` | List published team libraries and their variable collections ([guide](docs/libraries.md)) |
+| `get_libraries` | List published team libraries and their variable collections ([guide](docs/guides/libraries.md)) |
 | `import_library_asset` | Import a published component, component set, style or variable by key |
 | `search_design_system` | Search components on the current page and published variable collections — scoped, see the guide |</code></pre>
                   <p>And append to Editing Notes:</p>
@@ -1534,7 +1535,7 @@ cd ../plugin &amp;&amp; bun run test &amp;&amp; bunx tsc --noEmit -p tsconfig.js
                   <label class="step__label" for="libraryreacht7s8">Commit</label>
                 </div>
                 <div class="step__body">
-                  <pre><code>git add README.md docs/libraries.md
+                  <pre><code>git add README.md docs/guides/libraries.md
 git commit -m "docs: document library reach, its permissions and its limits"</code></pre>
                   <p>---</p>
                 </div>
@@ -1569,8 +1570,8 @@ git commit -m "docs: document library reach, its permissions and its limits"</co
                 unavailable, and always returns the scope note.
               </li>
               <li>
-                <code>docs/libraries.md</code> states the plan gating and, in plain words, that an
-                empty search result is not proof of absence.
+                <code>docs/guides/libraries.md</code> states the plan gating and, in plain words,
+                that an empty search result is not proof of absence.
               </li>
             </ul>
           </section>
@@ -1578,7 +1579,9 @@ git commit -m "docs: document library reach, its permissions and its limits"</co
           <footer class="colophon">
             <span>Figma Design Relay</span>
             <span>Plan · Phase 5 · 2026-09-01</span>
-            <span>Source: <code>docs/superpowers/plans/2026-09-01-library-reach.md</code></span>
+            <span
+              >Source: <code>docs/superpowers/plans/2026-09-01-phase-5-library-reach.md</code></span
+            >
             <span
               ><a href="../specs/2026-09-01-official-figma-mcp-parity.html">← Parity spec</a></span
             >

@@ -29,6 +29,10 @@ import {
   ungroupNodeInput,
   setTextPropertiesShape,
   setTextPropertiesInput,
+  createShapeWithTextShape,
+  createShapeWithTextInput,
+  createSectionShape,
+  createSectionInput,
   toolInputSchemas,
 } from "./schema.js";
 import { LOOPBACK_HOST } from "./types.js";
@@ -53,6 +57,8 @@ import {
 import type { Mapping } from "./code-connect/parse.js";
 import { findExportedComponents, scoreCandidates } from "./code-connect/suggest.js";
 import { writeMapping } from "./code-connect/write.js";
+import { layoutDiagram } from "./mermaid/layout.js";
+import { parseMermaid } from "./mermaid/parse.js";
 
 const MAX_IMAGE_BYTES = 32 * 1024 * 1024;
 const IMAGE_FETCH_TIMEOUT_MS = 15_000;
@@ -76,7 +82,7 @@ RULES — violating these is the usual cause of confusing failures:
 
 RESULT SHAPE: \`{ ok: true, value }\` on success, or \`{ ok: true, truncated: true, valuePreview }\` when the serialised value exceeds 200000 characters. Figma nodes in the returned value collapse to \`{ id, name, type }\`; \`figma.mixed\` serialises as "mixed"; cycles become "[circular]". Return ids and read them back rather than returning whole node objects.
 
-LIMITS: 100000 characters of source; results capped at depth 12 and 500 items per array; the relay times out after 3 minutes. Requires the plugin to be open in Figma's design editor — Dev Mode is read-only and will reject this tool.`;
+LIMITS: 100000 characters of source; results capped at depth 12 and 500 items per array; the relay times out after 3 minutes. Runs in design files, FigJam boards and Slides decks, whose APIs differ — figma.createPage() exists only in design files, figma.createSticky() only in FigJam — so check figma.editorType (list_files shows it too) before using an editor-specific call.`;
 
 export type ExportFormat = "PNG" | "SVG" | "JPG" | "PDF";
 
@@ -273,7 +279,7 @@ export function composeDesignContext(input: DesignContextInput): ContentBlock[] 
 export function registerTools(server: McpServer, node: Node, port: number): void {
   server.tool(
     "list_files",
-    "List all currently connected Figma files. Returns fileKey and fileName for each. Use the fileKey to target a specific file in other tools.",
+    "List all currently connected Figma files. Returns fileKey, fileName and editorType (figma, figjam, slides or dev) for each — which tools work depends on the editor, so check it before picking one. Use the fileKey to target a specific file in other tools.",
     async (): Promise<ToolResult> => {
       try {
         let files = node.listConnectedFiles();
@@ -717,7 +723,7 @@ export function registerTools(server: McpServer, node: Node, port: number): void
 
   server.tool(
     "set_selection",
-    "Set the current page selection to a list of node IDs. Pass an empty array to clear the selection. Works in both design editor and Dev Mode.",
+    "Set the current page selection to a list of node IDs. Pass an empty array to clear the selection. Works in every editor the plugin runs in.",
     setSelectionInput.shape,
     async ({ nodeIds, fileKey }): Promise<ToolResult> => {
       return renderResponse(() =>
@@ -728,7 +734,7 @@ export function registerTools(server: McpServer, node: Node, port: number): void
 
   server.tool(
     "scroll_and_zoom_into_view",
-    "Scroll and zoom the Figma viewport so the given nodes are framed in view. Works in both design editor and Dev Mode.",
+    "Scroll and zoom the Figma viewport so the given nodes are framed in view. Works in every editor the plugin runs in.",
     scrollAndZoomIntoViewInput.shape,
     async ({ nodeIds, fileKey }): Promise<ToolResult> => {
       return renderResponse(() =>
@@ -923,6 +929,80 @@ export function registerTools(server: McpServer, node: Node, port: number): void
     async ({ query, limit, fileKey }): Promise<ToolResult> => {
       return renderResponse(() =>
         node.sendWithParams("search_design_system", undefined, { query, limit }, fileKey)
+      );
+    }
+  );
+
+  server.tool(
+    "create_sticky",
+    "Create a FigJam sticky note. FigJam boards only — refused in design files and Slides; list_files shows each file's editorType. Returns the new node's id and type. When multiple files are connected, specify fileKey.",
+    toolInputSchemas.create_sticky.shape,
+    async ({ fileKey, ...params }): Promise<ToolResult> => {
+      return renderResponse(() => node.sendWithParams("create_sticky", undefined, params, fileKey));
+    }
+  );
+
+  server.tool(
+    "create_shape_with_text",
+    "Create a FigJam shape with text inside it — the flowchart building block, with shapes such as SQUARE, DIAMOND, ELLIPSE and ENG_DATABASE. FigJam boards only — refused in design files and Slides; use create_shape for design files. Returns the new node's id and type; pass it to create_connector to join shapes. When multiple files are connected, specify fileKey.",
+    createShapeWithTextShape.shape,
+    async (args): Promise<ToolResult> => {
+      const parsed = parseToolInput(createShapeWithTextInput, args);
+      if (!parsed.success) return parsed.error;
+      const { fileKey, ...params } = parsed.data;
+      return renderResponse(() =>
+        node.sendWithParams("create_shape_with_text", undefined, params, fileKey)
+      );
+    }
+  );
+
+  server.tool(
+    "create_connector",
+    "Connect two nodes on a FigJam board with a connector, optionally labelled. FigJam boards only — refused in design files and Slides. Both endpoints must already exist in the same file; the connector attaches to them, so it follows when they move. Returns the connector's id and type. When multiple files are connected, specify fileKey.",
+    toolInputSchemas.create_connector.shape,
+    async ({ fileKey, ...params }): Promise<ToolResult> => {
+      return renderResponse(() =>
+        node.sendWithParams("create_connector", undefined, params, fileKey)
+      );
+    }
+  );
+
+  server.tool(
+    "create_section",
+    "Create a section in a FigJam board or a design file. Refused in Slides. Sections group content on the canvas; move nodes into one with reparent_nodes. Returns the new node's id and type. When multiple files are connected, specify fileKey.",
+    createSectionShape.shape,
+    async (args): Promise<ToolResult> => {
+      const parsed = parseToolInput(createSectionInput, args);
+      if (!parsed.success) return parsed.error;
+      const { fileKey, ...params } = parsed.data;
+      return renderResponse(() =>
+        node.sendWithParams("create_section", undefined, params, fileKey)
+      );
+    }
+  );
+
+  server.tool(
+    "generate_diagram",
+    "Render Mermaid source as a native, editable diagram on a FigJam board — shapes-with-text joined by connectors, placed to the right of the board's existing content. FigJam boards only; refused in design files and Slides. Narrower than Mermaid itself, by design: flowchart/graph (node shapes A[ ], A( ), A([ ]), A[[ ]], A[( )], A(( )), A{ }, A{{ }}, A[/ /], A[\\ \\], A[/ \\]; links -->, ---, -.->, ==>, --o, <-->, with -->|label| or -- label --> text; chains), sequenceDiagram (participant/actor [as Label], autonumber, messages ->>, -->>, ->, -->, -), --) — drawn with lifelines, one row per message), erDiagram (attribute blocks, relationships with crow's-foot cardinality) and stateDiagram-v2 ([*], transitions with labels, state \"…\" as X, X : description, <<choice>>, direction). Anything else — subgraphs, classDef/style, notes, loop/alt blocks, composite states, other diagram types — is refused with the line number and nothing is drawn; there is no approximate rendering. Limit 200 nodes and 400 edges per call. When multiple files are connected, specify fileKey.",
+    toolInputSchemas.generate_diagram.shape,
+    async ({ mermaid, fileKey }): Promise<ToolResult> => {
+      let diagram;
+      try {
+        // Parse and lay out here, where a failing test can reach it; the
+        // plugin only creates what it is handed.
+        diagram = layoutDiagram(parseMermaid(mermaid));
+      } catch (err) {
+        return {
+          content: [
+            textBlock(
+              `${err instanceof Error ? err.message : String(err)} Nothing was drawn. Fix the source and call generate_diagram again.`
+            ),
+          ],
+          isError: true,
+        };
+      }
+      return renderResponse(() =>
+        node.sendWithParams("render_diagram", undefined, { diagram }, fileKey)
       );
     }
   );

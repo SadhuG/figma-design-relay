@@ -180,4 +180,6 @@ server/dist/
 .idea/
 .vscode/
 
-.claude/
+# Claude Code: rules and skills are shared; worktrees and personal settings are not
+.claude/worktrees/
+.claude/settings.local.json

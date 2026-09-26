@@ -1768,8 +1768,9 @@ git commit -m "refactor(plugin): await the async serializer at every call site"<
                     section
                   </li>
                   <li>
-                    <span class="verb">Create</span><code>docs/serialized-nodes.md</code> — a field
-                    reference for the enriched shape
+                    <span class="verb">Create</span
+                    ><code>docs/reference/serialized-nodes.md</code> — a field reference for the
+                    enriched shape
                   </li>
                 </ul>
               </dd>
@@ -1985,8 +1986,8 @@ cd ../plugin &amp;&amp; bun run build</code></pre>
                 </div>
                 <div class="step__body">
                   <p>
-                    Create <code>docs/serialized-nodes.md</code> documenting the enriched shape: the
-                    <code>design</code> block (<code>mainComponent</code>,
+                    Create <code>docs/reference/serialized-nodes.md</code> documenting the enriched
+                    shape: the <code>design</code> block (<code>mainComponent</code>,
                     <code>componentProperties</code>, <code>key</code>,
                     <code>propertyDefinitions</code>, <code>propertyOwnerId</code>,
                     <code>boundVariables</code>, <code>styles</code>), then <code>layout</code>,
@@ -2007,7 +2008,7 @@ cd ../plugin &amp;&amp; bun run build</code></pre>
                 </div>
                 <div class="step__body">
                   <p>Append to the Editing Notes bullet list in <code>README.md</code>:</p>
-                  <pre><code>- Serialized nodes carry design-system identity, not just geometry: instances report their main component and set properties, fills bound to variables report the token name, named styles report the style name, and auto-layout children report hug/fill intent. Fields are omitted when a node carries nothing for them, so plain nodes serialize exactly as before. See [docs/serialized-nodes.md](docs/serialized-nodes.md).</code></pre>
+                  <pre><code>- Serialized nodes carry design-system identity, not just geometry: instances report their main component and set properties, fills bound to variables report the token name, named styles report the style name, and auto-layout children report hug/fill intent. Fields are omitted when a node carries nothing for them, so plain nodes serialize exactly as before. See [docs/reference/serialized-nodes.md](docs/reference/serialized-nodes.md).</code></pre>
                 </div>
               </li>
 
@@ -2032,7 +2033,7 @@ cd plugin &amp;&amp; bun run test &amp;&amp; bunx tsc --noEmit -p tsconfig.json 
                   <label class="step__label" for="serializert6s11">Commit</label>
                 </div>
                 <div class="step__body">
-                  <pre><code>git add README.md docs/serialized-nodes.md
+                  <pre><code>git add README.md docs/reference/serialized-nodes.md
 git commit -m "docs: document the enriched serialized node shape"</code></pre>
                   <p>---</p>
                 </div>
@@ -2062,8 +2063,8 @@ git commit -m "docs: document the enriched serialized node shape"</code></pre>
                 annotated node reports its label.
               </li>
               <li>
-                <code>docs/serialized-nodes.md</code> documents every new field and, for each, when
-                it is omitted.
+                <code>docs/reference/serialized-nodes.md</code> documents every new field and, for
+                each, when it is omitted.
               </li>
             </ul>
           </section>
@@ -2072,7 +2073,8 @@ git commit -m "docs: document the enriched serialized node shape"</code></pre>
             <span>Figma Design Relay</span>
             <span>Plan · Phase 2 · 2026-09-01</span>
             <span
-              >Source: <code>docs/superpowers/plans/2026-09-01-serializer-enrichment.md</code></span
+              >Source:
+              <code>docs/superpowers/plans/2026-09-01-phase-2-serializer-enrichment.md</code></span
             >
             <span
               ><a href="../specs/2026-09-01-official-figma-mcp-parity.html">← Parity spec</a></span

@@ -15,7 +15,7 @@
 
     <div class="shell">
       <header class="masthead">
-        <p class="eyebrow">Spec · Draft · 2026-09-01</p>
+        <p class="eyebrow">Spec · Delivered · 2026-09-01</p>
         <h1>Can this bridge carry the whole load?</h1>
         <p class="standfirst">
           Figma Design Relay already does things the first-party MCP server cannot — unlimited
@@ -824,15 +824,19 @@
 
             <ul class="phasenav">
               <li>
-                <a href="../plans/2026-09-01-run-script-plugin-api-escape-hatch.html"
-                  >1 · run_script</a
-                >
+                <a href="../plans/2026-09-01-phase-1-run-script.html">1 · run_script</a>
               </li>
-              <li><a href="../plans/2026-09-01-serializer-enrichment.html">2 · Serializer</a></li>
-              <li><a href="../plans/2026-09-01-design-context-v2.html">3 · Design context</a></li>
-              <li><a href="../plans/2026-09-01-code-connect.html">4 · Code Connect</a></li>
-              <li><a href="../plans/2026-09-01-library-reach.html">5 · Libraries</a></li>
-              <li><a href="../plans/2026-09-01-figjam-slides-diagrams.html">6 · FigJam</a></li>
+              <li>
+                <a href="../plans/2026-09-01-phase-2-serializer-enrichment.html">2 · Serializer</a>
+              </li>
+              <li>
+                <a href="../plans/2026-09-01-phase-3-design-context-v2.html">3 · Design context</a>
+              </li>
+              <li><a href="../plans/2026-09-01-phase-4-code-connect.html">4 · Code Connect</a></li>
+              <li><a href="../plans/2026-09-01-phase-5-library-reach.html">5 · Libraries</a></li>
+              <li>
+                <a href="../plans/2026-09-01-phase-6-figjam-slides-diagrams.html">6 · FigJam</a>
+              </li>
             </ul>
           </section>
 
@@ -842,7 +846,7 @@
               Normative. Requirements are numbered continuously across the whole roadmap so a task
               in any plan can cite one unambiguously. Phase 1's <strong>R1–R10</strong> are already
               cited by the
-              <a href="../plans/2026-09-01-run-script-plugin-api-escape-hatch.html">phase 1 plan</a>
+              <a href="../plans/2026-09-01-phase-1-run-script.html">phase 1 plan</a>
               and must not be renumbered.
             </p>
 
@@ -1353,7 +1357,15 @@
                     <td>R43</td>
                     <td>
                       <code>plugin/manifest.json</code> declares
-                      <code>"editorType": ["figma", "figjam", "slides", "dev"]</code>.
+                      <code>"editorType": ["figma", "figjam", "slides"]</code>.
+                      <em>Amended 2026-09-26:</em> this originally listed <code>"dev"</code> as
+                      well, but Figma does not let one plugin declare both <code>dev</code> and
+                      <code>figjam</code>. FigJam is the point of this phase, so Dev Mode was
+                      dropped, along with the <code>inspect</code> capability that only Dev Mode
+                      uses. Dev Mode served one user — a developer with a paid Dev seat and
+                      view-only access — and every read it offered still works in the design editor.
+                      The capability table keeps its Dev Mode rule, so restoring <code>dev</code> is
+                      a one-line manifest change if Figma ever allows the combination.
                     </td>
                   </tr>
                   <tr>

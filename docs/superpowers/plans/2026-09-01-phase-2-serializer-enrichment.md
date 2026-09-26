@@ -1231,7 +1231,7 @@ Unit tests prove the shapes. They cannot prove that `getMainComponentAsync`, `ge
 **Files:**
 
 - Modify: `README.md` — the Editing Notes section
-- Create: `docs/serialized-nodes.md` — a field reference for the enriched shape
+- Create: `docs/reference/serialized-nodes.md` — a field reference for the enriched shape
 
 **Interfaces:**
 
@@ -1326,14 +1326,14 @@ property this step exists to prove.
 
 - [x] **Step 8: Write the field reference**
 
-Create `docs/serialized-nodes.md` documenting the enriched shape: the `design` block (`mainComponent`, `componentProperties`, `key`, `propertyDefinitions`, `propertyOwnerId`, `boundVariables`, `styles`), then `layout`, `reactions`, `annotations`, `exportSettings` and `renderBounds`. For each, state when it is present and when it is omitted — the omission rules are the part readers will get wrong.
+Create `docs/reference/serialized-nodes.md` documenting the enriched shape: the `design` block (`mainComponent`, `componentProperties`, `key`, `propertyDefinitions`, `propertyOwnerId`, `boundVariables`, `styles`), then `layout`, `reactions`, `annotations`, `exportSettings` and `renderBounds`. For each, state when it is present and when it is omitted — the omission rules are the part readers will get wrong.
 
 - [x] **Step 9: Document the change in the README**
 
 Append to the Editing Notes bullet list in `README.md`:
 
 ```markdown
-- Serialized nodes carry design-system identity, not just geometry: instances report their main component and set properties, fills bound to variables report the token name, named styles report the style name, and auto-layout children report hug/fill intent. Fields are omitted when a node carries nothing for them, so plain nodes serialize exactly as before. See [docs/serialized-nodes.md](docs/serialized-nodes.md).
+- Serialized nodes carry design-system identity, not just geometry: instances report their main component and set properties, fills bound to variables report the token name, named styles report the style name, and auto-layout children report hug/fill intent. Fields are omitted when a node carries nothing for them, so plain nodes serialize exactly as before. See [docs/reference/serialized-nodes.md](docs/reference/serialized-nodes.md).
 ```
 
 - [x] **Step 10: Format and run everything**
@@ -1348,7 +1348,7 @@ Expected: PASS — Prettier reports no remaining changes on a second run, tests 
 - [x] **Step 11: Commit**
 
 ```bash
-git add README.md docs/serialized-nodes.md
+git add README.md docs/reference/serialized-nodes.md
 git commit -m "docs: document the enriched serialized node shape"
 ```
 
@@ -1360,4 +1360,4 @@ git commit -m "docs: document the enriched serialized node shape"
 - `bunx tsc --noEmit` and `bun run build` both succeed in `plugin/`.
 - A plain rectangle serializes with exactly the keys it had before this phase — proven by the baseline regression test and re-checked by hand on a real page.
 - In a real Figma design file, an instance reports its main component, a variable-bound fill reports its token name, a styled text node reports its style name, a fill-sizing child reports `layout.sizingHorizontal`, and an annotated node reports its label.
-- `docs/serialized-nodes.md` documents every new field and, for each, when it is omitted.
+- `docs/reference/serialized-nodes.md` documents every new field and, for each, when it is omitted.

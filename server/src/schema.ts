@@ -490,6 +490,89 @@ export const createTextInput = createTextShape.refine(
   "fillHex is required when fillOpacity is provided"
 );
 
+/** FigJam's shape-with-text shapes, verbatim from `ShapeWithTextNode.shapeType`. */
+const figJamShapeType = z.enum([
+  "SQUARE",
+  "ELLIPSE",
+  "ROUNDED_RECTANGLE",
+  "DIAMOND",
+  "TRIANGLE_UP",
+  "TRIANGLE_DOWN",
+  "PARALLELOGRAM_RIGHT",
+  "PARALLELOGRAM_LEFT",
+  "ENG_DATABASE",
+  "ENG_QUEUE",
+  "ENG_FILE",
+  "ENG_FOLDER",
+  "TRAPEZOID",
+  "PREDEFINED_PROCESS",
+  "SHIELD",
+  "DOCUMENT_SINGLE",
+  "DOCUMENT_MULTIPLE",
+  "MANUAL_INPUT",
+  "HEXAGON",
+  "CHEVRON",
+  "PENTAGON",
+  "OCTAGON",
+  "STAR",
+  "PLUS",
+  "ARROW_LEFT",
+  "ARROW_RIGHT",
+  "SUMMING_JUNCTION",
+  "OR",
+  "SPEECH_BUBBLE",
+  "INTERNAL_STORAGE",
+]);
+
+/** A size is applied with one resize call, so it needs both halves or neither. */
+const bothOrNeitherSize = (value: { width?: number; height?: number }) =>
+  (value.width === undefined) === (value.height === undefined);
+const SIZE_PAIR_MESSAGE = "width and height must be given together";
+
+export const createStickyInput = z.object({
+  text: z.string().describe("Sticky note text."),
+  x: z.number().optional().describe("Optional x position"),
+  y: z.number().optional().describe("Optional y position"),
+  fileKey: fileKeyField,
+});
+
+export const createShapeWithTextShape = z.object({
+  text: z.string().describe("Text inside the shape."),
+  shapeType: figJamShapeType
+    .optional()
+    .describe(
+      "FigJam shape (default SQUARE). Includes flowchart shapes such as DIAMOND, ENG_DATABASE and PREDEFINED_PROCESS."
+    ),
+  x: z.number().optional().describe("Optional x position"),
+  y: z.number().optional().describe("Optional y position"),
+  width: z.number().positive().optional().describe("Optional width; give height too"),
+  height: z.number().positive().optional().describe("Optional height; give width too"),
+  fileKey: fileKeyField,
+});
+
+export const createShapeWithTextInput = createShapeWithTextShape.refine(
+  bothOrNeitherSize,
+  SIZE_PAIR_MESSAGE
+);
+
+export const createConnectorInput = z.object({
+  startNodeId: createFigmaNodeIdSchema().describe("Node the connector starts at."),
+  endNodeId: createFigmaNodeIdSchema().describe("Node the connector ends at."),
+  text: z.string().optional().describe("Optional label on the connector."),
+  fileKey: fileKeyField,
+});
+
+export const createSectionShape = z.object({
+  name: z.string().optional().describe("Optional section name"),
+  x: z.number().optional().describe("Optional x position"),
+  y: z.number().optional().describe("Optional y position"),
+  width: z.number().positive().optional().describe("Optional width; give height too"),
+  height: z.number().positive().optional().describe("Optional height; give width too"),
+  fileKey: fileKeyField,
+});
+
+export const createSectionInput = createSectionShape.refine(bothOrNeitherSize, SIZE_PAIR_MESSAGE);
+
 export const createShapeShape = z.object({
   shapeType: shapeType.describe("Shape type to create"),
   name: z.string().optional().describe("Optional shape name"),
@@ -991,6 +1074,22 @@ export const toolInputSchemas = {
       ),
     fileKey: fileKeyField,
   }),
+
+  create_sticky: createStickyInput,
+  create_shape_with_text: createShapeWithTextInput,
+  create_connector: createConnectorInput,
+  create_section: createSectionInput,
+
+  generate_diagram: z.object({
+    mermaid: z
+      .string()
+      .min(1, "mermaid must not be empty")
+      .max(100_000)
+      .describe(
+        "Mermaid source. Supported: flowchart (or graph), sequenceDiagram, erDiagram, stateDiagram-v2 — see the tool description for the exact subset."
+      ),
+    fileKey: fileKeyField,
+  }),
 } as const;
 
 type ToolName = keyof typeof toolInputSchemas;
@@ -1099,6 +1198,11 @@ const rpcToArgs: Record<
   get_libraries: (_nodeIds, params) => ({ ...params }),
   import_library_asset: (_nodeIds, params) => ({ ...params }),
   search_design_system: (_nodeIds, params) => ({ ...params }),
+  create_sticky: (_nodeIds, params) => ({ ...params }),
+  create_shape_with_text: (_nodeIds, params) => ({ ...params }),
+  create_connector: (_nodeIds, params) => ({ ...params }),
+  create_section: (_nodeIds, params) => ({ ...params }),
+  generate_diagram: (_nodeIds, params) => ({ ...params }),
 };
 
 /**

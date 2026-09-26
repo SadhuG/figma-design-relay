@@ -1,7 +1,17 @@
 import { serializeNode } from "./serializer";
 import { addLayersToFrame } from "../html-figma/figma";
 import { runScript } from "./script-runner";
-import { EDIT_REQUEST_TYPES, requireEditorMode } from "./editor-gate";
+import { assertEditorSupports, type EditorType } from "./capabilities";
+import {
+  capFor,
+  placementOrigin,
+  readDiagramPayload,
+  shapeFor,
+  strokeFor,
+  type Box,
+  type RenderEdge,
+  type RenderSegment,
+} from "./diagram";
 import { describeForCodeConnect, type NodeLike } from "./component-identity";
 import {
   getLibraries,
@@ -54,7 +64,12 @@ export type RequestType =
   | "whoami"
   | "get_libraries"
   | "import_library_asset"
-  | "search_design_system";
+  | "search_design_system"
+  | "create_sticky"
+  | "create_shape_with_text"
+  | "create_connector"
+  | "create_section"
+  | "render_diagram";
 
 type ServerRequestParams = Record<string, unknown> & {
   format?: "PNG" | "SVG" | "JPG" | "PDF";
@@ -127,6 +142,7 @@ const sendStatus = () => {
     payload: {
       fileName: figma.root.name,
       fileKey: getFileKey(),
+      editorType: figma.editorType,
       selectionCount: figma.currentPage.selection.length,
     },
   });
@@ -345,11 +361,39 @@ const decodeBase64ToBytes = (base64: string): Uint8Array => {
   }
 };
 
+/** The response every FigJam creator returns, shaped like the design creators'. */
+const describeCreated = (node: SceneNode) => ({
+  nodeId: node.id,
+  nodeName: node.name,
+  type: node.type,
+  x: node.x,
+  y: node.y,
+  width: node.width,
+  height: node.height,
+});
+
+/** Caps, stroke and label shared by node-to-node edges and free segments. */
+const styleConnector = async (
+  connector: ConnectorNode,
+  line: RenderEdge | RenderSegment
+): Promise<void> => {
+  connector.connectorStartStrokeCap = capFor(line.startCap, "start");
+  connector.connectorEndStrokeCap = capFor(line.endCap, "end");
+  const { dashPattern, strokeWeight } = strokeFor(line.style);
+  connector.dashPattern = dashPattern;
+  connector.strokeWeight = strokeWeight;
+  if (line.label) {
+    await figma.loadFontAsync(connector.text.fontName as FontName);
+    connector.text.characters = line.label;
+  }
+};
+
 const handleRequest = async (request: ServerRequest): Promise<PluginResponse> => {
   try {
-    if (EDIT_REQUEST_TYPES.has(request.type)) {
-      requireEditorMode(request.type, figma.editorType);
-    }
+    // Refuses a tool the current editor cannot run — Dev Mode writes, design-only
+    // APIs in FigJam or Slides, FigJam-only nodes elsewhere — before any of it
+    // fails deep inside the Plugin API with a less useful message.
+    assertEditorSupports(request.type, figma.editorType as EditorType);
     switch (request.type) {
       case "get_document":
         return {
@@ -422,6 +466,7 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
           requestId: request.requestId,
           data: {
             fileName: figma.root.name,
+            editorType: figma.editorType,
             currentPageId: figma.currentPage.id,
             currentPageName: figma.currentPage.name,
             pageCount: figma.root.children.length,
@@ -1856,8 +1901,153 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
           data: describeForCodeConnect(node as unknown as NodeLike, main?.id),
         };
       }
+      case "create_sticky": {
+        const params = request.params ?? {};
+        const sticky = figma.createSticky();
+        // FigJam text needs its font loaded before characters change, exactly
+        // as design text does.
+        await figma.loadFontAsync(sticky.text.fontName as FontName);
+        if (typeof params.text === "string") sticky.text.characters = params.text;
+        positionNode(sticky, params.x, params.y);
+        return { type: request.type, requestId: request.requestId, data: describeCreated(sticky) };
+      }
+      case "create_shape_with_text": {
+        const params = request.params ?? {};
+        const shape = figma.createShapeWithText();
+        if (typeof params.shapeType === "string") {
+          shape.shapeType = params.shapeType as ShapeWithTextNode["shapeType"];
+        }
+        await figma.loadFontAsync(shape.text.fontName as FontName);
+        if (typeof params.text === "string") shape.text.characters = params.text;
+        if (typeof params.width === "number" && typeof params.height === "number") {
+          shape.resize(params.width, params.height);
+        }
+        positionNode(shape, params.x, params.y);
+        return { type: request.type, requestId: request.requestId, data: describeCreated(shape) };
+      }
+      case "create_connector": {
+        const params = request.params ?? {};
+        const startId = params.startNodeId;
+        const endId = params.endNodeId;
+        if (typeof startId !== "string" || typeof endId !== "string") {
+          throw new Error("create_connector requires `startNodeId` and `endNodeId`.");
+        }
+        // A connector to a missing node fails deep in the API with a message
+        // that names neither end, so check both first.
+        for (const id of [startId, endId]) {
+          const endpoint = await figma.getNodeByIdAsync(id);
+          if (!endpoint || endpoint.type === "DOCUMENT" || endpoint.type === "PAGE") {
+            throw new Error(
+              `Connector endpoint ${id} is not a node on this board. Check the id with get_document and the fileKey with list_files.`
+            );
+          }
+        }
+        const connector = figma.createConnector();
+        connector.connectorStart = { endpointNodeId: startId, magnet: "AUTO" };
+        connector.connectorEnd = { endpointNodeId: endId, magnet: "AUTO" };
+        if (typeof params.text === "string" && params.text !== "") {
+          await figma.loadFontAsync(connector.text.fontName as FontName);
+          connector.text.characters = params.text;
+        }
+        return {
+          type: request.type,
+          requestId: request.requestId,
+          data: {
+            nodeId: connector.id,
+            nodeName: connector.name,
+            type: connector.type,
+            startNodeId: startId,
+            endNodeId: endId,
+          },
+        };
+      }
+      case "create_section": {
+        const params = request.params ?? {};
+        const section = figma.createSection();
+        if (typeof params.name === "string") section.name = params.name;
+        if (typeof params.width === "number" && typeof params.height === "number") {
+          section.resizeWithoutConstraints(params.width, params.height);
+        }
+        positionNode(section, params.x, params.y);
+        return { type: request.type, requestId: request.requestId, data: describeCreated(section) };
+      }
+      case "render_diagram": {
+        // Parsed and laid out server-side; readDiagramPayload refuses anything
+        // this case could not draw exactly, before anything is created.
+        const diagram = readDiagramPayload(request.params?.diagram);
+        const origin = placementOrigin(
+          figma.currentPage.children
+            .map((child) => child.absoluteBoundingBox)
+            .filter((box): box is Box => box !== null)
+        );
+        const created: SceneNode[] = [];
+        const shapes = new Map<string, ShapeWithTextNode>();
+        try {
+          for (const item of diagram.nodes) {
+            const shape = figma.createShapeWithText();
+            created.push(shape);
+            shape.shapeType = shapeFor(item.shape);
+            await figma.loadFontAsync(shape.text.fontName as FontName);
+            shape.text.characters = item.label;
+            shape.resize(item.width, item.height);
+            shape.x = origin.x + item.x;
+            shape.y = origin.y + item.y;
+            if (item.shape === "start" || item.shape === "end") {
+              shape.fills = [{ type: "SOLID", color: { r: 0.12, g: 0.12, b: 0.12 } }];
+            }
+            shapes.set(item.id, shape);
+          }
+
+          for (const edge of diagram.edges) {
+            const connector = figma.createConnector();
+            created.push(connector);
+            const start = (shapes.get(edge.from) as ShapeWithTextNode).id;
+            const end = (shapes.get(edge.to) as ShapeWithTextNode).id;
+            // A self-loop needs distinct magnets, or it collapses to a point.
+            const loop = edge.from === edge.to;
+            connector.connectorStart = { endpointNodeId: start, magnet: loop ? "RIGHT" : "AUTO" };
+            connector.connectorEnd = { endpointNodeId: end, magnet: loop ? "TOP" : "AUTO" };
+            await styleConnector(connector, edge);
+          }
+
+          for (const segment of diagram.segments) {
+            const connector = figma.createConnector();
+            created.push(connector);
+            connector.connectorLineType = "STRAIGHT";
+            connector.connectorStart = {
+              position: { x: origin.x + segment.start.x, y: origin.y + segment.start.y },
+            };
+            connector.connectorEnd = {
+              position: { x: origin.x + segment.end.x, y: origin.y + segment.end.y },
+            };
+            await styleConnector(connector, segment);
+          }
+        } catch (err) {
+          // Scripts are not atomic, but this tool can be: take back everything
+          // it drew so a failure never leaves half a diagram on the board.
+          for (const node of created) if (!node.removed) node.remove();
+          const reason = err instanceof Error ? err.message : String(err);
+          throw new Error(
+            `Drawing the diagram failed, and nothing was left on the board: ${reason}`
+          );
+        }
+
+        figma.currentPage.selection = created;
+        figma.viewport.scrollAndZoomIntoView(created);
+        return {
+          type: request.type,
+          requestId: request.requestId,
+          data: {
+            kind: diagram.kind,
+            createdNodeIds: created.map((node) => node.id),
+            nodeCount: diagram.nodes.length,
+            connectorCount: diagram.edges.length + diagram.segments.length,
+            origin,
+          },
+        };
+      }
       case "whoami":
-        // A read, so not in EDIT_REQUEST_TYPES: it works in Dev Mode.
+        // A read, so absent from CAPABILITIES: it works in every editor.
         return {
           type: request.type,
           requestId: request.requestId,

@@ -39,7 +39,7 @@
 - Consumes: nothing.
 - Produces: `CAPABILITIES`, `assertEditorSupports(tool, editor)` and the `EditorType` type. Task 2 wires `assertEditorSupports` into the dispatcher in place of `requireEditorMode`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 The first test is the regression guard. It lists the design tools that exist today; if a later task narrows one of them by accident, this fails.
 
@@ -121,12 +121,12 @@ describe("assertEditorSupports", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `cd plugin && bun test src/main/capabilities.test.ts`
 Expected: FAIL — `Cannot find module './capabilities'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 _plugin/src/main/capabilities.ts — create_
 
@@ -232,12 +232,12 @@ export const assertEditorSupports = (tool: string, editor: EditorType): void => 
 };
 ```
 
-- [ ] **Step 4: Run the tests and make sure they pass**
+- [x] **Step 4: Run the tests and make sure they pass**
 
 Run: `cd plugin && bun test src/main/capabilities.test.ts`
 Expected: PASS — 8 pass, 0 fail
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add plugin/src/main/capabilities.ts plugin/src/main/capabilities.test.ts
@@ -261,13 +261,16 @@ One manifest line, one dispatcher change, and a status field so the UI and the a
 - Consumes: `assertEditorSupports`, `EditorType` from `./capabilities`.
 - Produces: the dispatcher refuses unsupported tools up front; `get_metadata` and the plugin status both carry `editorType`.
 
-- [ ] **Step 1: Open the manifest**
+- [x] **Step 1: Open the manifest**
 
 ```json
-  "editorType": ["figma", "figjam", "slides", "dev"],
+  "editorType": ["figma", "figjam", "slides"],
 ```
 
-- [ ] **Step 2: Replace the gate in the dispatcher**
+_Amended during execution:_ Figma does not let one plugin declare both `dev` and `figjam`, so
+`dev` and the `inspect` capability were dropped (see R43 in the spec).
+
+- [x] **Step 2: Replace the gate in the dispatcher**
 
 Delete the `EDIT_REQUEST_TYPES` set and the `requireEditorMode` function from `plugin/src/main/code.ts`, import the capability check, and replace the guard at the top of `handleRequest`:
 
@@ -278,7 +281,7 @@ import { assertEditorSupports, type EditorType } from "./capabilities";
 assertEditorSupports(request.type, figma.editorType as EditorType);
 ```
 
-- [ ] **Step 3: Report the editor**
+- [x] **Step 3: Report the editor**
 
 Add `editorType` to the `sendStatus` payload and to the `get_metadata` response, so an agent can see which editor it is talking to before it picks a tool:
 
@@ -298,7 +301,7 @@ const sendStatus = () => {
 
 In the `get_metadata` case, add `editorType: figma.editorType,` alongside `fileName`.
 
-- [ ] **Step 4: Verify design files are unchanged**
+- [x] **Step 4: Verify design files are unchanged**
 
 Run: `cd plugin && bun run test && bunx tsc --noEmit -p tsconfig.json && bun run build`
 Expected: PASS — the regression tests from task 1 pass, no type errors, clean build
@@ -319,7 +322,7 @@ In the FigJam board, call `create_page`.
 
 Expected: `create_page requires design editor (figma.createPage() does not exist outside design files), but the plugin is currently in FigJam.`
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add plugin/manifest.json plugin/src/main/code.ts server/src/tools.ts
@@ -343,7 +346,7 @@ A FigJam board is stickies, connectors and shapes-with-text. Connectors are the 
 - Consumes: nothing.
 - Produces: `serializeFigJamNode(node): FigJamFields | undefined` and the `FigJamFields` type. `serializer.ts` merges the result into the base node.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 _plugin/src/main/figjam-serializer.test.ts — create_
 
@@ -419,12 +422,12 @@ describe("serializeFigJamNode", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `cd plugin && bun test src/main/figjam-serializer.test.ts`
 Expected: FAIL — `Cannot find module './figjam-serializer'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 _plugin/src/main/figjam-serializer.ts — create_
 
@@ -530,7 +533,7 @@ export const serializeFigJamNode = (node: Raw): FigJamFields | undefined => {
 };
 ```
 
-- [ ] **Step 4: Delegate from the main serializer**
+- [x] **Step 4: Delegate from the main serializer**
 
 In `plugin/src/main/serializer.ts`, import the module and merge its result into the base node before the TEXT and children branches:
 
@@ -544,7 +547,7 @@ if (figjam && Object.keys(figjam).length > 0) Object.assign(base, figjam);
 
 Add the `FigJamFields` members to `SerializedNode` as optional fields so the type stays honest.
 
-- [ ] **Step 5: Run the tests and build**
+- [x] **Step 5: Run the tests and build**
 
 Run: `cd plugin && bun run test && bunx tsc --noEmit -p tsconfig.json && bun run build`
 Expected: PASS — 7 new tests green, no type errors, clean build
@@ -555,7 +558,7 @@ In a FigJam board with two stickies joined by a labelled connector, call `get_do
 
 Expected: both stickies carry their text; the connector carries `connector.from` and `connector.to` matching the sticky ids, plus its label.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add plugin/src/main/figjam-serializer.ts plugin/src/main/figjam-serializer.test.ts plugin/src/main/serializer.ts
@@ -579,7 +582,7 @@ Four creators, shaped exactly like the existing design write tools: validated Zo
 - Consumes: `assertEditorSupports` (already wired in task 2).
 - Produces: bridge requests `create_sticky`, `create_shape_with_text`, `create_connector` and `create_section`, each returning `{ id, type }` for what it created. Task 7 reuses `create_shape_with_text` and `create_connector`.
 
-- [ ] **Step 1: Add the params**
+- [x] **Step 1: Add the params**
 
 In `ServerRequestParams` in `plugin/src/main/code.ts`:
 
@@ -594,7 +597,7 @@ In `ServerRequestParams` in `plugin/src/main/code.ts`:
   height?: number;
 ```
 
-- [ ] **Step 2: Add the sticky and shape cases**
+- [x] **Step 2: Add the sticky and shape cases**
 
 FigJam's default font is Inter; load it before setting characters, the same rule design text follows.
 
@@ -636,7 +639,7 @@ FigJam's default font is Inter; load it before setting characters, the same rule
       }
 ```
 
-- [ ] **Step 3: Add the connector and section cases**
+- [x] **Step 3: Add the connector and section cases**
 
 A connector to a node that does not exist produces a confusing runtime failure, so check both endpoints first.
 
@@ -683,7 +686,7 @@ A connector to a node that does not exist produces a confusing runtime failure, 
       }
 ```
 
-- [ ] **Step 4: Add the schemas and mappers**
+- [x] **Step 4: Add the schemas and mappers**
 
 In `server/src/schema.ts`:
 
@@ -727,7 +730,7 @@ In `server/src/schema.ts`:
 
 Each gets a `rpcToArgs` entry of the form `(_nodeIds, params) => ({ ...params })`.
 
-- [ ] **Step 5: Register the four tools**
+- [x] **Step 5: Register the four tools**
 
 Each is a `renderResponse(() => node.sendWithParams(...))` pass-through. Every description states the editor requirement in its first sentence, e.g.:
 
@@ -753,7 +756,7 @@ Then in a FigJam board create two shapes-with-text and connect them.
 
 Expected: both shapes appear with their text, and a connector joins them. Calling `create_sticky` in a **design** file is refused with the FigJam message from task 1.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add plugin/src/main/code.ts server/src/schema.ts server/src/tools.ts
@@ -770,14 +773,14 @@ Slides gets reads and screenshots, and text edits inside existing slides. Creati
 
 - Modify: `plugin/src/main/capabilities.ts` — Slides entries
 - Modify: `plugin/src/main/capabilities.test.ts` — Slides expectations
-- Create: `docs/slides.md`
+- Create: `docs/guides/slides.md`
 
 **Interfaces:**
 
 - Consumes: the capability table from task 1.
 - Produces: a documented Slides scope; no new tools.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `plugin/src/main/capabilities.test.ts`:
 
@@ -804,19 +807,19 @@ describe("slides scope", () => {
 });
 ```
 
-- [ ] **Step 2: Run it**
+- [x] **Step 2: Run it**
 
 Run: `cd plugin && bun test src/main/capabilities.test.ts`
 Expected: PASS — task 1's table already produces these outcomes. If any case fails, adjust the table's `EDITABLE` membership rather than special-casing Slides.
 
-- [ ] **Step 3: Write the scope document**
+- [x] **Step 3: Write the scope document**
 
-Create `docs/slides.md` stating: what works (every read tool, `get_screenshot`, `save_screenshots`, and text and property edits on nodes inside existing slides); what does not and why (creating slides, slide rows and slide grids is deliberately unimplemented in phase 6 — the node types exist but the layout rules do not, and a half-working slide builder is worse than none); and how to check (`get_metadata` reports `editorType: "slides"`).
+Create `docs/guides/slides.md` stating: what works (every read tool, `get_screenshot`, `save_screenshots`, and text and property edits on nodes inside existing slides); what does not and why (creating slides, slide rows and slide grids is deliberately unimplemented in phase 6 — the node types exist but the layout rules do not, and a half-working slide builder is worse than none); and how to check (`get_metadata` reports `editorType: "slides"`).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
-git add plugin/src/main/capabilities.test.ts docs/slides.md
+git add plugin/src/main/capabilities.test.ts docs/guides/slides.md
 git commit -m "docs: state the Slides support scope"
 ```
 
@@ -836,7 +839,7 @@ Four diagram kinds, one intermediate representation, pure and server-side. Anyth
 - Consumes: nothing.
 - Produces: `parseMermaid(source): Diagram`, `SUPPORTED_DIAGRAMS`, and the `Diagram`, `DiagramNode`, `DiagramEdge`, `DiagramKind` types. Task 7 imports them from `./mermaid/parse.js`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 _server/src/mermaid/parse.test.ts — create_
 
@@ -953,12 +956,12 @@ describe("refusals", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `cd server && bun test src/mermaid/parse.test.ts`
 Expected: FAIL — `Cannot find module './parse.js'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 _server/src/mermaid/parse.ts — create_
 
@@ -1161,12 +1164,12 @@ export const parseMermaid = (source: string): Diagram => {
 };
 ```
 
-- [ ] **Step 4: Run the tests and make sure they pass**
+- [x] **Step 4: Run the tests and make sure they pass**
 
 Run: `cd server && bun test src/mermaid/parse.test.ts`
 Expected: PASS — 14 pass, 0 fail
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/mermaid/parse.ts server/src/mermaid/parse.test.ts
@@ -1192,7 +1195,7 @@ Layout is arithmetic, so it is pure and testable. Rendering is a single plugin r
 - Consumes: `Diagram`, `DiagramNode`, `DiagramEdge` from `./parse.js`.
 - Produces: `layoutDiagram(diagram): PositionedDiagram` and the `PositionedNode`, `PositionedDiagram` types; a bridge request `render_diagram` with `params: { diagram }` returning `{ createdNodeIds }`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 _server/src/mermaid/layout.test.ts — create_
 
@@ -1247,12 +1250,12 @@ describe("layoutDiagram", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `cd server && bun test src/mermaid/layout.test.ts`
 Expected: FAIL — `Cannot find module './layout.js'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 _server/src/mermaid/layout.ts — create_
 
@@ -1367,12 +1370,12 @@ export const layoutDiagram = (diagram: Diagram): PositionedDiagram => {
 };
 ```
 
-- [ ] **Step 4: Run the layout tests**
+- [x] **Step 4: Run the layout tests**
 
 Run: `cd server && bun test src/mermaid/layout.test.ts`
 Expected: PASS — 7 pass, 0 fail
 
-- [ ] **Step 5: Add the plugin renderer**
+- [x] **Step 5: Add the plugin renderer**
 
 Add `"render_diagram"` to the `RequestType` union, `diagram?: unknown;` to `ServerRequestParams`, and the case. Shapes are created first so connectors have endpoints to attach to.
 
@@ -1440,7 +1443,7 @@ Add `"render_diagram"` to the `RequestType` union, `diagram?: unknown;` to `Serv
       }
 ```
 
-- [ ] **Step 6: Add the schema, mapper and tool**
+- [x] **Step 6: Add the schema, mapper and tool**
 
 ```ts
   generate_diagram: z.object({
@@ -1490,13 +1493,13 @@ Then in a FigJam board call `generate_diagram` with the flowchart from step 1's 
 
 Expected: three connected shapes laid out top-down, labelled, with the viewport framed on them.
 
-- [ ] **Step 8: Prove the refusal**
+- [x] **Step 8: Prove the refusal**
 
 Call `generate_diagram` with `pie title Votes`.
 
 Expected: an error naming `pie` and listing the four supported types. Nothing is drawn on the board.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add server/src/mermaid/layout.ts server/src/mermaid/layout.test.ts plugin/src/main/code.ts server/src/schema.ts server/src/tools.ts
@@ -1513,14 +1516,14 @@ The whole phase rests on a manifest change that touches every tool. This is wher
 
 - Create: `plugin/src/main/capabilities.regression.test.ts`
 - Modify: `README.md` — tool table, Editing Notes, plugin install section
-- Create: `docs/figjam.md`
+- Create: `docs/guides/figjam.md`
 
 **Interfaces:**
 
 - Consumes: `CAPABILITIES` from `./capabilities`.
 - Produces: documentation and a standing regression test.
 
-- [ ] **Step 1: Write the regression test**
+- [x] **Step 1: Write the regression test**
 
 This one asserts a property rather than a list, so it keeps working as tools are added: nothing may be design-only unless it is named here.
 
@@ -1575,41 +1578,41 @@ describe("capability regression", () => {
 });
 ```
 
-- [ ] **Step 2: Run the whole suite**
+- [x] **Step 2: Run the whole suite**
 
 Run: `cd plugin && bun run test && cd ../server && bun run test`
 Expected: PASS — both suites green, including the new regression file
 
-- [ ] **Step 3: Verify design files by hand one last time**
+- [x] **Step 3: Verify design files by hand one last time**
 
 In a design file, run through: `get_document`, `get_design_context`, `create_frame`, `set_auto_layout`, `set_solid_fill`, `create_text`, `duplicate_nodes`, `delete_nodes`.
 
 Expected: every one behaves exactly as before phase 6. This is the acceptance test for the whole phase.
 
-- [ ] **Step 4: Write the FigJam guide**
+- [x] **Step 4: Write the FigJam guide**
 
-Create `docs/figjam.md` covering: which editors the plugin now supports and how to tell which one you are in (`get_metadata` reports `editorType`); what a serialized FigJam board looks like, especially connector endpoints and why topology matters; the four write tools and their FigJam-only restriction; `generate_diagram`'s supported subset with one worked example per diagram type; and what happens with unsupported Mermaid — refused by name, nothing drawn.
+Create `docs/guides/figjam.md` covering: which editors the plugin now supports and how to tell which one you are in (`get_metadata` reports `editorType`); what a serialized FigJam board looks like, especially connector endpoints and why topology matters; the four write tools and their FigJam-only restriction; `generate_diagram`'s supported subset with one worked example per diagram type; and what happens with unsupported Mermaid — refused by name, nothing drawn.
 
-- [ ] **Step 5: Update the README**
+- [x] **Step 5: Update the README**
 
 Add five rows to the tool table:
 
 ```markdown
-| `create_sticky` | Create a FigJam sticky note ([guide](docs/figjam.md)) |
+| `create_sticky` | Create a FigJam sticky note ([guide](docs/guides/figjam.md)) |
 | `create_shape_with_text` | Create a FigJam shape with text inside it |
 | `create_connector` | Connect two FigJam nodes, optionally with a label |
 | `create_section` | Create a section in a FigJam board or design file |
 | `generate_diagram` | Render Mermaid source as a FigJam diagram — flowchart, sequence, ER, state |
 ```
 
-Update the plugin install section to say the plugin now runs in design files, FigJam boards, Slides and Dev Mode, and append to Editing Notes:
+Update the plugin install section to say the plugin now runs in design files, FigJam boards and Slides (not Dev Mode — see R43), and append to Editing Notes:
 
 ```markdown
-- Tools are gated by editor, not just by Dev Mode: `create_page` and the design write tools need a design file, sticky notes and connectors need FigJam, and Slides support is limited to reads plus text edits inside existing slides ([scope](docs/slides.md)). A tool used in the wrong editor is refused up front with a message naming the editor it needs.
+- Tools are gated by editor, not just by Dev Mode: `create_page` and the design write tools need a design file, sticky notes and connectors need FigJam, and Slides support is limited to reads plus text edits inside existing slides ([scope](docs/guides/slides.md)). A tool used in the wrong editor is refused up front with a message naming the editor it needs.
 - `generate_diagram` supports flowchart, sequenceDiagram, erDiagram and stateDiagram-v2. Anything else is refused by name — the bridge will not draw an approximation of a diagram type it does not understand.
 ```
 
-- [ ] **Step 6: Format and run everything**
+- [x] **Step 6: Format and run everything**
 
 ```bash
 bun run format
@@ -1619,10 +1622,10 @@ cd ../plugin && bun run test && bunx tsc --noEmit -p tsconfig.json && bun run bu
 
 Expected: PASS — Prettier reports no remaining changes on a second run, both suites green, both builds clean
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
-git add plugin/src/main/capabilities.regression.test.ts README.md docs/figjam.md
+git add plugin/src/main/capabilities.regression.test.ts README.md docs/guides/figjam.md
 git commit -m "docs: document FigJam, Slides and diagram support"
 ```
 
@@ -1633,8 +1636,8 @@ git commit -m "docs: document FigJam, Slides and diagram support"
 - `bun test` is green in both packages, including the capability regression file.
 - `bun run build` succeeds in both packages and the plugin type-checks.
 - Every existing design tool behaves in a design file exactly as it did before this phase — checked by the regression test and by hand.
-- The plugin connects in FigJam, Slides and Dev Mode, and `get_metadata` reports the editor.
+- The plugin connects in FigJam and Slides as well as design files, and `get_metadata` reports the editor. (Dev Mode was dropped; see R43.)
 - A FigJam board serializes with connector endpoints intact, so its topology survives.
 - `create_sticky`, `create_shape_with_text`, `create_connector` and `create_section` work in FigJam and are refused elsewhere with a message naming the editor they need.
 - `generate_diagram` renders all four supported Mermaid types and refuses a fifth by name without drawing anything.
-- `docs/figjam.md` and `docs/slides.md` state what is supported and what is deliberately not.
+- `docs/guides/figjam.md` and `docs/guides/slides.md` state what is supported and what is deliberately not.

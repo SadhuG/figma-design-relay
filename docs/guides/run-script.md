@@ -45,7 +45,9 @@ other symbol → `"mixed"`; circular references → `"[circular]"`; functions �
 - Source: 100000 characters.
 - Result: 200000 characters, depth 12, 500 array items per array.
 - The relay times out a request after 3 minutes.
-- Design editor only. Dev Mode is read-only and rejects `run_script` up front.
+- Runs in design files, FigJam boards and Slides decks. Their APIs differ — `figma.createPage()`
+  exists only in design files, `figma.createSticky()` and `figma.createConnector()` only in FigJam —
+  so a script meant for more than one editor should branch on `figma.editorType`.
 
 ## Gotchas
 

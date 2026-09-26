@@ -532,7 +532,7 @@ key exists to import.** `plugin/src/main/library.test.ts` covers the rest agains
 missing `type`, an unknown kind, an empty key, a permission refusal, and Figma's "Failed to import"
 mapped to a next step. The refusal was also seen live in Task 7 Step 3. What no test reaches is a
 real import succeeding: that Figma accepts a published key and that the returned id creates a
-working instance. `docs/libraries.md` says so.
+working instance. `docs/guides/libraries.md` says so.
 
 - [x] **Step 7: Commit**
 
@@ -797,7 +797,7 @@ Four tools, two of which depend on a plan the developer running this plan may no
 **Files:**
 
 - Modify: `README.md` — tool table and Editing Notes
-- Create: `docs/libraries.md`
+- Create: `docs/guides/libraries.md`
 
 **Interfaces:**
 
@@ -836,7 +836,7 @@ Expected: the local component is still found. Losing library reach must not brea
 
 - [x] **Step 5: Write the guide**
 
-Create `docs/libraries.md` covering: the two manifest permissions and what each unlocks; that team library APIs are plan-gated and what happens when they are not available; what `get_libraries` returns and why it is collections rather than a catalogue; the four kinds `import_library_asset` accepts and where each key comes from; and — most importantly — `search_design_system`'s real scope, with the sentence an agent needs: an empty result is not proof of absence, and the fix is to ask the user to open the library file with the plugin.
+Create `docs/guides/libraries.md` covering: the two manifest permissions and what each unlocks; that team library APIs are plan-gated and what happens when they are not available; what `get_libraries` returns and why it is collections rather than a catalogue; the four kinds `import_library_asset` accepts and where each key comes from; and — most importantly — `search_design_system`'s real scope, with the sentence an agent needs: an empty result is not proof of absence, and the fix is to ask the user to open the library file with the plugin.
 
 - [x] **Step 6: Update the README**
 
@@ -844,7 +844,7 @@ Add four rows to the tool table:
 
 ```markdown
 | `whoami` | Report the Figma user signed in to the connected plugin |
-| `get_libraries` | List published team libraries and their variable collections ([guide](docs/libraries.md)) |
+| `get_libraries` | List published team libraries and their variable collections ([guide](docs/guides/libraries.md)) |
 | `import_library_asset` | Import a published component, component set, style or variable by key |
 | `search_design_system` | Search components on the current page and published variable collections — scoped, see the guide |
 ```
@@ -868,7 +868,7 @@ Expected: PASS — Prettier reports no remaining changes on a second run, both s
 - [x] **Step 8: Commit**
 
 ```bash
-git add README.md docs/libraries.md
+git add README.md docs/guides/libraries.md
 git commit -m "docs: document library reach, its permissions and its limits"
 ```
 
@@ -882,4 +882,4 @@ git commit -m "docs: document library reach, its permissions and its limits"
 - `get_libraries` returns grouped collections, or the plan message — never a raw Figma error.
 - `import_library_asset` returns an id that `run_script` can turn into a working instance.
 - `search_design_system` finds local components with team library reach unavailable, and always returns the scope note.
-- `docs/libraries.md` states the plan gating and, in plain words, that an empty search result is not proof of absence.
+- `docs/guides/libraries.md` states the plan gating and, in plain words, that an empty search result is not proof of absence.

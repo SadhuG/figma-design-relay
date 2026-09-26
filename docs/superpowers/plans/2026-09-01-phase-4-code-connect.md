@@ -1413,7 +1413,7 @@ A mapping nobody reads changes nothing. This wires the index into `get_design_co
 
 - Modify: `server/src/tools.ts` — `composeDesignContext` and the `get_design_context` handler
 - Modify: `README.md` — tool table and Editing Notes
-- Create: `docs/code-connect.md`
+- Create: `docs/guides/code-connect.md`
 
 **Interfaces:**
 
@@ -1495,14 +1495,14 @@ Expected: the response opens with a Code Connect mappings section naming your co
 
 - [x] **Step 6: Write the guide**
 
-Create `docs/code-connect.md` covering: where mappings live and that they are committed files; the four tools and what each does; the discovery rules (`**/*.figma.{ts,tsx,js,jsx}`, ignored directories, containment); the parser's supported shapes and what it reports as unreadable; why there is no `send_code_connect_mappings` — the bridge's equivalent is `git commit`, which makes the mapping reviewable in a way a cloud record is not; and the hint priority from the spec's R25.
+Create `docs/guides/code-connect.md` covering: where mappings live and that they are committed files; the four tools and what each does; the discovery rules (`**/*.figma.{ts,tsx,js,jsx}`, ignored directories, containment); the parser's supported shapes and what it reports as unreadable; why there is no `send_code_connect_mappings` — the bridge's equivalent is `git commit`, which makes the mapping reviewable in a way a cloud record is not; and the hint priority from the spec's R25.
 
 - [x] **Step 7: Update the README**
 
 Add four rows to the tool table:
 
 ```markdown
-| `get_code_connect_map` | Map Figma nodes to workspace components, read from local `*.figma.ts` files ([guide](docs/code-connect.md)) |
+| `get_code_connect_map` | Map Figma nodes to workspace components, read from local `*.figma.ts` files ([guide](docs/guides/code-connect.md)) |
 | `get_context_for_code_connect` | A component's properties and variant axes, for authoring a mapping |
 | `get_code_connect_suggestions` | Propose mappings by matching Figma component names against workspace exports |
 | `add_code_connect_map` | Write a Code Connect mapping file into the workspace |
@@ -1527,7 +1527,7 @@ Expected: PASS — Prettier reports no remaining changes on a second run, both s
 - [x] **Step 9: Commit**
 
 ```bash
-git add server/src/tools.ts server/src/design-context.test.ts README.md docs/code-connect.md
+git add server/src/tools.ts server/src/design-context.test.ts README.md docs/guides/code-connect.md
 git commit -m "feat: surface Code Connect mappings in design context"
 ```
 
@@ -1542,4 +1542,4 @@ git commit -m "feat: surface Code Connect mappings in design context"
 - `get_code_connect_suggestions` ranks an exact name match first, with legible evidence, and writes nothing.
 - `add_code_connect_map` writes a file that the parser can read back, refuses a duplicate mapping, and refuses a path outside the workspace.
 - `get_design_context` opens with a Code Connect section when the node is mapped.
-- `docs/code-connect.md` explains the local-file model and why there is no publish step.
+- `docs/guides/code-connect.md` explains the local-file model and why there is no publish step.

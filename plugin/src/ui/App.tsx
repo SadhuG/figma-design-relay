@@ -48,6 +48,8 @@ type PluginResponse = {
 type PluginStatus = {
   fileName: string;
   fileKey: string;
+  /** Tells the relay which editor this file is open in, so list_files can say. */
+  editorType?: string;
   selectionCount: number;
 };
 
@@ -151,7 +153,7 @@ export default function App() {
         previousSocket.close();
       }
 
-      const wsUrl = `${WS_BASE_URL}?fileKey=${encodeURIComponent(status.fileKey)}&fileName=${encodeURIComponent(status.fileName)}`;
+      const wsUrl = `${WS_BASE_URL}?fileKey=${encodeURIComponent(status.fileKey)}&fileName=${encodeURIComponent(status.fileName)}&editorType=${encodeURIComponent(status.editorType ?? "")}`;
       const ws = new WebSocket(wsUrl);
       socketRef.current = ws;
 
@@ -201,7 +203,7 @@ export default function App() {
         socketRef.current = null;
       }
     };
-  }, [status.fileKey, status.fileName]);
+  }, [status.fileKey, status.fileName, status.editorType]);
 
   return (
     <div className={`container ${collapsed ? "collapsed" : ""}`}>

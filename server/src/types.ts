@@ -33,9 +33,16 @@ export interface RPCResponse {
   error?: string;
 }
 
+/** The Figma editor a plugin instance runs in, as `figma.editorType` reports it. */
+export type EditorType = "figma" | "figjam" | "slides" | "dev";
+
+export const EDITOR_TYPES: readonly EditorType[] = ["figma", "figjam", "slides", "dev"];
+
 export interface ConnectedFile {
   fileKey: string;
   fileName: string;
+  /** Absent when the plugin predates phase 6 or sent a value this server does not know. */
+  editorType?: EditorType;
 }
 
 export enum Role {

@@ -32,7 +32,7 @@ const PLANS_DIR = join(HERE, "..", "plans");
 /** Plans this script owns, with the per-page metadata markdown cannot carry. */
 const PLANS = [
   {
-    md: "2026-09-01-serializer-enrichment.md",
+    md: "2026-09-01-phase-2-serializer-enrichment.md",
     docKey: "serializer-plan",
     phase: 2,
     eyebrow: "Implementation plan · Phase 2 · 2026-09-01",
@@ -48,7 +48,7 @@ const PLANS = [
     ],
   },
   {
-    md: "2026-09-01-design-context-v2.md",
+    md: "2026-09-01-phase-3-design-context-v2.md",
     docKey: "design-context-plan",
     phase: 3,
     eyebrow: "Implementation plan · Phase 3 · 2026-09-01",
@@ -65,7 +65,7 @@ const PLANS = [
     ],
   },
   {
-    md: "2026-09-01-code-connect.md",
+    md: "2026-09-01-phase-4-code-connect.md",
     docKey: "code-connect-plan",
     phase: 4,
     eyebrow: "Implementation plan · Phase 4 · 2026-09-01",
@@ -83,7 +83,7 @@ const PLANS = [
     ],
   },
   {
-    md: "2026-09-01-library-reach.md",
+    md: "2026-09-01-phase-5-library-reach.md",
     docKey: "library-reach-plan",
     phase: 5,
     eyebrow: "Implementation plan · Phase 5 · 2026-09-01",
@@ -100,7 +100,7 @@ const PLANS = [
     ],
   },
   {
-    md: "2026-09-01-figjam-slides-diagrams.md",
+    md: "2026-09-01-phase-6-figjam-slides-diagrams.md",
     docKey: "figjam-plan",
     phase: 6,
     eyebrow: "Implementation plan · Phase 6 · 2026-09-01",

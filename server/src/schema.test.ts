@@ -214,3 +214,85 @@ describe("validateRpc search_design_system", () => {
     ).toMatch(/limit/);
   });
 });
+
+// Phase 6: the FigJam write surface. Each tool validates on the follower hop
+// exactly as a design write does, so a bad call fails before it reaches Figma.
+describe("validateRpc create_sticky", () => {
+  test("forwards text and position", () => {
+    const result = validateRpc("create_sticky", undefined, { text: "Ship it", x: 10, y: 20 });
+    expect(result.error).toBeNull();
+    expect(result.params).toEqual({ text: "Ship it", x: 10, y: 20 });
+  });
+
+  test("rejects a sticky with no text", () => {
+    expect(validateRpc("create_sticky", undefined, { x: 10 }).error).not.toBeNull();
+  });
+});
+
+describe("validateRpc create_shape_with_text", () => {
+  test("accepts any FigJam shape, including the engineering ones", () => {
+    const result = validateRpc("create_shape_with_text", undefined, {
+      text: "DB",
+      shapeType: "ENG_DATABASE",
+    });
+    expect(result.error).toBeNull();
+  });
+
+  test("rejects a design-file shape name", () => {
+    expect(
+      validateRpc("create_shape_with_text", undefined, { text: "x", shapeType: "RECTANGLE" }).error
+    ).not.toBeNull();
+  });
+
+  test("rejects a non-positive size", () => {
+    expect(
+      validateRpc("create_shape_with_text", undefined, { text: "x", width: 0, height: 40 }).error
+    ).not.toBeNull();
+  });
+});
+
+describe("validateRpc create_connector", () => {
+  test("keeps both endpoint ids through the follower hop", () => {
+    const result = validateRpc("create_connector", undefined, {
+      startNodeId: "1:2",
+      endNodeId: "1:3",
+      text: "then",
+    });
+    expect(result.error).toBeNull();
+    expect(result.params).toEqual({ startNodeId: "1:2", endNodeId: "1:3", text: "then" });
+  });
+
+  test("rejects a hyphenated endpoint id", () => {
+    expect(
+      validateRpc("create_connector", undefined, { startNodeId: "1-2", endNodeId: "1:3" }).error
+    ).toContain("colon format");
+  });
+
+  test("rejects a connector with one end", () => {
+    expect(validateRpc("create_connector", undefined, { startNodeId: "1:2" }).error).not.toBeNull();
+  });
+});
+
+describe("validateRpc create_section", () => {
+  test("accepts an empty request, since every field is optional", () => {
+    expect(validateRpc("create_section", undefined, {}).error).toBeNull();
+  });
+
+  test("rejects a width without a height", () => {
+    expect(validateRpc("create_section", undefined, { width: 400 }).error).not.toBeNull();
+  });
+});
+
+describe("validateRpc generate_diagram", () => {
+  test("forwards the Mermaid source", () => {
+    const result = validateRpc("generate_diagram", undefined, {
+      mermaid: "flowchart TD\n A --> B",
+    });
+    expect(result.error).toBeNull();
+    expect(result.params).toEqual({ mermaid: "flowchart TD\n A --> B" });
+  });
+
+  test("rejects empty source", () => {
+    expect(validateRpc("generate_diagram", undefined, { mermaid: "" }).error).not.toBeNull();
+  });
+});

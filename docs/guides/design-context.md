@@ -15,7 +15,7 @@ target project's stack, component library and token system.
 | ---------- | -------------------------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `nodeId`   | string (`123:456`)                           | selection, then current page | The node to describe. When omitted, the current selection is used; with nothing selected, the current page. An unknown id is an error. |
 | `depth`    | number                                       | `2`                          | How many levels of children to serialize. Deeper levels are collapsed to a `childCount`.                                               |
-| `format`   | `"react"` \| `"html"` \| `"css"` \| `"json"` | `"react"`                    | Reference code format. `json` returns the serialized tree itself (see [serialized-nodes.md](serialized-nodes.md)).                     |
+| `format`   | `"react"` \| `"html"` \| `"css"` \| `"json"` | `"react"`                    | Reference code format. `json` returns the serialized tree itself (see [serialized-nodes.md](../reference/serialized-nodes.md)).        |
 | `assetDir` | string                                       | _none_ — no export           | Directory, relative to the MCP server's working directory, to export icons and images into. Must resolve inside that directory.        |
 | `fileKey`  | string                                       | the only connected file      | Which file to read when several have the plugin open. Use `list_files` to discover keys.                                               |
 

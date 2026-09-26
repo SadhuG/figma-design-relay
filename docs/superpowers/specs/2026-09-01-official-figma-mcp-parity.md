@@ -1,6 +1,7 @@
 # Spec: Replacing the Official Figma MCP Server with Figma Design Relay
 
-**Status:** Draft
+**Status:** Delivered — all six phases shipped (0.2.0–0.7.0). The gap analysis below is the
+measurement taken on 2026-09-01, before any of them; read its "missing" and "partial" rows as history.
 **Date:** 2026-09-01
 **Goal:** Make `figma-design-relay` a viable full-time replacement for Figma's
 first-party MCP server for an agent doing design→code and code→design work,
@@ -216,14 +217,14 @@ property definitions (R13) to author accurate mappings.
 
 Every phase has its own plan, one per phase rather than one for all six:
 
-| Phase | Plan                                                                      |
-| ----- | ------------------------------------------------------------------------- |
-| 1     | `docs/superpowers/plans/2026-09-01-run-script-plugin-api-escape-hatch.md` |
-| 2     | `docs/superpowers/plans/2026-09-01-serializer-enrichment.md`              |
-| 3     | `docs/superpowers/plans/2026-09-01-design-context-v2.md`                  |
-| 4     | `docs/superpowers/plans/2026-09-01-code-connect.md`                       |
-| 5     | `docs/superpowers/plans/2026-09-01-library-reach.md`                      |
-| 6     | `docs/superpowers/plans/2026-09-01-figjam-slides-diagrams.md`             |
+| Phase | Plan                                                                  |
+| ----- | --------------------------------------------------------------------- |
+| 1     | `docs/superpowers/plans/2026-09-01-phase-1-run-script.md`             |
+| 2     | `docs/superpowers/plans/2026-09-01-phase-2-serializer-enrichment.md`  |
+| 3     | `docs/superpowers/plans/2026-09-01-phase-3-design-context-v2.md`      |
+| 4     | `docs/superpowers/plans/2026-09-01-phase-4-code-connect.md`           |
+| 5     | `docs/superpowers/plans/2026-09-01-phase-5-library-reach.md`          |
+| 6     | `docs/superpowers/plans/2026-09-01-phase-6-figjam-slides-diagrams.md` |
 
 ---
 
@@ -231,7 +232,7 @@ Every phase has its own plan, one per phase rather than one for all six:
 
 Requirements are numbered continuously across the whole roadmap so a task in any
 plan can cite one unambiguously. Phase 1's `R1`–`R10` are already cited by
-`docs/superpowers/plans/2026-09-01-run-script-plugin-api-escape-hatch.md` and
+`docs/superpowers/plans/2026-09-01-phase-1-run-script.md` and
 must not be renumbered.
 
 | Phase | Requirements | Depends on                                       |
@@ -247,7 +248,7 @@ must not be renumbered.
 ### 6.1 Phase 1 — `run_script` (R1–R10)
 
 Closes Gap 1 and Gap 8. Planned in
-`docs/superpowers/plans/2026-09-01-run-script-plugin-api-escape-hatch.md`.
+`docs/superpowers/plans/2026-09-01-phase-1-run-script.md`.
 
 - **R1.** The bridge exposes an MCP tool `run_script` taking `code` (string) and
   optional `fileKey`.
@@ -425,7 +426,14 @@ Closes Gap 6. The bridge is design-file-only today because of one line in the
 manifest; everything downstream of changing it needs care.
 
 - **R43.** `plugin/manifest.json` declares
-  `"editorType": ["figma", "figjam", "slides", "dev"]`.
+  `"editorType": ["figma", "figjam", "slides"]`. _Amended 2026-09-26:_ this
+  originally listed `"dev"` as well, but Figma does not let one plugin declare
+  both `dev` and `figjam`. FigJam is the point of this phase, so Dev Mode was
+  dropped, along with the `inspect` capability that only Dev Mode uses. Dev Mode
+  served one user — a developer with a paid Dev seat and view-only access — and
+  every read it offered still works in the design editor. The capability table
+  keeps its Dev Mode rule, so restoring `dev` is a one-line manifest change if
+  Figma ever allows the combination.
 - **R44.** The current design-editor gate (`EDIT_REQUEST_TYPES` plus
   `requireEditorMode`) is replaced by an **editor-aware capability table**. Node
   types and APIs differ per editor — `figma.createPage()` does not exist in

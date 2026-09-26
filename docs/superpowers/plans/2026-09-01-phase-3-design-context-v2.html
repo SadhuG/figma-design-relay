@@ -1946,7 +1946,7 @@ git commit -m "feat: get_design_context returns code, tokens, assets and a scree
                     <code>get_design_context</code> row and Editing Notes
                   </li>
                   <li>
-                    <span class="verb">Create</span><code>docs/design-context.md</code> — the
+                    <span class="verb">Create</span><code>docs/guides/design-context.md</code> — the
                     response contract
                   </li>
                 </ul>
@@ -2096,7 +2096,7 @@ cd ../plugin &amp;&amp; bun run build</code></pre>
                 </div>
                 <div class="step__body">
                   <p>
-                    Create <code>docs/design-context.md</code> covering: the parameters
+                    Create <code>docs/guides/design-context.md</code> covering: the parameters
                     (<code>nodeId</code>, <code>depth</code>, <code>format</code>,
                     <code>assetDir</code>, <code>fileKey</code>); the block order (text first, image
                     second); the section order inside the text block; the hint priority from R25;
@@ -2114,7 +2114,7 @@ cd ../plugin &amp;&amp; bun run build</code></pre>
                 </div>
                 <div class="step__body">
                   <p>Replace the <code>get_design_context</code> row in the tool table:</p>
-                  <pre><code>| `get_design_context` | Reference code, design tokens, exported assets and a screenshot for a node — one call ([guide](docs/design-context.md)) |</code></pre>
+                  <pre><code>| `get_design_context` | Reference code, design tokens, exported assets and a screenshot for a node — one call ([guide](docs/guides/design-context.md)) |</code></pre>
                   <p>And append to Editing Notes:</p>
                   <pre><code>- `get_design_context` exports icons and images as files under `assetDir` rather than returning expiring URLs, because a committed file is what code you keep actually needs. The path must stay inside the MCP server working directory.</code></pre>
                 </div>
@@ -2144,7 +2144,7 @@ cd ../plugin &amp;&amp; bun run test &amp;&amp; bun run build</code></pre>
                   <label class="step__label" for="designcontextt7s12">Commit</label>
                 </div>
                 <div class="step__body">
-                  <pre><code>git add README.md docs/design-context.md
+                  <pre><code>git add README.md docs/guides/design-context.md
 git commit -m "docs: document the design-context response contract"</code></pre>
                   <p>---</p>
                 </div>
@@ -2171,8 +2171,8 @@ git commit -m "docs: document the design-context response contract"</code></pre>
               </li>
               <li>All four formats work and an unknown format is rejected by name.</li>
               <li>
-                <code>docs/design-context.md</code> documents the parameters, block order, hint
-                priority and limits.
+                <code>docs/guides/design-context.md</code> documents the parameters, block order,
+                hint priority and limits.
               </li>
             </ul>
           </section>
@@ -2180,7 +2180,10 @@ git commit -m "docs: document the design-context response contract"</code></pre>
           <footer class="colophon">
             <span>Figma Design Relay</span>
             <span>Plan · Phase 3 · 2026-09-01</span>
-            <span>Source: <code>docs/superpowers/plans/2026-09-01-design-context-v2.md</code></span>
+            <span
+              >Source:
+              <code>docs/superpowers/plans/2026-09-01-phase-3-design-context-v2.md</code></span
+            >
             <span
               ><a href="../specs/2026-09-01-official-figma-mcp-parity.html">← Parity spec</a></span
             >
