@@ -126,4 +126,4 @@ strings.
   as part of the work. Anything left only in a conversation is lost. Keep volatile numbers to the
   ones a reader would act on.
 - The design history — the official-MCP parity spec (R1–R55) and its six delivered phase plans —
-  is indexed in `docs/superpowers/README.md`, including the live checks still open.
+  is indexed in `docs/superpowers/README.md`, including what is not implemented yet and why.

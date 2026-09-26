@@ -7,7 +7,8 @@ paths:
 
 `docs/README.md` maps the folders: `guides/` and `reference/` are user-facing, `superpowers/` is the
 design history (specs + plans, each markdown with a rendered HTML twin). `docs/superpowers/README.md`
-holds the plan-set table, the open live checks and how to execute a plan.
+holds the plan-set table, what is not implemented (open live checks included) and how to execute a
+plan.
 
 ## The HTML pages
 
