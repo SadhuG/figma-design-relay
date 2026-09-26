@@ -62,6 +62,11 @@ Then add the following to your AI tool's MCP configuration (e.g. Cursor, Windsur
 
 In Figma go to `Plugins > Development > Import plugin from manifest` and select `manifest.json` from the unzipped `plugin/` folder.
 
+The plugin requests two permissions, which Figma shows when you import it:
+
+- `currentuser` — so `whoami` can report who is signed in.
+- `teamlibrary` — so `get_libraries`, `import_library_asset` and `search_design_system` can reach published libraries. Team library APIs are gated by Figma plan; on plans without them these tools return an explicit error naming the requirement (`search_design_system` falls back to the open file), and every other tool is unaffected.
+
 ### 4. Start using it 🎉
 
 Open a Figma file, run the plugin, and start prompting your AI tool. The MCP server will automatically connect to the plugin.
