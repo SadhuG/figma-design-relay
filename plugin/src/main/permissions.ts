@@ -28,7 +28,7 @@ export const describeApiError = (error: unknown, api: GatedApi): string => {
     return (
       `Figma refused the ${api} call because the plugin does not have the ` +
       `"${MANIFEST_PERMISSION[api]}" permission. Add it to the "permissions" array in ` +
-      `plugin/manifest.json, rebuild the plugin, and re-import it in Figma.`
+      `plugin/manifest.json, rebuild the plugin, and relaunch it from Figma's Development menu.`
     );
   }
 

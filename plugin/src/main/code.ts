@@ -1869,7 +1869,7 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
           type: request.type,
           requestId: request.requestId,
           data: await getLibraries(
-            figma.teamLibrary,
+            () => figma.teamLibrary,
             typeof collectionKey === "string" ? collectionKey : undefined
           ),
         };
@@ -1897,7 +1897,7 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
             nodes: figma.currentPage.findAllWithCriteria({
               types: ["COMPONENT", "COMPONENT_SET", "INSTANCE"],
             }) as unknown as SearchableNode[],
-            teamLibrary: figma.teamLibrary,
+            readTeamLibrary: () => figma.teamLibrary,
           }),
         };
       default:

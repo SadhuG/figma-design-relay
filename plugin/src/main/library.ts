@@ -61,16 +61,17 @@ export interface LibrariesResult {
  * Lists published libraries by their variable collections, or — given a
  * collection key — that collection's variables with the keys
  * `import_library_asset` takes.
- * @param teamLibrary - `figma.teamLibrary`.
+ * @param readTeamLibrary - Reads `figma.teamLibrary`. A getter, because without the
+ *   permission the property read itself throws.
  * @param collectionKey - A collection key from a previous call.
  */
 export const getLibraries = async (
-  teamLibrary: TeamLibraryLike,
+  readTeamLibrary: () => TeamLibraryLike,
   collectionKey?: string
 ): Promise<LibrariesResult> => {
   if (collectionKey) {
     const variables = await withPermissionContext("teamLibrary", () =>
-      teamLibrary.getVariablesInLibraryCollectionAsync(collectionKey)
+      readTeamLibrary().getVariablesInLibraryCollectionAsync(collectionKey)
     );
     return {
       collectionKey,
@@ -80,7 +81,7 @@ export const getLibraries = async (
   }
 
   const collections = await withPermissionContext("teamLibrary", () =>
-    teamLibrary.getAvailableLibraryVariableCollectionsAsync()
+    readTeamLibrary().getAvailableLibraryVariableCollectionsAsync()
   );
 
   // The API returns a flat list tagged with its library; group it so the
@@ -147,7 +148,18 @@ export const importLibraryAsset = async (
     throw new Error("import_library_asset requires a non-empty `key` string parameter.");
   }
 
-  const imported = await withPermissionContext("teamLibrary", () => importers[kind](key));
+  const imported = await withPermissionContext("teamLibrary", () => importers[kind](key)).catch(
+    (error: Error) => {
+      // A permission or plan refusal already names its fix; anything else is
+      // almost always a key Figma cannot resolve, and its message stops there.
+      if (/permission|\bplans?\b/i.test(error.message)) throw error;
+      throw new Error(
+        `${error.message}. The key must belong to a ${kind} published in a library that is ` +
+          `enabled for this file (Assets → Libraries). A component that only exists locally ` +
+          `in this file is not importable — use its node id directly instead.`
+      );
+    }
+  );
   const result: ImportResult = { kind, id: imported.id, name: imported.name };
   if (imported.type !== undefined) result.type = imported.type;
   return result;
@@ -167,7 +179,8 @@ export interface SearchableNode {
 export interface SearchSources {
   /** COMPONENT, COMPONENT_SET and INSTANCE nodes on the current page. */
   nodes: readonly SearchableNode[];
-  teamLibrary: TeamLibraryLike;
+  /** Reads `figma.teamLibrary`; the read itself throws without the permission. */
+  readTeamLibrary: () => TeamLibraryLike;
 }
 
 export interface SearchResult {
@@ -229,7 +242,9 @@ export const searchDesignSystem = async (
   const searched = [PAGE_SCOPE];
   let libraryError: string | undefined;
   try {
-    const collections = await sources.teamLibrary.getAvailableLibraryVariableCollectionsAsync();
+    const collections = await sources
+      .readTeamLibrary()
+      .getAvailableLibraryVariableCollectionsAsync();
     for (const collection of collections) {
       add({
         id: collection.key,

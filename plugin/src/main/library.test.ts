@@ -37,21 +37,23 @@ describe("whoami", () => {
   });
 });
 
-const stubTeamLibrary = (overrides: Partial<TeamLibraryLike> = {}): TeamLibraryLike => ({
-  getAvailableLibraryVariableCollectionsAsync: async () => [
-    { key: "c1", name: "Colors", libraryName: "Core" },
-    { key: "c2", name: "Spacing", libraryName: "Core" },
-    { key: "c3", name: "Brand", libraryName: "Marketing" },
-  ],
-  getVariablesInLibraryCollectionAsync: async (key) =>
-    key === "c1"
-      ? [
-          { key: "v1", name: "color/bg", resolvedType: "COLOR" },
-          { key: "v2", name: "color/fg", resolvedType: "COLOR" },
-        ]
-      : [],
-  ...overrides,
-});
+const stubTeamLibrary =
+  (overrides: Partial<TeamLibraryLike> = {}): (() => TeamLibraryLike) =>
+  () => ({
+    getAvailableLibraryVariableCollectionsAsync: async () => [
+      { key: "c1", name: "Colors", libraryName: "Core" },
+      { key: "c2", name: "Spacing", libraryName: "Core" },
+      { key: "c3", name: "Brand", libraryName: "Marketing" },
+    ],
+    getVariablesInLibraryCollectionAsync: async (key) =>
+      key === "c1"
+        ? [
+            { key: "v1", name: "color/bg", resolvedType: "COLOR" },
+            { key: "v2", name: "color/fg", resolvedType: "COLOR" },
+          ]
+        : [],
+    ...overrides,
+  });
 
 describe("getLibraries", () => {
   test("groups published variable collections by library, keeping each key", async () => {
@@ -193,14 +195,17 @@ describe("searchDesignSystem", () => {
   const nodes = [set, variant, card, instance, { ...instance, id: "30:2" }];
 
   test("finds local components, representing a variant by its set", async () => {
-    const result = await searchDesignSystem("button", { nodes, teamLibrary: stubTeamLibrary() });
+    const result = await searchDesignSystem("button", {
+      nodes,
+      readTeamLibrary: stubTeamLibrary(),
+    });
     const ids = result.results.map((hit) => hit.id);
     expect(ids).toContain("10:1");
     expect(ids).not.toContain("10:2");
   });
 
   test("finds a library component through an instance of it, once, with its import key", async () => {
-    const result = await searchDesignSystem("ghost", { nodes, teamLibrary: stubTeamLibrary() });
+    const result = await searchDesignSystem("ghost", { nodes, readTeamLibrary: stubTeamLibrary() });
     expect(result.results).toHaveLength(1);
     expect(result.results[0]).toMatchObject({
       id: "20:1",
@@ -211,7 +216,10 @@ describe("searchDesignSystem", () => {
   });
 
   test("includes published variable collections with their library", async () => {
-    const result = await searchDesignSystem("colors", { nodes, teamLibrary: stubTeamLibrary() });
+    const result = await searchDesignSystem("colors", {
+      nodes,
+      readTeamLibrary: stubTeamLibrary(),
+    });
     expect(result.results).toEqual([
       {
         id: "c1",
@@ -227,7 +235,7 @@ describe("searchDesignSystem", () => {
   test("still returns local results when team library reach is refused, and says so", async () => {
     const result = await searchDesignSystem("card", {
       nodes,
-      teamLibrary: stubTeamLibrary({
+      readTeamLibrary: stubTeamLibrary({
         getAvailableLibraryVariableCollectionsAsync: async () => {
           throw new Error("Missing permission: teamlibrary");
         },
@@ -239,14 +247,47 @@ describe("searchDesignSystem", () => {
   });
 
   test("always says an empty result is not proof of absence", async () => {
-    const result = await searchDesignSystem("zzz", { nodes, teamLibrary: stubTeamLibrary() });
+    const result = await searchDesignSystem("zzz", { nodes, readTeamLibrary: stubTeamLibrary() });
     expect(result.results).toEqual([]);
     expect(result.note).toContain("does not mean");
   });
 
   test("rejects an empty query", async () => {
     await expect(
-      searchDesignSystem("  ", { nodes, teamLibrary: stubTeamLibrary() })
+      searchDesignSystem("  ", { nodes, readTeamLibrary: stubTeamLibrary() })
     ).rejects.toThrow(/query/);
+  });
+});
+
+describe("importLibraryAsset failures", () => {
+  test("says what to do when Figma cannot import the key", async () => {
+    const importers = stubImporters();
+    importers.componentSet = async () => {
+      throw new Error('Failed to import component set by key "abc"');
+    };
+    const failing = importLibraryAsset(importers, "componentSet", "abc");
+    await expect(failing).rejects.toThrow(/Failed to import component set by key "abc"/);
+    await expect(importLibraryAsset(importers, "componentSet", "abc")).rejects.toThrow(
+      /published.*enabled.*local/s
+    );
+  });
+});
+
+describe("reading figma.teamLibrary itself", () => {
+  // Without the manifest permission Figma throws on the property read, before
+  // any method is called — so the read has to happen inside the mapper.
+  const refuse = (): TeamLibraryLike => {
+    throw new Error('in get_teamLibrary: "teamlibrary" permission not specified in manifest.json.');
+  };
+
+  test("get_libraries maps a refused read to the manifest fix", async () => {
+    await expect(getLibraries(refuse)).rejects.toThrow(/add it to the "permissions" array/i);
+  });
+
+  test("search_design_system degrades to local results on a refused read", async () => {
+    const card: SearchableNode = { id: "11:1", name: "Card", type: "COMPONENT" };
+    const result = await searchDesignSystem("card", { nodes: [card], readTeamLibrary: refuse });
+    expect(result.results.map((hit) => hit.id)).toEqual(["11:1"]);
+    expect(result.libraryError).toContain("manifest.json");
   });
 });
