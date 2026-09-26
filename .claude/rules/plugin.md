@@ -64,5 +64,9 @@ paths:
   no published library is available. Cover library success paths with stubbed `figma.teamLibrary`
   and importers (`src/main/library.test.ts`), check the refusal path live, and budget no live
   team-library step. `docs/guides/libraries.md` lists what is still unverified.
+- **`plugin/manifest.json` is the stable manifest; never edit it for a dev build.** In a feature
+  worktree the build derives the Dev manifest from it (`dev-slot.ts`: name, id, `main`/`ui` paths,
+  and `allowedDomains` narrowed to the slot's port) and writes it to `dist/`. Any other manifest
+  change — permissions, `editorType` — reaches both builds.
 - **Relaunch the plugin after every plugin rebuild** before trusting a live check — see the
   `live-figma-check` skill.

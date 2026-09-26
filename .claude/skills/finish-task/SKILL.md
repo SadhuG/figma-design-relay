@@ -1,6 +1,6 @@
 ---
 name: finish-task
-description: Use before the last commit of any task in figma-design-relay — refreshes the facts in CLAUDE.md, README and the plans that drift with the code, bumps the version, verifies, has a separate agent review the diff, then merges the branch into dev and main.
+description: Use before the last commit of any task in figma-design-relay — refreshes the facts in CLAUDE.md, README and the plans that drift with the code, bumps the version, verifies, has a separate agent review the diff, merges the branch into dev and main, then tears down its dev slot.
 ---
 
 # Finishing a task
@@ -79,7 +79,9 @@ Then act on it:
 ## 5. Merge: feature → dev → main
 
 Real merges only — no rebase, no squash — so the branches keep sharing history. Each push runs CI.
-Start with `git fetch origin`: if `origin/dev` or `origin/main` is not at the commit noted in step
+Run this step **from the main checkout**, not the feature worktree: `main` is checked out there, and
+git will not switch a second worktree to it. Worktrees share branches, so `<branch>` is there
+already. Start with `git fetch origin`: if `origin/dev` or `origin/main` is not at the commit noted in step
 4, go back to step 4 — what arrived has not been reviewed. Likewise if local `dev` or `main` holds
 commits the remote does not (`git log origin/dev..dev`, `git log origin/main..main` must be empty).
 
@@ -90,3 +92,10 @@ git switch main && git pull --ff-only && git merge --no-edit dev && git push ori
 
 `dev` and `main` now point at the same commit. If the task bumped the version, tag that commit and
 push the tag **by name**: `git tag vX.Y.Z && git push origin vX.Y.Z` — never `git push --tags`.
+
+## 6. Tear down the dev slot
+
+A task built in a feature worktree ends by removing its slot — the Dev plugin import in Figma, its
+MCP entry, then the worktree and branch — and rebuilding the main checkout so the stable plugin
+carries the change. The `start-feature` skill's step 4 has the commands. Ask the user to remove the
+Figma import and to confirm before you edit their MCP config.

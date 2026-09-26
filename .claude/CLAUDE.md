@@ -22,6 +22,7 @@ This file holds only what applies to every task. The rest loads when it is relev
 | `.claude/rules/plugin.md`         | automatically, on `plugin/**`                                 | landmarks, `figma` global, async access, capability table, manifest |
 | `.claude/rules/docs.md`           | automatically, on `docs/**`                                   | the HTML generator, checkbox state, moving docs                     |
 | `.claude/rules/release.md`        | on `CHANGELOG.md`, `package.json`, `.github/**`, `scripts/**` | versions, tags, release workflow, CI                                |
+| `.claude/skills/start-feature`    | **before every code task's first edit**                       | worktree, dev slot (plugin name + port), build, import, teardown    |
 | `.claude/skills/finish-task`      | **before every task's last commit**                           | verify, refresh facts, bump, agent review, merge → `dev` → `main`   |
 | `.claude/skills/add-mcp-tool`     | when adding or removing a tool                                | every place a tool must be wired, tested and documented             |
 | `.claude/skills/live-figma-check` | when testing against real Figma                               | smoke harness, the machine's relay setup, symptoms that cost time   |
@@ -37,11 +38,12 @@ This file holds only what applies to every task. The rest loads when it is relev
 | root      | `bun install`                             | installs Husky's pre-commit hook (Prettier via lint-staged)               |
 | root      | `bun run format` / `bun run format:check` | Prettier 3.9.6 over everything                                            |
 | root      | `bun scripts/check-version.mjs`           | server + plugin versions agree and have a changelog entry                 |
+| root      | `bun scripts/dev-slot.mjs [name]`         | in a feature worktree: claim its dev plugin name and port (1995–2019)     |
 | `server/` | `bun run build`                           | `tsc` → `dist/`; this is the server's type-check                          |
-| `server/` | `bun test`                                | 251 tests: schemas, rpc guards, codegen, assets, Code Connect, Mermaid    |
+| `server/` | `bun test`                                | 258 tests: schemas, rpc guards, codegen, assets, Code Connect, Mermaid    |
 | `plugin/` | `bun run typecheck`                       | `tsc --noEmit`; must stay at zero errors                                  |
 | `plugin/` | `bun run build`                           | typecheck, then two Vite passes: UI, then `main`                          |
-| `plugin/` | `bun test`                                | 196 tests: scripts, serializer, capability table, library tools, diagrams |
+| `plugin/` | `bun test`                                | 210 tests: scripts, serializer, capability table, library tools, diagrams |
 
 Tests live beside the code as `*.test.ts` (excluded from both tsconfigs). CI (`.github/workflows/ci.yml`)
 runs all of the above on every push to every branch.
@@ -50,7 +52,8 @@ runs all of the above on every push to every branch.
 
 ```
 server/src/
-  index.ts      entry; FIGMA_DESIGN_RELAY_PORT (default 1994)
+  index.ts      entry
+  port.ts       startup port: FIGMA_DESIGN_RELAY_PORT, else the worktree's dev slot, else 1994
   node.ts       leader/follower router — every tool call goes through node.send / sendWithParams
   leader.ts     HTTP + WebSocket host     follower.ts  proxies to leader over /rpc
   bridge.ts     socket registry keyed by fileKey; 180 s per-request timeout
@@ -64,6 +67,7 @@ server/src/
   mermaid/      parse.ts (the strict Mermaid subset) + layout.ts (positions) for generate_diagram
   types.ts      shared types; LOOPBACK_HOST lives here
 server/.smoke/  live harness: probe.mjs (run_script), call.mjs (any tool) — see its README
+plugin/dev-slot.ts        dev slot rules + the dev manifest both Vite configs emit into dist/
 plugin/src/
   main/code.ts              request dispatcher, one switch case per tool
   main/serializer.ts        scene graph → JSON (async)
@@ -80,6 +84,7 @@ plugin/src/
   main/search.ts            search_design_system's matcher and ranker
   html-figma/               vendored html-to-figma importer
   ui/                       React panel
+scripts/        check-version.mjs; dev-slot.mjs claims a worktree's dev slot
 docs/           guides/ and reference/ for users; superpowers/ for specs and plans
 .claude/        this file, rules/ (path-scoped) and skills/ — the table above
 ```
@@ -110,12 +115,19 @@ strings.
 | ------------------------- | ------------------------------------------------------- |
 | Product                   | Figma Design Relay                                      |
 | CLI / plugin id / MCP key | `figma-design-relay`                                    |
+| Dev slot plugin / MCP key | `Figma Design Relay (Dev: <name>)`, `…-dev-<name>`      |
 | Env vars                  | `FIGMA_DESIGN_RELAY_PORT`, `VITE_FIGMA_DESIGN_RELAY_WS` |
 | npm package               | none — `figma-design-relay-server`, `"private": true`   |
 
 ## Workflow
 
 - Work on a feature branch (`feat/…`, `fix/…`, `docs/…`, `chore/…`).
+- **Every code task is built in its own git worktree with its own dev slot** — run the
+  `start-feature` skill before the first edit, unasked. The main checkout stays on `main` as the
+  stable relay: **Figma Design Relay** on port 1994. Each worktree runs as **Figma Design Relay
+  (Dev: `<name>`)** with its own plugin id and a port from 1995–2019, so the user can tell stable
+  from in-progress in Figma and several features can run at once. The main checkout never holds a
+  `.dev-slot.json`. Docs-only work may use a plain branch.
 - Commit messages: `feat(scope): …`, `fix(scope): …`, `docs: …`, `test: …`, `chore: …`.
 - New behaviour is test-first: failing test, see it fail, implement, see it pass, commit.
 - **Before the last commit of any task, run the `finish-task` skill** — unasked. It refreshes the

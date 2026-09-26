@@ -206,17 +206,33 @@ For local development, add the following to your AI tool's MCP config:
 }
 ```
 
-Keep exactly one such entry, pointing at the checkout you build. Two entries — or an entry left
-pointing at an old clone or worktree — is how you end up with a relay on 1994 that is not the code
-you just built, and the plugin will happily attach to whichever one wins.
+Keep exactly one such entry for your main checkout, the stable relay. An entry left pointing at an
+old clone is how you end up with a relay on 1994 that is not the code you just built. Feature work
+gets entries of its own under different names; see the next step.
 
-#### 6. Ports
+#### 6. Stable and dev plugins side by side
 
-Everything uses **1994**: the server (`FIGMA_DESIGN_RELAY_PORT` to change it), the plugin (baked in
-at build time; `VITE_FIGMA_DESIGN_RELAY_WS` to change it), and the smoke-test probes in
-`server/.smoke/`. The plugin panel's **Relay:** row shows the address a running plugin is dialing,
-so a build for the wrong port is visible in Figma rather than a mysterious "Disconnected". Figma's
-Development menu lists plugins by name, so keep a single import of `plugin/manifest.json`.
+The main checkout is the **stable** relay: it runs on port **1994** and appears in Figma as
+**Figma Design Relay**. Every feature is built in its own git worktree holding a **dev slot**, which
+gives it a plugin name, plugin id and port of its own:
+
+```bash
+git worktree add ../figma-design-relay-<feature> -b feat/<feature> origin/main
+cd ../figma-design-relay-<feature> && bun install
+bun scripts/dev-slot.mjs      # writes .dev-slot.json and prints the next steps
+```
+
+That worktree's builds then produce **Figma Design Relay (Dev: _feature_)** on a port from
+1995–2019: the plugin build writes its manifest to `plugin/dist/manifest.json` (import that one in
+Figma), and the server listens on the slot's port by itself (add it to your MCP config as
+`figma-design-relay-dev-<feature>`). Stable and dev relays never talk to each other, so a
+half-built feature cannot break the plugin you use for real work. The
+[`start-feature` skill](.claude/skills/start-feature/SKILL.md) has the full procedure, including
+tearing a slot down after the merge.
+
+The plugin panel's **Relay:** row shows the address a running plugin is dialing. The server's port
+can still be forced with `FIGMA_DESIGN_RELAY_PORT`, and the smoke-test probes in `server/.smoke/`
+follow the slot too (`SMOKE_PORT` overrides).
 
 ### Code style
 
@@ -231,10 +247,11 @@ bun run format:check  # verify formatting without writing (useful in CI)
 
 ```bash
 cd server && bun test       # schemas, /rpc guards, codegen, content blocks, asset export, Code Connect,
-                            # the Mermaid parser and diagram layout
+                            # the Mermaid parser and diagram layout, the startup port and dev slots
 cd plugin && bun test       # run_script, serializer and its helpers (FigJam nodes too), Code Connect context,
                             # the editor capability table and its regression guard, diagram payloads,
-                            # library tools and search against stubbed figma.teamLibrary / currentUser
+                            # library tools and search against stubbed figma.teamLibrary / currentUser,
+                            # dev slot rules and the dev manifest
 cd plugin && bun run typecheck   # tsc --noEmit; also runs as part of `bun run build`
 ```
 
@@ -251,11 +268,13 @@ Figma-Design-Relay/
 ├── .claude/      # For AI agents: CLAUDE.md (project notes), path-scoped rules/ and skills/
 ├── CHANGELOG.md  # What changed in each version
 ├── docs/         # guides/ per tool family, reference/, and superpowers/ specs and plans
-├── scripts/      # check-version.mjs: one version across server, plugin and changelog
-├── plugin/       # Figma plugin (TypeScript/React)
+├── scripts/      # check-version.mjs: one version across server, plugin and changelog;
+│                 # dev-slot.mjs: claims a feature worktree's dev plugin name and port
+├── plugin/       # Figma plugin (TypeScript/React); dev-slot.ts: the slot rules the build uses
 └── server/       # MCP server (TypeScript/Node.js)
     └── src/
         ├── index.ts      # Entry point
+        ├── port.ts       # Startup port: env, else the worktree's dev slot, else 1994
         ├── bridge.ts     # WebSocket bridge to Figma plugin
         ├── leader.ts     # Leader: HTTP server + bridge
         ├── follower.ts   # Follower: proxies to leader via HTTP

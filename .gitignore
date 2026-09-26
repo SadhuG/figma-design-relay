@@ -183,3 +183,6 @@ server/dist/
 # Claude Code: rules and skills are shared; worktrees and personal settings are not
 .claude/worktrees/
 .claude/settings.local.json
+
+# Dev slot of a feature worktree (bun scripts/dev-slot.mjs); never committed
+.dev-slot.json

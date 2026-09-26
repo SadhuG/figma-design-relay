@@ -3,23 +3,25 @@
 Drives real tool calls against a real Figma document, exactly the way an MCP client would, without
 touching your MCP client config.
 
-## One port: 1994
+## Ports: 1994 stable, one per feature worktree
 
-Everything dials **1994** by default — the relay the MCP client spawns, a default plugin build, and
-these probes. `port.mjs` is the single place the harness reads it from. There is nothing else on
-this machine that should ever hold 1994, so if `netstat -ano | grep 1994` shows a listener that is
-not `server/dist/index.js`, that is the problem, not something to work around.
+The main checkout is the stable relay: its MCP server, its plugin build and these probes all use
+**1994**, and nothing else on this machine should ever hold 1994. A feature worktree holds a **dev
+slot** (`.dev-slot.json`, see the `start-feature` skill) with its own port from 1995–2019; its
+server, its plugin build and these probes all read that port from the slot instead. `port.mjs` is
+the single place the harness reads its port from: `SMOKE_PORT`, else the slot, else 1994.
 
-The plugin bakes its port in at build time. A plain `bun run build` in `plugin/` dials 1994, and the
-panel shows which relay it is dialing on its **Relay:** row, so a wrong build is visible in Figma
-rather than something you infer from a silent "Disconnected".
+So a probe run inside a worktree drives that worktree's Dev plugin, and a probe run in the main
+checkout drives the stable one. The plugin panel's **Relay:** row shows the address a running plugin
+dials, and Figma's window title shows which plugin it is.
 
 ## Running it
 
 Two setups, depending on whether an MCP client already has the relay up.
 
-**Join the client's relay** (the usual case — your editor started `figma-design-relay` on 1994 and
-the plugin is attached to it):
+**Join the client's relay** (the usual case — your editor started the relay, `figma-design-relay`
+on 1994 or a worktree's `figma-design-relay-dev-<name>` on its slot port, and the plugin is attached
+to it):
 
 ```bash
 cd server && bun run build
@@ -33,7 +35,7 @@ validation and the plugin bridge run in the leader, from whatever `dist` it was 
 After changing `schema.ts`, `leader.ts`, `bridge.ts` or `election.ts`, restart the client's server
 (or use the isolated setup below) before trusting a probe.
 
-**Hold your own leader** (nothing on 1994, e.g. a plain terminal with no MCP client running):
+**Hold your own leader** (nothing on the port, e.g. a plain terminal with no MCP client running):
 
 ```bash
 cd server && bun run build
@@ -44,18 +46,13 @@ node .smoke/call.mjs get_selection
 `hold-leader.mjs` exits with a message if something already holds the port, instead of quietly
 becoming a second follower and printing "leader".
 
-**Isolated port** (only when you must test a rebuilt leader beside a running client relay):
-
-```bash
-cd plugin && VITE_FIGMA_DESIGN_RELAY_WS="ws://localhost:1995/ws" bun run build
-cd ../server && bun run build
-SMOKE_PORT=1995 node .smoke/hold-leader.mjs
-SMOKE_PORT=1995 node .smoke/call.mjs get_selection
-```
-
-`plugin/manifest.json` allows 1995 alongside 1994 for this, since Figma blocks any WebSocket to a URL
-not on `networkAccess.allowedDomains`. Rebuild the plugin **without** the variable afterwards — a
-plugin left dialing 1995 is the classic way to end up "running but not connected".
+**A rebuilt leader beside a running client relay** is what a feature worktree's slot is for: the
+worktree's server leads on the slot's port, so restarting it after a change to `schema.ts`,
+`leader.ts`, `bridge.ts` or `election.ts` never touches the stable relay. With no MCP entry for the
+slot yet, `node .smoke/hold-leader.mjs` in the worktree holds the slot's port instead. The old
+recipe of building the stable plugin with `VITE_FIGMA_DESIGN_RELAY_WS` pointing at 1995 is gone:
+the stable manifest allows only 1994, and in a worktree the build refuses a URL that contradicts
+the slot.
 
 ## Tools that read the workspace
 
@@ -96,15 +93,17 @@ the plugin in every open file instead, and `list_files` stayed empty until each 
 
 ## Checking the wiring when it will not connect
 
-`netstat -ano | grep 1994` answers most of it. `LISTENING` on `127.0.0.1` means a leader is up (a
-listener on `0.0.0.0` or `[::]` is not this project); a matching `ESTABLISHED` pair means the plugin
-is attached. `SYN_SENT` means the plugin is retrying against a port with nothing on it. No socket at
-all means the plugin is dialing some other port — check its **Relay:** row.
+`netstat -ano | grep 1994` (or the slot's port) answers most of it. `LISTENING` on `127.0.0.1` means
+a leader is up (a listener on `0.0.0.0` or `[::]` is not this project); a matching `ESTABLISHED`
+pair means the plugin is attached. `SYN_SENT` means the plugin is retrying against a port with
+nothing on it. No socket at all means the plugin is dialing some other port — check its **Relay:**
+row.
 
-Figma's Development menu lists plugins by name, and every import of a `manifest.json` with this
-plugin's name looks the same. Keep exactly one: the one imported from this checkout's
-`plugin/manifest.json`. A probe with a bogus `nodeId` tells an old build from a current one — old
-builds ignore it and describe the selection instead.
+Figma's Development menu lists plugins by name. Keep exactly one **Figma Design Relay**, imported
+from the main checkout's `plugin/manifest.json`, and one **Figma Design Relay (Dev: <name>)** per
+live worktree, imported from that worktree's `plugin/dist/manifest.json`. Two imports under one name
+means an old worktree was not torn down. A probe with a bogus `nodeId` tells an old build from a
+current one — old builds ignore it and describe the selection instead.
 
 ## Scripts
 

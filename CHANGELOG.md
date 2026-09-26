@@ -18,6 +18,23 @@ with its tag.
 
 ## [Unreleased]
 
+## [0.7.4] - 2026-09-27
+
+Stable and in-progress builds can now run side by side in Figma.
+
+### Added
+
+- Dev slots. Every feature is built in its own git worktree, and `bun scripts/dev-slot.mjs` gives
+  that worktree a plugin name, plugin id and relay port of its own: it shows up in Figma as
+  **Figma Design Relay (Dev: _name_)** on a port from 1995–2019, while the main checkout stays
+  **Figma Design Relay** on 1994. The plugin build, the server and the smoke harness all read the
+  slot, so the two relays never meet.
+
+### Changed
+
+- The stable plugin allows only port 1994. The old "isolated port 1995" recipe, which rebuilt the
+  stable plugin for another port, is replaced by dev slots.
+
 ## [0.7.3] - 2026-09-27
 
 Phase 6's FigJam and Slides support, run against real Figma for the first time. Every live check
