@@ -425,7 +425,14 @@ Closes Gap 6. The bridge is design-file-only today because of one line in the
 manifest; everything downstream of changing it needs care.
 
 - **R43.** `plugin/manifest.json` declares
-  `"editorType": ["figma", "figjam", "slides", "dev"]`.
+  `"editorType": ["figma", "figjam", "slides"]`. _Amended 2026-09-26:_ this
+  originally listed `"dev"` as well, but Figma does not let one plugin declare
+  both `dev` and `figjam`. FigJam is the point of this phase, so Dev Mode was
+  dropped, along with the `inspect` capability that only Dev Mode uses. Dev Mode
+  served one user — a developer with a paid Dev seat and view-only access — and
+  every read it offered still works in the design editor. The capability table
+  keeps its Dev Mode rule, so restoring `dev` is a one-line manifest change if
+  Figma ever allows the combination.
 - **R44.** The current design-editor gate (`EDIT_REQUEST_TYPES` plus
   `requireEditorMode`) is replaced by an **editor-aware capability table**. Node
   types and APIs differ per editor — `figma.createPage()` does not exist in

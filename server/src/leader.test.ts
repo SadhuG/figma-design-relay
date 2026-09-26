@@ -59,3 +59,73 @@ describe("Leader listener", () => {
     expect(res.headers.get("access-control-allow-origin")).toBeNull();
   });
 });
+
+/**
+ * Since phase 6 the plugin runs in FigJam and Slides too, and which tools work
+ * depends on the editor — so list_files says which editor each file is open in.
+ */
+describe("list_files reports the editor", () => {
+  let leader: Leader;
+  let port: number;
+
+  beforeAll(async () => {
+    leader = new Leader(0);
+    await leader.start();
+    const address = leader.address();
+    if (address === null) throw new Error("leader did not bind");
+    port = address.port;
+  });
+
+  afterAll(() => {
+    leader.stop();
+  });
+
+  const connect = (query: string): Promise<WebSocket> =>
+    new Promise((resolve, reject) => {
+      const socket = new WebSocket(`ws://127.0.0.1:${port}/ws?${query}`);
+      socket.onopen = () => resolve(socket);
+      socket.onerror = () => reject(new Error("plugin socket failed to open"));
+    });
+
+  const listFiles = async (): Promise<unknown> => {
+    const res = await fetch(`http://127.0.0.1:${port}/rpc`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tool: "list_files" }),
+    });
+    return ((await res.json()) as { data: unknown }).data;
+  };
+
+  // The server registers the socket on the upgrade, a tick after the client's
+  // open event; poll rather than sleep a guessed interval.
+  const waitForFiles = async (count: number): Promise<unknown> => {
+    for (let attempt = 0; attempt < 50; attempt++) {
+      const files = (await listFiles()) as unknown[];
+      if (files.length >= count) return files;
+      await Bun.sleep(10);
+    }
+    throw new Error(`expected ${count} connected files`);
+  };
+
+  test("carries the editorType the plugin connected with", async () => {
+    const socket = await connect("fileKey=board&fileName=Board&editorType=figjam");
+    try {
+      expect(await waitForFiles(1)).toEqual([
+        { fileKey: "board", fileName: "Board", editorType: "figjam" },
+      ]);
+    } finally {
+      socket.close();
+    }
+  });
+
+  test("omits an editorType it does not recognise", async () => {
+    const socket = await connect("fileKey=odd&fileName=Odd&editorType=bogus");
+    try {
+      const files = (await waitForFiles(1)) as Array<Record<string, unknown>>;
+      const odd = files.find((file) => file.fileKey === "odd");
+      expect(odd).toEqual({ fileKey: "odd", fileName: "Odd" });
+    } finally {
+      socket.close();
+    }
+  });
+});

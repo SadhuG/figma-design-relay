@@ -1,7 +1,7 @@
 import { serializeNode } from "./serializer";
 import { addLayersToFrame } from "../html-figma/figma";
 import { runScript } from "./script-runner";
-import { EDIT_REQUEST_TYPES, requireEditorMode } from "./editor-gate";
+import { assertEditorSupports, type EditorType } from "./capabilities";
 import { describeForCodeConnect, type NodeLike } from "./component-identity";
 import {
   getLibraries,
@@ -127,6 +127,7 @@ const sendStatus = () => {
     payload: {
       fileName: figma.root.name,
       fileKey: getFileKey(),
+      editorType: figma.editorType,
       selectionCount: figma.currentPage.selection.length,
     },
   });
@@ -347,9 +348,10 @@ const decodeBase64ToBytes = (base64: string): Uint8Array => {
 
 const handleRequest = async (request: ServerRequest): Promise<PluginResponse> => {
   try {
-    if (EDIT_REQUEST_TYPES.has(request.type)) {
-      requireEditorMode(request.type, figma.editorType);
-    }
+    // Refuses a tool the current editor cannot run — Dev Mode writes, design-only
+    // APIs in FigJam or Slides, FigJam-only nodes elsewhere — before any of it
+    // fails deep inside the Plugin API with a less useful message.
+    assertEditorSupports(request.type, figma.editorType as EditorType);
     switch (request.type) {
       case "get_document":
         return {
@@ -422,6 +424,7 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
           requestId: request.requestId,
           data: {
             fileName: figma.root.name,
+            editorType: figma.editorType,
             currentPageId: figma.currentPage.id,
             currentPageName: figma.currentPage.name,
             pageCount: figma.root.children.length,
@@ -1857,7 +1860,7 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
         };
       }
       case "whoami":
-        // A read, so not in EDIT_REQUEST_TYPES: it works in Dev Mode.
+        // A read, so absent from CAPABILITIES: it works in every editor.
         return {
           type: request.type,
           requestId: request.requestId,

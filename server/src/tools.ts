@@ -273,7 +273,7 @@ export function composeDesignContext(input: DesignContextInput): ContentBlock[] 
 export function registerTools(server: McpServer, node: Node, port: number): void {
   server.tool(
     "list_files",
-    "List all currently connected Figma files. Returns fileKey and fileName for each. Use the fileKey to target a specific file in other tools.",
+    "List all currently connected Figma files. Returns fileKey, fileName and editorType (figma, figjam, slides or dev) for each — which tools work depends on the editor, so check it before picking one. Use the fileKey to target a specific file in other tools.",
     async (): Promise<ToolResult> => {
       try {
         let files = node.listConnectedFiles();

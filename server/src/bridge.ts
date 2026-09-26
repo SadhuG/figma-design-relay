@@ -1,7 +1,8 @@
 import { WebSocketServer, WebSocket } from "ws";
 import type { IncomingMessage } from "node:http";
 import type { Duplex } from "node:stream";
-import type { BridgeRequest, BridgeResponse, ConnectedFile } from "./types.js";
+import { EDITOR_TYPES } from "./types.js";
+import type { BridgeRequest, BridgeResponse, ConnectedFile, EditorType } from "./types.js";
 
 interface PendingRequest {
   resolve: (resp: BridgeResponse) => void;
@@ -14,6 +15,7 @@ interface ConnectionEntry {
   ws: WebSocket;
   fileKey: string;
   fileName: string;
+  editorType?: EditorType;
   isAlive: boolean;
 }
 
@@ -52,7 +54,8 @@ export class Bridge {
     }
 
     const url = new URL(request.url, "http://localhost");
-    const { fileKey, fileName = "Unknown" } = Object.fromEntries(url.searchParams);
+    const { fileKey, fileName = "Unknown", editorType } = Object.fromEntries(url.searchParams);
+    const editor = EDITOR_TYPES.find((known) => known === editorType);
 
     if (!fileKey) {
       console.error("Plugin connected without fileKey, rejecting");
@@ -61,11 +64,16 @@ export class Bridge {
     }
 
     this.wss.handleUpgrade(request, socket, head, (ws) => {
-      this.handleConnection(ws, fileKey, fileName);
+      this.handleConnection(ws, fileKey, fileName, editor);
     });
   }
 
-  private handleConnection(ws: WebSocket, fileKey: string, fileName: string): void {
+  private handleConnection(
+    ws: WebSocket,
+    fileKey: string,
+    fileName: string,
+    editorType?: EditorType
+  ): void {
     // Replace existing connection for the same file
     const existing = this.connections.get(fileKey);
     if (existing) {
@@ -75,6 +83,7 @@ export class Bridge {
       ws,
       fileKey,
       fileName,
+      editorType,
       isAlive: true,
     });
     console.error(`Plugin connected: ${fileName} (${fileKey})`);
@@ -166,6 +175,7 @@ export class Bridge {
     return [...this.connections.values()].map((entry) => ({
       fileKey: entry.fileKey,
       fileName: entry.fileName,
+      ...(entry.editorType ? { editorType: entry.editorType } : {}),
     }));
   }
 

@@ -1353,7 +1353,15 @@
                     <td>R43</td>
                     <td>
                       <code>plugin/manifest.json</code> declares
-                      <code>"editorType": ["figma", "figjam", "slides", "dev"]</code>.
+                      <code>"editorType": ["figma", "figjam", "slides"]</code>.
+                      <em>Amended 2026-09-26:</em> this originally listed <code>"dev"</code> as
+                      well, but Figma does not let one plugin declare both <code>dev</code> and
+                      <code>figjam</code>. FigJam is the point of this phase, so Dev Mode was
+                      dropped, along with the <code>inspect</code> capability that only Dev Mode
+                      uses. Dev Mode served one user — a developer with a paid Dev seat and
+                      view-only access — and every read it offered still works in the design editor.
+                      The capability table keeps its Dev Mode rule, so restoring <code>dev</code> is
+                      a one-line manifest change if Figma ever allows the combination.
                     </td>
                   </tr>
                   <tr>

@@ -10,6 +10,5 @@
     "reasoning": "Connects to local MCP server via WebSocket to stream Figma document data to AI tools"
   },
   "documentAccess": "dynamic-page",
-  "editorType": ["figma", "dev"],
-  "capabilities": ["inspect"]
+  "editorType": ["figma", "figjam", "slides"]
 }
