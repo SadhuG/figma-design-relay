@@ -9,17 +9,15 @@
  * payload that failed half-way would leave half a diagram on the board.
  */
 
+import type { Box } from "./intent";
+
 type ShapeType = ShapeWithTextNode["shapeType"];
 type StrokeCap = ConnectorNode["connectorEndStrokeCap"];
+type Magnet = ConnectorEndpointEndpointNodeIdAndMagnet["magnet"];
 
 export interface Point {
   x: number;
   y: number;
-}
-
-export interface Box extends Point {
-  width: number;
-  height: number;
 }
 
 export interface RenderNode extends Box {
@@ -54,35 +52,37 @@ export interface RenderDiagram {
   segments: RenderSegment[];
 }
 
-const SHAPES: Record<string, ShapeType> = {
-  rect: "SQUARE",
-  round: "ROUNDED_RECTANGLE",
-  stadium: "ROUNDED_RECTANGLE",
-  subroutine: "PREDEFINED_PROCESS",
-  cylinder: "ENG_DATABASE",
-  circle: "ELLIPSE",
-  hexagon: "HEXAGON",
-  diamond: "DIAMOND",
-  parallelogram: "PARALLELOGRAM_RIGHT",
-  "parallelogram-alt": "PARALLELOGRAM_LEFT",
-  trapezoid: "TRAPEZOID",
-  actor: "ROUNDED_RECTANGLE",
-  entity: "SQUARE",
-  state: "ROUNDED_RECTANGLE",
-  start: "ELLIPSE",
-  end: "ELLIPSE",
-};
+// Maps, not object literals: the payload is unvalidated, and a lookup on an
+// object would accept "constructor" or "toString" as a shape or cap.
+const SHAPES = new Map<string, ShapeType>([
+  ["rect", "SQUARE"],
+  ["round", "ROUNDED_RECTANGLE"],
+  ["stadium", "ROUNDED_RECTANGLE"],
+  ["subroutine", "PREDEFINED_PROCESS"],
+  ["cylinder", "ENG_DATABASE"],
+  ["circle", "ELLIPSE"],
+  ["hexagon", "HEXAGON"],
+  ["diamond", "DIAMOND"],
+  ["parallelogram", "PARALLELOGRAM_RIGHT"],
+  ["parallelogram-alt", "PARALLELOGRAM_LEFT"],
+  ["trapezoid", "TRAPEZOID"],
+  ["actor", "ROUNDED_RECTANGLE"],
+  ["entity", "SQUARE"],
+  ["state", "ROUNDED_RECTANGLE"],
+  ["start", "ELLIPSE"],
+  ["end", "ELLIPSE"],
+]);
 
-const CAPS: Record<string, StrokeCap> = {
-  none: "NONE",
-  arrow: "ARROW_EQUILATERAL",
-  "open-arrow": "ARROW_LINES",
-  circle: "CIRCLE_FILLED",
-  "zero-or-one": "ERD_ZERO_OR_ONE",
-  "exactly-one": "ERD_EXACTLY_ONE",
-  "zero-or-more": "ERD_ZERO_OR_MORE",
-  "one-or-more": "ERD_ONE_OR_MORE",
-};
+const CAPS = new Map<string, StrokeCap>([
+  ["none", "NONE"],
+  ["arrow", "ARROW_EQUILATERAL"],
+  ["open-arrow", "ARROW_LINES"],
+  ["circle", "CIRCLE_FILLED"],
+  ["zero-or-one", "ERD_ZERO_OR_ONE"],
+  ["exactly-one", "ERD_EXACTLY_ONE"],
+  ["zero-or-more", "ERD_ZERO_OR_MORE"],
+  ["one-or-more", "ERD_ONE_OR_MORE"],
+]);
 
 const STYLES = new Set(["solid", "dashed", "thick"]);
 
@@ -108,7 +108,7 @@ const checkLine = (line: Record<string, unknown>, where: string): void => {
     malformed(`${where} has style ${String(line.style)}`);
   }
   for (const cap of [line.startCap, line.endCap]) {
-    if (cap !== undefined && (typeof cap !== "string" || !(cap in CAPS))) {
+    if (cap !== undefined && (typeof cap !== "string" || !CAPS.has(cap))) {
       malformed(`${where} has an unknown cap ${String(cap)}`);
     }
   }
@@ -174,8 +174,8 @@ export const readDiagramPayload = (value: unknown): RenderDiagram => {
  * @throws For a shape with no FigJam equivalent — never substitutes one.
  */
 export const shapeFor = (shape: string): ShapeType => {
-  const mapped = SHAPES[shape];
-  if (!mapped) malformed(`shape "${shape}" has no FigJam equivalent`);
+  const mapped = SHAPES.get(shape);
+  if (!mapped) return malformed(`shape "${shape}" has no FigJam equivalent`);
   return mapped;
 };
 
@@ -185,7 +185,61 @@ export const shapeFor = (shape: string): ShapeType => {
  * @param end - Which end: a link's start defaults to no cap, its end to an arrow.
  */
 export const capFor = (cap: string | undefined, end: "start" | "end"): StrokeCap =>
-  CAPS[cap ?? (end === "start" ? "none" : "arrow")] ?? "NONE";
+  CAPS.get(cap ?? (end === "start" ? "none" : "arrow")) ?? "NONE";
+
+/**
+ * The sides a connector attaches to. FigJam picks them between two nodes, but
+ * AUTO on both ends of a self-loop collapses the connector to a point.
+ */
+export const connectorMagnets = (from: string, to: string): { start: Magnet; end: Magnet } =>
+  from === to ? { start: "RIGHT", end: "TOP" } : { start: "AUTO", end: "AUTO" };
+
+interface Removable {
+  readonly removed: boolean;
+  remove(): void;
+}
+
+/**
+ * Runs `work`, and if it throws removes every node in `created` before
+ * rethrowing — the Plugin API has no rollback, so a creator that fails
+ * part-way would otherwise leave its half-built nodes on the board.
+ * @param created - Filled by `work` as it creates nodes.
+ */
+export const removeOnFailure = async <T>(
+  created: Removable[],
+  work: () => Promise<T>
+): Promise<T> => {
+  try {
+    return await work();
+  } catch (err) {
+    for (const node of created) if (!node.removed) node.remove();
+    throw err;
+  }
+};
+
+/**
+ * Wraps `figma.loadFontAsync` so each font loads once per call site — a
+ * diagram's shapes and connectors all share a default font, and awaiting it per
+ * node adds up inside the bridge's timeout. A failed load is forgotten, so it
+ * can be retried.
+ */
+export const fontLoader = (
+  load: (font: FontName) => Promise<void>
+): ((font: FontName) => Promise<void>) => {
+  const pending = new Map<string, Promise<void>>();
+  return (font) => {
+    const key = `${font.family}::${font.style}`;
+    let loading = pending.get(key);
+    if (!loading) {
+      loading = load(font).catch((err: unknown) => {
+        pending.delete(key);
+        throw err;
+      });
+      pending.set(key, loading);
+    }
+    return loading;
+  };
+};
 
 /** How a link style is stroked. */
 export const strokeFor = (style: string): { dashPattern: number[]; strokeWeight: number } => {

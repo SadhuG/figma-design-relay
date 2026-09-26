@@ -4,14 +4,17 @@ import { runScript } from "./script-runner";
 import { assertEditorSupports, type EditorType } from "./capabilities";
 import {
   capFor,
+  connectorMagnets,
+  fontLoader,
   placementOrigin,
   readDiagramPayload,
+  removeOnFailure,
   shapeFor,
   strokeFor,
-  type Box,
   type RenderEdge,
   type RenderSegment,
 } from "./diagram";
+import type { Box } from "./intent";
 import { describeForCodeConnect, type NodeLike } from "./component-identity";
 import {
   getLibraries,
@@ -375,7 +378,8 @@ const describeCreated = (node: SceneNode) => ({
 /** Caps, stroke and label shared by node-to-node edges and free segments. */
 const styleConnector = async (
   connector: ConnectorNode,
-  line: RenderEdge | RenderSegment
+  line: RenderEdge | RenderSegment,
+  loadFont: (font: FontName) => Promise<void>
 ): Promise<void> => {
   connector.connectorStartStrokeCap = capFor(line.startCap, "start");
   connector.connectorEndStrokeCap = capFor(line.endCap, "end");
@@ -383,7 +387,7 @@ const styleConnector = async (
   connector.dashPattern = dashPattern;
   connector.strokeWeight = strokeWeight;
   if (line.label) {
-    await figma.loadFontAsync(connector.text.fontName as FontName);
+    await loadFont(connector.text.fontName as FontName);
     connector.text.characters = line.label;
   }
 };
@@ -1942,13 +1946,22 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
             );
           }
         }
-        const connector = figma.createConnector();
-        connector.connectorStart = { endpointNodeId: startId, magnet: "AUTO" };
-        connector.connectorEnd = { endpointNodeId: endId, magnet: "AUTO" };
-        if (typeof params.text === "string" && params.text !== "") {
-          await figma.loadFontAsync(connector.text.fontName as FontName);
-          connector.text.characters = params.text;
-        }
+        // Attaching an end or loading the label font can still throw — an
+        // endpoint on another page, a node the API will not connect — and a
+        // failure must not leave an empty connector behind.
+        const magnets = connectorMagnets(startId, endId);
+        const created: SceneNode[] = [];
+        const connector = await removeOnFailure(created, async () => {
+          const connector = figma.createConnector();
+          created.push(connector);
+          connector.connectorStart = { endpointNodeId: startId, magnet: magnets.start };
+          connector.connectorEnd = { endpointNodeId: endId, magnet: magnets.end };
+          if (typeof params.text === "string" && params.text !== "") {
+            await figma.loadFontAsync(connector.text.fontName as FontName);
+            connector.text.characters = params.text;
+          }
+          return connector;
+        });
         return {
           type: request.type,
           requestId: request.requestId,
@@ -1982,50 +1995,52 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
         );
         const created: SceneNode[] = [];
         const shapes = new Map<string, ShapeWithTextNode>();
+        // Every new shape and connector starts in the same default font.
+        const loadFont = fontLoader((font) => figma.loadFontAsync(font));
         try {
-          for (const item of diagram.nodes) {
-            const shape = figma.createShapeWithText();
-            created.push(shape);
-            shape.shapeType = shapeFor(item.shape);
-            await figma.loadFontAsync(shape.text.fontName as FontName);
-            shape.text.characters = item.label;
-            shape.resize(item.width, item.height);
-            shape.x = origin.x + item.x;
-            shape.y = origin.y + item.y;
-            if (item.shape === "start" || item.shape === "end") {
-              shape.fills = [{ type: "SOLID", color: { r: 0.12, g: 0.12, b: 0.12 } }];
-            }
-            shapes.set(item.id, shape);
-          }
-
-          for (const edge of diagram.edges) {
-            const connector = figma.createConnector();
-            created.push(connector);
-            const start = (shapes.get(edge.from) as ShapeWithTextNode).id;
-            const end = (shapes.get(edge.to) as ShapeWithTextNode).id;
-            // A self-loop needs distinct magnets, or it collapses to a point.
-            const loop = edge.from === edge.to;
-            connector.connectorStart = { endpointNodeId: start, magnet: loop ? "RIGHT" : "AUTO" };
-            connector.connectorEnd = { endpointNodeId: end, magnet: loop ? "TOP" : "AUTO" };
-            await styleConnector(connector, edge);
-          }
-
-          for (const segment of diagram.segments) {
-            const connector = figma.createConnector();
-            created.push(connector);
-            connector.connectorLineType = "STRAIGHT";
-            connector.connectorStart = {
-              position: { x: origin.x + segment.start.x, y: origin.y + segment.start.y },
-            };
-            connector.connectorEnd = {
-              position: { x: origin.x + segment.end.x, y: origin.y + segment.end.y },
-            };
-            await styleConnector(connector, segment);
-          }
-        } catch (err) {
           // Scripts are not atomic, but this tool can be: take back everything
           // it drew so a failure never leaves half a diagram on the board.
-          for (const node of created) if (!node.removed) node.remove();
+          await removeOnFailure(created, async () => {
+            for (const item of diagram.nodes) {
+              const shape = figma.createShapeWithText();
+              created.push(shape);
+              shape.shapeType = shapeFor(item.shape);
+              await loadFont(shape.text.fontName as FontName);
+              shape.text.characters = item.label;
+              shape.resize(item.width, item.height);
+              shape.x = origin.x + item.x;
+              shape.y = origin.y + item.y;
+              if (item.shape === "start" || item.shape === "end") {
+                shape.fills = [{ type: "SOLID", color: { r: 0.12, g: 0.12, b: 0.12 } }];
+              }
+              shapes.set(item.id, shape);
+            }
+
+            for (const edge of diagram.edges) {
+              const connector = figma.createConnector();
+              created.push(connector);
+              const start = (shapes.get(edge.from) as ShapeWithTextNode).id;
+              const end = (shapes.get(edge.to) as ShapeWithTextNode).id;
+              const magnets = connectorMagnets(edge.from, edge.to);
+              connector.connectorStart = { endpointNodeId: start, magnet: magnets.start };
+              connector.connectorEnd = { endpointNodeId: end, magnet: magnets.end };
+              await styleConnector(connector, edge, loadFont);
+            }
+
+            for (const segment of diagram.segments) {
+              const connector = figma.createConnector();
+              created.push(connector);
+              connector.connectorLineType = "STRAIGHT";
+              connector.connectorStart = {
+                position: { x: origin.x + segment.start.x, y: origin.y + segment.start.y },
+              };
+              connector.connectorEnd = {
+                position: { x: origin.x + segment.end.x, y: origin.y + segment.end.y },
+              };
+              await styleConnector(connector, segment, loadFont);
+            }
+          });
+        } catch (err) {
           const reason = err instanceof Error ? err.message : String(err);
           throw new Error(
             `Drawing the diagram failed, and nothing was left on the board: ${reason}`

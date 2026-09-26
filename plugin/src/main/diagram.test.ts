@@ -1,5 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { capFor, placementOrigin, readDiagramPayload, shapeFor, strokeFor } from "./diagram";
+import {
+  capFor,
+  connectorMagnets,
+  fontLoader,
+  placementOrigin,
+  readDiagramPayload,
+  removeOnFailure,
+  shapeFor,
+  strokeFor,
+} from "./diagram";
 
 const node = { id: "A", label: "Start", shape: "rect", x: 0, y: 0, width: 160, height: 80 };
 const payload = {
@@ -39,6 +48,20 @@ describe("readDiagramPayload", () => {
     expect(() =>
       readDiagramPayload({ ...payload, nodes: [{ ...node, shape: "blob" }], edges: [] })
     ).toThrow(/blob/);
+  });
+
+  // The lookup tables are objects; a built-in property name must not pass the check
+  // and then fail half-way through drawing.
+  test("refuses a shape or cap named after a built-in object property", () => {
+    expect(() =>
+      readDiagramPayload({ ...payload, nodes: [{ ...node, shape: "toString" }], edges: [] })
+    ).toThrow(/toString/);
+    expect(() =>
+      readDiagramPayload({
+        ...payload,
+        edges: [{ from: "A", to: "B", style: "solid", endCap: "constructor" }],
+      })
+    ).toThrow(/constructor/);
   });
 
   test("accepts sequence segments", () => {
@@ -86,6 +109,68 @@ describe("strokeFor", () => {
     expect(strokeFor("dashed").dashPattern.length).toBeGreaterThan(0);
     expect(strokeFor("solid").dashPattern).toEqual([]);
     expect(strokeFor("thick").strokeWeight).toBeGreaterThan(strokeFor("solid").strokeWeight);
+  });
+});
+
+describe("connectorMagnets", () => {
+  test("lets FigJam choose the sides between two nodes", () => {
+    expect(connectorMagnets("A", "B")).toEqual({ start: "AUTO", end: "AUTO" });
+  });
+
+  // AUTO on both ends of a self-loop collapses the connector to a point.
+  test("gives a node connected to itself two distinct sides", () => {
+    const { start, end } = connectorMagnets("A", "A");
+    expect(start).not.toBe("AUTO");
+    expect(end).not.toBe("AUTO");
+    expect(start).not.toBe(end);
+  });
+});
+
+describe("removeOnFailure", () => {
+  const fakeNode = () => {
+    const node = { removed: false, remove: () => (node.removed = true) };
+    return node;
+  };
+
+  test("removes every node created before the failure, then rethrows", async () => {
+    const created = [fakeNode(), fakeNode()];
+    await expect(
+      removeOnFailure(created, async () => {
+        throw new Error("font failed");
+      })
+    ).rejects.toThrow("font failed");
+    expect(created.every((node) => node.removed)).toBe(true);
+  });
+
+  test("leaves the nodes alone when the work succeeds", async () => {
+    const created = [fakeNode()];
+    expect(await removeOnFailure(created, async () => 42)).toBe(42);
+    expect(created[0].removed).toBe(false);
+  });
+});
+
+describe("fontLoader", () => {
+  test("loads each font once however often it is asked for", async () => {
+    const calls: string[] = [];
+    const load = fontLoader(async (font) => {
+      calls.push(`${font.family} ${font.style}`);
+    });
+    await load({ family: "Inter", style: "Medium" });
+    await load({ family: "Inter", style: "Medium" });
+    await load({ family: "Inter", style: "Bold" });
+    expect(calls).toEqual(["Inter Medium", "Inter Bold"]);
+  });
+
+  // A failed load must be retryable, not cached as done.
+  test("tries a font again after it failed to load", async () => {
+    let attempts = 0;
+    const load = fontLoader(async () => {
+      attempts++;
+      if (attempts === 1) throw new Error("offline");
+    });
+    await expect(load({ family: "Inter", style: "Medium" })).rejects.toThrow("offline");
+    await load({ family: "Inter", style: "Medium" });
+    expect(attempts).toBe(2);
   });
 });
 
