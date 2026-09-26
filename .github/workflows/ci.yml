@@ -26,6 +26,11 @@ jobs:
         with:
           bun-version: latest
 
+      # Server and plugin carry one version, and CHANGELOG.md must have an entry
+      # for it, so a bump without notes (or a half bump) fails here.
+      - name: Version and changelog agree
+        run: bun scripts/check-version.mjs
+
       # ── Server ───────────────────────────────────────────────────────
       # The server has no separate type-check step because its build *is*
       # `tsc`, so building it type-checks it.

@@ -18,6 +18,7 @@ Figma plugin ──ws://localhost:1994/ws──> leader server ──stdio──
 | --------- | ----------------------------------------- | ------------------------------------------------------------- |
 | root      | `bun install`                             | installs Husky's pre-commit hook                              |
 | root      | `bun run format` / `bun run format:check` | Prettier 3.9.6 over everything                                |
+| root      | `bun scripts/check-version.mjs`           | server + plugin versions agree and have a changelog entry     |
 | `server/` | `bun run build`                           | `tsc` → `dist/`                                               |
 | `plugin/` | `bun run build`                           | two Vite passes: UI, then `main`                              |
 | `plugin/` | `bun run typecheck`                       | `tsc --noEmit`; `bun run build` runs it first                 |
@@ -269,9 +270,28 @@ reintroduce the old strings.
 maintainer, so `server/package.json` is named `figma-design-relay-server` and marked
 `"private": true` — `npm publish` refuses it. Do not "fix" that by renaming it back.
 
-`.github/workflows/release.yml` is `workflow_dispatch` with two inputs: a semantic `version` and
-`dry_run`, which **defaults to true**. A dry run builds, packages, and uploads the archive as a build
-artifact, but creates no tag and no release; a real release is an explicit opt-out. Use a dry run
+### Versions and the changelog
+
+**Every finished phase bumps the minor version; every fix, hardening or tooling change between
+phases bumps the patch** — without being asked, in the task's last commit, before it merges to
+`dev`. The server and the plugin always carry the same number, and `CHANGELOG.md` (Keep a
+Changelog) gets an entry for it in the same commit. Docs-only commits do not bump.
+`bun scripts/check-version.mjs` fails if the two `package.json` files disagree or the changelog has
+no `## [x.y.z] - YYYY-MM-DD` heading for their version; CI runs it on every push.
+
+After the merge onto `main`, tag that commit `vX.Y.Z` and push the tag by name
+(`git push origin vX.Y.Z`). **Never `git push --tags`**: the local clone also holds upstream's
+`v0.0.x` tags, which do not belong on this fork's remote.
+
+`0.2.0`–`0.5.0` were assigned after the fact. Their tags point at where each phase finished, but the
+`package.json` in those commits still says `0.1.1`; `0.5.1` is the first where they agree. Phase 5
+will be `0.6.0` and phase 6 `0.7.0`.
+
+`.github/workflows/release.yml` is `workflow_dispatch` with one input, `dry_run`, which **defaults
+to true**. The version is not an input: the workflow reads it with `check-version.mjs` and uses the
+changelog entry as the release notes, so bump and write the entry before running it. A dry run
+builds, packages, and uploads the archive as a build artifact, but creates no tag and no release; a
+real release is an explicit opt-out, and attaches to the tag if it already exists. Use a dry run
 whenever the workflow itself changes, since it is otherwise never exercised.
 
 The archive carries both halves — `plugin/` (self-contained) and `server/` (`dist` plus
@@ -351,6 +371,7 @@ commit.
 | add a test file or a new kind of test                         | README's "Tests and type-checking" comments, which say what each suite covers                                                           |
 | finish or start a plan task                                   | its checkboxes in the plan markdown, then rebuild the HTML (see "The docs site")                                                        |
 | finish a phase                                                | the Status column of the plan-set table, and whether a later phase's "Needs" is now met                                                 |
+| finish a phase, or a fix or change between phases             | the version in both `package.json` files and its `CHANGELOG.md` entry — see "Versions and the changelog"                                |
 | learn something a probe, a live check or a failure taught you | the constraint or gotcha list it belongs in — a surprise that cost time goes under "Things that cost real time", with the symptom first |
 
 Get every number from a command run in this session, never from memory or from an older copy of

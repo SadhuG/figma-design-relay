@@ -8,13 +8,14 @@ name: Release
 # `dry_run` defaults to true. A real release is an explicit opt-out, and the dry
 # run exercises every step except tagging, so the workflow can be verified on
 # real runners without publishing anything.
+#
+# The version is not an input. It comes from the package.json files, which
+# scripts/check-version.mjs requires to agree with each other and with an entry
+# in CHANGELOG.md; that entry becomes the release notes. Bump the version and
+# write the entry in a commit first, then run this on the branch holding it.
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: "Version (semantic, e.g., 1.0.0)"
-        required: true
-        type: string
       dry_run:
         description: "Build and package only — do not create a GitHub Release"
         required: false
@@ -28,40 +29,29 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - name: Validate version format
-        run: |
-          if ! echo "${{ inputs.version }}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?(\+[a-zA-Z0-9.]+)?$'; then
-            echo "Error: Version must be semantic (e.g., 1.0.0, 1.0.0-beta.1)"
-            exit 1
-          fi
-          echo "Version ${{ inputs.version }} accepted (dry_run=${{ inputs.dry_run }})"
-
       - name: Checkout repository
         uses: actions/checkout@v7
-
-      # Node is here only for `npm version`; nothing is published.
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version-file: ".nvmrc"
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
+      # `server/src/version.ts` reads package.json at runtime and the MCP server
+      # advertises that value, so the committed package.json is the version.
+      - name: Read version and release notes
+        id: version
+        run: |
+          version=$(bun scripts/check-version.mjs)
+          bun scripts/check-version.mjs --notes > release-notes.md
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Releasing $version (dry_run=${{ inputs.dry_run }})"
+
       # ── Server ───────────────────────────────────────────────────────
 
       - name: Install server dependencies
         working-directory: server
         run: bun install --frozen-lockfile
-
-      # `server/src/version.ts` reads package.json at runtime and the MCP server
-      # advertises that value, so this has to happen before the build is packaged
-      # even though nothing is published.
-      - name: Set server version
-        working-directory: server
-        run: npm version ${{ inputs.version }} --no-git-tag-version --allow-same-version
 
       - name: Transpile server (tsc)
         working-directory: server
@@ -74,14 +64,6 @@ jobs:
           head -1 dist/index.js | grep -q '#!/usr/bin/env node' \
             || { echo "ERROR: dist/index.js is missing the node shebang"; exit 1; }
           echo "✓ Shebang present in dist/index.js"
-
-      - name: Verify the server reports the release version
-        working-directory: server
-        run: |
-          reported=$(node -e "console.log(require('./package.json').version)")
-          [ "$reported" = "${{ inputs.version }}" ] \
-            || { echo "ERROR: server reports $reported, expected ${{ inputs.version }}"; exit 1; }
-          echo "✓ Server reports ${{ inputs.version }}"
 
       # ── Plugin ───────────────────────────────────────────────────────
 
@@ -113,35 +95,40 @@ jobs:
           cp server/bun.lock release/server/
 
           cp README.md release/
+          cp CHANGELOG.md release/
           cp LICENSE.md release/
 
           cd release
-          zip -r ../figma-design-relay-v${{ inputs.version }}.zip .
+          zip -r ../figma-design-relay-v${{ steps.version.outputs.version }}.zip .
           cd ..
           echo "Packaged:"
-          unzip -l figma-design-relay-v${{ inputs.version }}.zip
+          unzip -l figma-design-relay-v${{ steps.version.outputs.version }}.zip
 
       # Uploaded on every run, so a dry run still produces something inspectable.
       - name: Upload release archive as a build artifact
         uses: actions/upload-artifact@v7
         with:
-          name: figma-design-relay-v${{ inputs.version }}
-          path: figma-design-relay-v${{ inputs.version }}.zip
+          name: figma-design-relay-v${{ steps.version.outputs.version }}
+          path: figma-design-relay-v${{ steps.version.outputs.version }}.zip
           if-no-files-found: error
 
+      # If the tag already exists (phase tags are pushed by hand), the release
+      # attaches to it rather than creating a new one.
       - name: Create GitHub Release
         if: ${{ !inputs.dry_run }}
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: v${{ inputs.version }}
-          name: Release v${{ inputs.version }}
-          generate_release_notes: true
-          files: figma-design-relay-v${{ inputs.version }}.zip
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Release v${{ steps.version.outputs.version }}
+          body_path: release-notes.md
+          files: figma-design-relay-v${{ steps.version.outputs.version }}.zip
 
       - name: Dry run summary
         if: ${{ inputs.dry_run }}
         run: |
           echo "### Dry run complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Built and packaged \`v${{ inputs.version }}\`. No tag, no release, nothing published." >> $GITHUB_STEP_SUMMARY
+          echo "Built and packaged \`v${{ steps.version.outputs.version }}\`. No tag, no release, nothing published." >> $GITHUB_STEP_SUMMARY
           echo "The archive is attached to this run as a build artifact." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          cat release-notes.md >> $GITHUB_STEP_SUMMARY
