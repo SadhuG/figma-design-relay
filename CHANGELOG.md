@@ -18,6 +18,29 @@ with its tag.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-26
+
+Phase 5 of the parity plan set: library reach and identity (R36–R42).
+
+### Added
+
+- `whoami` reports the signed-in Figma user, or `user: null` with an explanation.
+- `get_libraries` lists enabled team libraries by their published variable collections, and with
+  a `collectionKey` lists one collection's variables with their import keys.
+- `import_library_asset` imports a published component, component set, style or variable by key
+  and returns its id. It is a write, so Dev Mode rejects it.
+- `search_design_system` searches components and instances on the current page and published
+  variable collections. It is narrower than Figma's own tool and says so: an empty result is not
+  proof a component does not exist. Library components are found through their instances.
+- `docs/libraries.md` documents all four, their permissions and their limits.
+
+### Changed
+
+- The plugin manifest requests the `currentuser` and `teamlibrary` permissions, which Figma shows
+  on import.
+- Permission and plan refusals from Figma come back as errors naming the permission, the plan and
+  the next step, rather than Figma's raw message.
+
 ## [0.5.1] - 2026-09-26
 
 ### Fixed

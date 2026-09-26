@@ -31,6 +31,7 @@ export const EDIT_REQUEST_TYPES = new Set<RequestType>([
   "remove_manual_keyframe_track",
   "set_timeline_duration",
   "run_script",
+  "import_library_asset",
 ]);
 
 /**

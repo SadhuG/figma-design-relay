@@ -148,3 +148,58 @@ describe("validateRpc add_code_connect_map component", () => {
     ).not.toBeNull();
   });
 });
+
+describe("validateRpc whoami", () => {
+  test("accepts a bare call and forwards no params", () => {
+    const result = validateRpc("whoami", undefined, { fileKey: "abc" });
+    expect(result.error).toBeNull();
+    expect(result.params).toEqual({});
+  });
+});
+
+describe("validateRpc get_libraries", () => {
+  test("accepts a call with no collection key", () => {
+    expect(validateRpc("get_libraries", undefined, {}).error).toBeNull();
+  });
+
+  test("forwards a collection key", () => {
+    const result = validateRpc("get_libraries", undefined, { collectionKey: "abc123" });
+    expect(result.params).toEqual({ collectionKey: "abc123" });
+  });
+
+  test("rejects an empty collection key", () => {
+    expect(validateRpc("get_libraries", undefined, { collectionKey: "" }).error).not.toBeNull();
+  });
+});
+
+describe("validateRpc import_library_asset", () => {
+  test("forwards kind and key", () => {
+    const result = validateRpc("import_library_asset", undefined, { kind: "style", key: "abc" });
+    expect(result.error).toBeNull();
+    expect(result.params).toEqual({ kind: "style", key: "abc" });
+  });
+
+  test("rejects an unknown kind", () => {
+    expect(
+      validateRpc("import_library_asset", undefined, { kind: "page", key: "abc" }).error
+    ).not.toBeNull();
+  });
+
+  test("rejects an empty key", () => {
+    expect(
+      validateRpc("import_library_asset", undefined, { kind: "component", key: "" }).error
+    ).not.toBeNull();
+  });
+});
+
+describe("validateRpc search_design_system", () => {
+  test("forwards the query", () => {
+    const result = validateRpc("search_design_system", undefined, { query: "button" });
+    expect(result.error).toBeNull();
+    expect(result.params).toEqual({ query: "button" });
+  });
+
+  test("rejects a blank query", () => {
+    expect(validateRpc("search_design_system", undefined, { query: "  " }).error).not.toBeNull();
+  });
+});

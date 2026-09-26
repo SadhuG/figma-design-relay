@@ -62,6 +62,11 @@ Then add the following to your AI tool's MCP configuration (e.g. Cursor, Windsur
 
 In Figma go to `Plugins > Development > Import plugin from manifest` and select `manifest.json` from the unzipped `plugin/` folder.
 
+The plugin requests two permissions, which Figma shows when you import it:
+
+- `currentuser` — so `whoami` can report who is signed in.
+- `teamlibrary` — so `get_libraries`, `import_library_asset` and `search_design_system` can reach published libraries. Team library APIs are gated by Figma plan; on plans without them these tools return an explicit error naming the requirement (`search_design_system` falls back to the open file), and every other tool is unaffected.
+
 ### 4. Start using it 🎉
 
 Open a Figma file, run the plugin, and start prompting your AI tool. The MCP server will automatically connect to the plugin.
@@ -120,6 +125,10 @@ If you want to know more about how it works, read the [How it works](#how-it-wor
 | `get_context_for_code_connect` | A component's properties and variant axes, for authoring a mapping                                                                         |
 | `get_code_connect_suggestions` | Propose mappings by matching Figma component names against workspace exports                                                               |
 | `add_code_connect_map`         | Write a Code Connect mapping file into the workspace — a local file, not a Figma cloud record                                              |
+| `whoami`                       | Report the Figma user signed in to the connected plugin                                                                                    |
+| `get_libraries`                | List enabled team libraries by their published variable collections, and a collection's variable keys ([guide](docs/libraries.md))         |
+| `import_library_asset`         | Import a published component, component set, style or variable by key                                                                      |
+| `search_design_system`         | Search components and instances on the current page and published variable collections — scoped, see the guide                             |
 
 All tools accept an optional `fileKey` parameter when multiple Figma files are connected. Use `list_files` to discover connected files and their keys.
 
@@ -137,6 +146,7 @@ All tools accept an optional `fileKey` parameter when multiple Figma files are c
 - Serialized nodes carry design-system identity, not just geometry: instances report their main component and set properties, fills bound to variables report the token name, named styles report the style name, and auto-layout children report hug/fill intent. Fields are omitted when a node carries nothing for them, so plain nodes serialize exactly as before. See [docs/serialized-nodes.md](docs/serialized-nodes.md).
 - `get_design_context` exports icons and images as files under `assetDir` rather than returning expiring URLs, because a committed file is what code you keep actually needs. The path must stay inside the MCP server working directory. See [docs/design-context.md](docs/design-context.md) for the response contract.
 - Code Connect on the relay is entirely local: mappings are read from and written to `*.figma.tsx` files in your repository, never Figma's cloud. There is no `send_code_connect_mappings` equivalent — committing the file is the publish step, which also makes the mapping reviewable. Mapped components show up at the top of `get_design_context`. See [docs/code-connect.md](docs/code-connect.md).
+- Team library tools (`get_libraries`, `import_library_asset`, `search_design_system`) need the `teamlibrary` permission and a Figma plan that allows team library APIs. Without them `get_libraries` and `import_library_asset` return an explicit error naming the requirement, `search_design_system` falls back to the current page and says why, and every other tool is unaffected. `search_design_system` is much narrower than Figma's own: the Plugin API cannot full-text search published component libraries, so it searches the current page (including instances of library components) and published variable collections only — an empty result is not proof a component does not exist. See [docs/libraries.md](docs/libraries.md).
 
 ### What You Can Build
 
@@ -212,7 +222,8 @@ bun run format:check  # verify formatting without writing (useful in CI)
 
 ```bash
 cd server && bun test       # schemas, /rpc guards, codegen, content blocks, asset export, Code Connect
-cd plugin && bun test       # run_script, serializer and its helpers, Code Connect context, editor gate
+cd plugin && bun test       # run_script, serializer and its helpers, Code Connect context, editor gate,
+                            # library tools and search against stubbed figma.teamLibrary / currentUser
 cd plugin && bun run typecheck   # tsc --noEmit; also runs as part of `bun run build`
 ```
 

@@ -33,4 +33,13 @@ describe("EDIT_REQUEST_TYPES", () => {
     expect(EDIT_REQUEST_TYPES.has("get_document")).toBe(false);
     expect(EDIT_REQUEST_TYPES.has("get_selection")).toBe(false);
   });
+
+  test("gates import_library_asset, which writes into the file", () => {
+    expect(EDIT_REQUEST_TYPES.has("import_library_asset")).toBe(true);
+  });
+
+  test("leaves the phase 5 reads usable in Dev Mode", () => {
+    expect(EDIT_REQUEST_TYPES.has("whoami")).toBe(false);
+    expect(EDIT_REQUEST_TYPES.has("get_libraries")).toBe(false);
+  });
 });

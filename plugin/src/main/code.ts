@@ -3,6 +3,13 @@ import { addLayersToFrame } from "../html-figma/figma";
 import { runScript } from "./script-runner";
 import { EDIT_REQUEST_TYPES, requireEditorMode } from "./editor-gate";
 import { describeForCodeConnect, type NodeLike } from "./component-identity";
+import {
+  getLibraries,
+  importLibraryAsset,
+  searchDesignSystem,
+  whoami,
+  type SearchableNode,
+} from "./library";
 
 export type RequestType =
   | "get_document"
@@ -43,7 +50,11 @@ export type RequestType =
   | "remove_manual_keyframe_track"
   | "set_timeline_duration"
   | "run_script"
-  | "get_context_for_code_connect";
+  | "get_context_for_code_connect"
+  | "whoami"
+  | "get_libraries"
+  | "import_library_asset"
+  | "search_design_system";
 
 type ServerRequestParams = Record<string, unknown> & {
   format?: "PNG" | "SVG" | "JPG" | "PDF";
@@ -1845,6 +1856,50 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
           data: describeForCodeConnect(node as unknown as NodeLike, main?.id),
         };
       }
+      case "whoami":
+        // A read, so not in EDIT_REQUEST_TYPES: it works in Dev Mode.
+        return {
+          type: request.type,
+          requestId: request.requestId,
+          data: await whoami(() => figma.currentUser),
+        };
+      case "get_libraries": {
+        const collectionKey = request.params?.collectionKey;
+        return {
+          type: request.type,
+          requestId: request.requestId,
+          data: await getLibraries(
+            () => figma.teamLibrary,
+            typeof collectionKey === "string" ? collectionKey : undefined
+          ),
+        };
+      }
+      case "import_library_asset":
+        return {
+          type: request.type,
+          requestId: request.requestId,
+          data: await importLibraryAsset(
+            {
+              component: (key) => figma.importComponentByKeyAsync(key),
+              componentSet: (key) => figma.importComponentSetByKeyAsync(key),
+              style: (key) => figma.importStyleByKeyAsync(key),
+              variable: (key) => figma.variables.importVariableByKeyAsync(key),
+            },
+            request.params?.kind,
+            request.params?.key
+          ),
+        };
+      case "search_design_system":
+        return {
+          type: request.type,
+          requestId: request.requestId,
+          data: await searchDesignSystem(request.params?.query, {
+            nodes: figma.currentPage.findAllWithCriteria({
+              types: ["COMPONENT", "COMPONENT_SET", "INSTANCE"],
+            }) as unknown as SearchableNode[],
+            readTeamLibrary: () => figma.teamLibrary,
+          }),
+        };
       default:
         throw new Error(`Unknown request type: ${request.type}`);
     }

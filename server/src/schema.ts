@@ -945,6 +945,43 @@ export const toolInputSchemas = {
       ),
     fileKey: fileKeyField,
   }),
+
+  whoami: z.object({
+    fileKey: fileKeyField,
+  }),
+
+  get_libraries: z.object({
+    collectionKey: z
+      .string()
+      .min(1, "collectionKey must not be empty")
+      .optional()
+      .describe(
+        "A collection key from a previous get_libraries call. When given, lists that collection's variables with the keys import_library_asset takes."
+      ),
+    fileKey: fileKeyField,
+  }),
+
+  import_library_asset: z.object({
+    kind: z
+      .enum(["component", "componentSet", "style", "variable"])
+      .describe("What to import. Use the kind that matches the key you have."),
+    key: z
+      .string()
+      .min(1, "key must not be empty")
+      .describe(
+        "The published key, not a node id. Component and component set keys: `key` on a serialized COMPONENT/COMPONENT_SET, `mainComponent.key` on an instance, or `key` on a search_design_system hit. Variable keys: get_libraries with a collectionKey. Style keys: read `style.key` in the library file with run_script."
+      ),
+    fileKey: fileKeyField,
+  }),
+
+  search_design_system: z.object({
+    query: z
+      .string()
+      .trim()
+      .min(1, "query must not be empty")
+      .describe("Name or partial name to search for, e.g. `button` or `button/primary`."),
+    fileKey: fileKeyField,
+  }),
 } as const;
 
 type ToolName = keyof typeof toolInputSchemas;
@@ -1049,6 +1086,10 @@ const rpcToArgs: Record<
   get_context_for_code_connect: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
   get_code_connect_suggestions: (nodeIds, params) => ({ nodeIds, ...params }),
   add_code_connect_map: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
+  whoami: (_nodeIds, params) => ({ ...params }),
+  get_libraries: (_nodeIds, params) => ({ ...params }),
+  import_library_asset: (_nodeIds, params) => ({ ...params }),
+  search_design_system: (_nodeIds, params) => ({ ...params }),
 };
 
 /**
