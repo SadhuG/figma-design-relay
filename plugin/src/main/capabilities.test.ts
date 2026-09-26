@@ -100,3 +100,28 @@ describe("assertEditorSupports", () => {
     }
   });
 });
+
+describe("slides scope", () => {
+  test("reads and screenshots work", () => {
+    expect(() => assertEditorSupports("get_document", "slides")).not.toThrow();
+    expect(() => assertEditorSupports("get_screenshot", "slides")).not.toThrow();
+  });
+
+  test("text edits inside existing slides work", () => {
+    expect(() => assertEditorSupports("set_text_content", "slides")).not.toThrow();
+    expect(() => assertEditorSupports("set_node_properties", "slides")).not.toThrow();
+  });
+
+  test("creating design structure is out of scope", () => {
+    expect(() => assertEditorSupports("create_frame", "slides")).toThrow(/design editor/i);
+    expect(() => assertEditorSupports("create_page", "slides")).toThrow();
+  });
+
+  test("FigJam-only tools are refused", () => {
+    expect(() => assertEditorSupports("create_sticky", "slides")).toThrow(/figjam/i);
+  });
+
+  test("sections are refused, since Slides has no canvas to section", () => {
+    expect(() => assertEditorSupports("create_section", "slides")).toThrow(/Slides/);
+  });
+});
