@@ -194,6 +194,24 @@ export const capFor = (cap: string | undefined, end: "start" | "end"): StrokeCap
 export const connectorMagnets = (from: string, to: string): { start: Magnet; end: Magnet } =>
   from === to ? { start: "RIGHT", end: "TOP" } : { start: "AUTO", end: "AUTO" };
 
+interface Attachable {
+  connectorLineType: string;
+  connectorStart: ConnectorEndpoint;
+  connectorEnd: ConnectorEndpoint;
+}
+
+/**
+ * Joins a connector to two nodes. A new connector takes the line type last
+ * picked in FigJam's toolbar, and a straight one refuses every magnet but
+ * CENTER and NONE, so the line type is set before either end.
+ */
+export const attachConnector = (connector: Attachable, startId: string, endId: string): void => {
+  const magnets = connectorMagnets(startId, endId);
+  connector.connectorLineType = "ELBOWED";
+  connector.connectorStart = { endpointNodeId: startId, magnet: magnets.start };
+  connector.connectorEnd = { endpointNodeId: endId, magnet: magnets.end };
+};
+
 interface Removable {
   readonly removed: boolean;
   remove(): void;

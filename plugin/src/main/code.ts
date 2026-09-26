@@ -3,8 +3,8 @@ import { addLayersToFrame } from "../html-figma/figma";
 import { runScript } from "./script-runner";
 import { assertEditorSupports, type EditorType } from "./capabilities";
 import {
+  attachConnector,
   capFor,
-  connectorMagnets,
   fontLoader,
   labelFont,
   placementOrigin,
@@ -1951,13 +1951,11 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
         // Attaching an end or loading the label font can still throw — an
         // endpoint on another page, a node the API will not connect — and a
         // failure must not leave an empty connector behind.
-        const magnets = connectorMagnets(startId, endId);
         const created: SceneNode[] = [];
         const connector = await removeOnFailure(created, async () => {
           const connector = figma.createConnector();
           created.push(connector);
-          connector.connectorStart = { endpointNodeId: startId, magnet: magnets.start };
-          connector.connectorEnd = { endpointNodeId: endId, magnet: magnets.end };
+          attachConnector(connector, startId, endId);
           if (typeof params.text === "string" && params.text !== "") {
             await figma.loadFontAsync(labelFont(connector.text.fontName as FontName));
             connector.text.characters = params.text;
@@ -2023,9 +2021,7 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
               created.push(connector);
               const start = (shapes.get(edge.from) as ShapeWithTextNode).id;
               const end = (shapes.get(edge.to) as ShapeWithTextNode).id;
-              const magnets = connectorMagnets(edge.from, edge.to);
-              connector.connectorStart = { endpointNodeId: start, magnet: magnets.start };
-              connector.connectorEnd = { endpointNodeId: end, magnet: magnets.end };
+              attachConnector(connector, start, end);
               await styleConnector(connector, edge, loadFont);
             }
 

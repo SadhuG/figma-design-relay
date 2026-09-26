@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  attachConnector,
   capFor,
   connectorMagnets,
   fontLoader,
@@ -124,6 +125,45 @@ describe("connectorMagnets", () => {
     expect(start).not.toBe("AUTO");
     expect(end).not.toBe("AUTO");
     expect(start).not.toBe(end);
+  });
+});
+
+describe("attachConnector", () => {
+  // Mimics the Plugin API: a straight connector refuses side magnets.
+  const fakeConnector = (lineType: string) => {
+    const connector = {
+      connectorLineType: lineType,
+      ends: [] as unknown[],
+      set connectorStart(end: { magnet: string }) {
+        if (connector.connectorLineType === "STRAIGHT" && !["CENTER", "NONE"].includes(end.magnet))
+          throw new Error("Straight connector endpoints may only use the CENTER or NONE magnets.");
+        connector.ends.push(end);
+      },
+      set connectorEnd(end: { magnet: string }) {
+        connector.connectorStart = end;
+      },
+    };
+    return connector;
+  };
+
+  // Seen live: a new connector takes the line type last picked in FigJam's toolbar.
+  test("attaches even when FigJam's toolbar is set to straight lines", () => {
+    const connector = fakeConnector("STRAIGHT");
+    attachConnector(connector, "1:1", "1:2");
+    expect(connector.connectorLineType).toBe("ELBOWED");
+    expect(connector.ends).toEqual([
+      { endpointNodeId: "1:1", magnet: "AUTO" },
+      { endpointNodeId: "1:2", magnet: "AUTO" },
+    ]);
+  });
+
+  test("gives a self-loop two distinct sides", () => {
+    const connector = fakeConnector("ELBOWED");
+    attachConnector(connector, "1:1", "1:1");
+    expect(connector.ends).toEqual([
+      { endpointNodeId: "1:1", magnet: "RIGHT" },
+      { endpointNodeId: "1:1", magnet: "TOP" },
+    ]);
   });
 });
 
