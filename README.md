@@ -35,7 +35,7 @@ It also includes a small, opt-in set of **write tools** for safe agent-driven ed
 
 ### 1. Download the release
 
-Grab the archive from the [latest release](https://github.com/SadhuG/figma-design-relay/releases) page and unzip it. It contains both halves — `server/` and `plugin/`.
+Grab the archive from the [latest release](https://github.com/SadhuG/figma-design-relay/releases) page and unzip it. It contains both halves — `server/` and `plugin/`. What changed in each version is in [CHANGELOG.md](CHANGELOG.md).
 
 > This fork is not published to npm. The upstream project owns the `@gethopp` scope, so there is no `npx` one-liner here. If you would rather build from source, see [Local development](#local-development).
 
@@ -226,8 +226,10 @@ GitHub Actions runs all of the above on every push and pull request.
 
 ```
 Figma-Design-Relay/
-├── plugin/   # Figma plugin (TypeScript/React)
-└── server/   # MCP server (TypeScript/Node.js)
+├── CHANGELOG.md  # What changed in each version
+├── scripts/      # check-version.mjs: one version across server, plugin and changelog
+├── plugin/       # Figma plugin (TypeScript/React)
+└── server/       # MCP server (TypeScript/Node.js)
     └── src/
         ├── index.ts      # Entry point
         ├── bridge.ts     # WebSocket bridge to Figma plugin
