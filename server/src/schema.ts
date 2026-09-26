@@ -969,7 +969,7 @@ export const toolInputSchemas = {
       .string()
       .min(1, "key must not be empty")
       .describe(
-        "The published key, not a node id. Component and component set keys: `key` on a serialized COMPONENT/COMPONENT_SET, `mainComponent.key` on an instance, or `key` on a search_design_system hit. Variable keys: get_libraries with a collectionKey. Style keys: read `style.key` in the library file with run_script."
+        "The published key, not a node id. Component and component set keys: `key` on a serialized COMPONENT/COMPONENT_SET, `mainComponent.key` on an instance, or `key` on a search_design_system hit with remote: true (a local component's key imports only if it has been published). Variable keys: get_libraries with a collectionKey. Style keys: read `style.key` in the library file with run_script."
       ),
     fileKey: fileKeyField,
   }),
@@ -980,6 +980,15 @@ export const toolInputSchemas = {
       .trim()
       .min(1, "query must not be empty")
       .describe("Name or partial name to search for, e.g. `button` or `button/primary`."),
+    limit: z
+      .number()
+      .int("limit must be a whole number")
+      .min(1, "limit must be at least 1")
+      .max(200, "limit must be at most 200")
+      .optional()
+      .describe(
+        "Most hits to return, strongest first (default 50, max 200). The result's total says how many matched when some were cut."
+      ),
     fileKey: fileKeyField,
   }),
 } as const;

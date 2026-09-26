@@ -202,4 +202,15 @@ describe("validateRpc search_design_system", () => {
   test("rejects a blank query", () => {
     expect(validateRpc("search_design_system", undefined, { query: "  " }).error).not.toBeNull();
   });
+
+  test("forwards a limit", () => {
+    const result = validateRpc("search_design_system", undefined, { query: "button", limit: 5 });
+    expect(result.params).toEqual({ query: "button", limit: 5 });
+  });
+
+  test.each([0, 201, 2.5])("rejects a limit of %p", (limit) => {
+    expect(
+      validateRpc("search_design_system", undefined, { query: "button", limit }).error
+    ).toMatch(/limit/);
+  });
 });

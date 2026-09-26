@@ -22,8 +22,8 @@ Figma plugin ──ws://localhost:1994/ws──> leader server ──stdio──
 | `server/` | `bun run build`                           | `tsc` → `dist/`                                               |
 | `plugin/` | `bun run build`                           | two Vite passes: UI, then `main`                              |
 | `plugin/` | `bun run typecheck`                       | `tsc --noEmit`; `bun run build` runs it first                 |
-| `server/` | `bun test`                                | 164 tests: schemas, rpc guards, codegen, assets, Code Connect |
-| `plugin/` | `bun test`                                | 123 tests: scripts, serializer, editor gate, library tools    |
+| `server/` | `bun test`                                | 168 tests: schemas, rpc guards, codegen, assets, Code Connect |
+| `plugin/` | `bun test`                                | 142 tests: scripts, serializer, editor gate, library tools    |
 
 **Bun everywhere — never `npm` or `yarn`.**
 
@@ -136,10 +136,10 @@ plugin/src/
 ### Landmarks worth knowing before editing
 
 - `server/src/schema.ts:593` — `toolInputSchemas`, the advertised MCP input shapes.
-- `server/src/schema.ts:1033` — `rpcToArgs`, typed `Record<ToolName, …>`. **Adding a key to
+- `server/src/schema.ts:1042` — `rpcToArgs`, typed `Record<ToolName, …>`. **Adding a key to
   `toolInputSchemas` without adding its mapper here is a compile error.** That is deliberate; do not
   work around it.
-- `server/src/schema.ts:1121` — `validateRpc`, the follower→leader guard.
+- `server/src/schema.ts:1130` — `validateRpc`, the follower→leader guard.
 - `server/src/tools.ts:273` — `registerTools`; `:1165` — `renderResponse`, the shared handler wrapper
   that turns a `BridgeResponse.error` into an MCP error result.
 - `plugin/src/main/editor-gate.ts:7` — `EDIT_REQUEST_TYPES`; `:43` — `requireEditorMode`, which
@@ -151,7 +151,7 @@ plugin/src/
   three sites type `data` as `unknown` and will happily ship an unresolved promise. The `figma`
   lookups it feeds to `references.ts` live at `:413`; the three helper modules never name the global.
   `docs/serialized-nodes.md` documents the emitted shape and, for every field, when it is omitted.
-- `plugin/src/main/code.ts:1915` — the UI-collapse block that closes the file: window sizing,
+- `plugin/src/main/code.ts:1919` — the UI-collapse block that closes the file: window sizing,
   the `ui-collapsed` `figma.clientStorage` key, and the `request-ui-state` / `set-ui-collapsed`
   messages the React panel exchanges with the main thread. Note `figma.showUI` runs with
   `visible: false` and the panel is only shown once the stored state resolves — anything that

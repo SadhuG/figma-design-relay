@@ -1893,12 +1893,16 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
         return {
           type: request.type,
           requestId: request.requestId,
-          data: await searchDesignSystem(request.params?.query, {
-            nodes: figma.currentPage.findAllWithCriteria({
-              types: ["COMPONENT", "COMPONENT_SET", "INSTANCE"],
-            }) as unknown as SearchableNode[],
-            readTeamLibrary: () => figma.teamLibrary,
-          }),
+          data: await searchDesignSystem(
+            request.params?.query,
+            {
+              nodes: figma.currentPage.findAllWithCriteria({
+                types: ["COMPONENT", "COMPONENT_SET", "INSTANCE"],
+              }) as unknown as SearchableNode[],
+              readTeamLibrary: () => figma.teamLibrary,
+            },
+            request.params?.limit
+          ),
         };
       default:
         throw new Error(`Unknown request type: ${request.type}`);

@@ -339,6 +339,87 @@ describe("reading figma.teamLibrary itself", () => {
   });
 });
 
+describe("searchDesignSystem limits", () => {
+  const many: SearchableNode[] = Array.from({ length: 60 }, (_, i) => ({
+    id: `40:${i}`,
+    name: `Button ${String(i).padStart(2, "0")}`,
+    type: "COMPONENT",
+  }));
+
+  test("returns at most 50 hits by default and says how many matched", async () => {
+    const result = await searchDesignSystem("button", {
+      nodes: many,
+      readTeamLibrary: stubTeamLibrary(),
+    });
+    expect(result.results).toHaveLength(50);
+    expect(result.total).toBe(60);
+    expect(result.note).toContain("limit");
+  });
+
+  test("honours a caller's limit", async () => {
+    const result = await searchDesignSystem(
+      "button",
+      { nodes: many, readTeamLibrary: stubTeamLibrary() },
+      3
+    );
+    expect(result.results.map((hit) => hit.name)).toEqual(["Button 00", "Button 01", "Button 02"]);
+    expect(result.total).toBe(60);
+  });
+
+  test("omits total when nothing was cut", async () => {
+    const result = await searchDesignSystem("card", {
+      nodes: [{ id: "11:1", name: "Card", type: "COMPONENT" }],
+      readTeamLibrary: stubTeamLibrary(),
+    });
+    expect(result.total).toBeUndefined();
+  });
+
+  test("never has more than 64 main-component lookups in flight", async () => {
+    let inFlight = 0;
+    let peak = 0;
+    const main: SearchableNode = { id: "50:1", name: "Chip", type: "COMPONENT" };
+    const instances: SearchableNode[] = Array.from({ length: 200 }, (_, i) => ({
+      id: `51:${i}`,
+      name: "Chip",
+      type: "INSTANCE",
+      getMainComponentAsync: async () => {
+        inFlight++;
+        peak = Math.max(peak, inFlight);
+        await new Promise((resolve) => setTimeout(resolve, 1));
+        inFlight--;
+        return main;
+      },
+    }));
+    const result = await searchDesignSystem("chip", {
+      nodes: instances,
+      readTeamLibrary: stubTeamLibrary(),
+    });
+    expect(peak).toBeLessThanOrEqual(64);
+    expect(result.results.map((hit) => hit.id)).toEqual(["50:1"]);
+  });
+
+  test("stops resolving instances once a whole batch fails, and says why", async () => {
+    let calls = 0;
+    const instances: SearchableNode[] = Array.from({ length: 200 }, (_, i) => ({
+      id: `52:${i}`,
+      name: "Chip",
+      type: "INSTANCE",
+      getMainComponentAsync: async () => {
+        calls++;
+        throw new Error("Failed to load");
+      },
+    }));
+    const card: SearchableNode = { id: "11:1", name: "Card", type: "COMPONENT" };
+    const result = await searchDesignSystem("card", {
+      nodes: [card, ...instances],
+      readTeamLibrary: stubTeamLibrary(),
+    });
+    expect(calls).toBe(64);
+    expect(result.results.map((hit) => hit.id)).toEqual(["11:1"]);
+    expect(result.instanceError).toContain("Development menu");
+  });
+});
+
 describe("searchDesignSystem with a broken instance", () => {
   test("skips an instance whose main component cannot be read, keeping every other hit", async () => {
     const card: SearchableNode = { id: "11:1", name: "Card", type: "COMPONENT" };
