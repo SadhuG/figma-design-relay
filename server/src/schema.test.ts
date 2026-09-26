@@ -156,3 +156,18 @@ describe("validateRpc whoami", () => {
     expect(result.params).toEqual({});
   });
 });
+
+describe("validateRpc get_libraries", () => {
+  test("accepts a call with no collection key", () => {
+    expect(validateRpc("get_libraries", undefined, {}).error).toBeNull();
+  });
+
+  test("forwards a collection key", () => {
+    const result = validateRpc("get_libraries", undefined, { collectionKey: "abc123" });
+    expect(result.params).toEqual({ collectionKey: "abc123" });
+  });
+
+  test("rejects an empty collection key", () => {
+    expect(validateRpc("get_libraries", undefined, { collectionKey: "" }).error).not.toBeNull();
+  });
+});

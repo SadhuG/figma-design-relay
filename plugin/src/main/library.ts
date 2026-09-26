@@ -38,3 +38,64 @@ export const whoami = async (readUser: () => CurrentUserLike | null): Promise<Wh
   }
   return { user: { id: user.id, name: user.name, photoUrl: user.photoUrl } };
 };
+
+/** The fields of Figma's `figma.teamLibrary` this module calls. */
+export interface TeamLibraryLike {
+  getAvailableLibraryVariableCollectionsAsync(): Promise<
+    Array<{ key: string; name: string; libraryName: string }>
+  >;
+  getVariablesInLibraryCollectionAsync(
+    collectionKey: string
+  ): Promise<Array<{ key: string; name: string; resolvedType: string }>>;
+}
+
+export interface LibrariesResult {
+  libraries?: Array<{ name: string; collections: Array<{ key: string; name: string }> }>;
+  collectionKey?: string;
+  variables?: Array<{ key: string; name: string; resolvedType: string }>;
+  note: string;
+}
+
+/**
+ * Lists published libraries by their variable collections, or — given a
+ * collection key — that collection's variables with the keys
+ * `import_library_asset` takes.
+ * @param teamLibrary - `figma.teamLibrary`.
+ * @param collectionKey - A collection key from a previous call.
+ */
+export const getLibraries = async (
+  teamLibrary: TeamLibraryLike,
+  collectionKey?: string
+): Promise<LibrariesResult> => {
+  if (collectionKey) {
+    const variables = await withPermissionContext("teamLibrary", () =>
+      teamLibrary.getVariablesInLibraryCollectionAsync(collectionKey)
+    );
+    return {
+      collectionKey,
+      variables: variables.map(({ key, name, resolvedType }) => ({ key, name, resolvedType })),
+      note: 'Pass a variable key to import_library_asset with kind "variable" to use it in this file.',
+    };
+  }
+
+  const collections = await withPermissionContext("teamLibrary", () =>
+    teamLibrary.getAvailableLibraryVariableCollectionsAsync()
+  );
+
+  // The API returns a flat list tagged with its library; group it so the
+  // caller sees libraries rather than a wall of collections.
+  const byLibrary = new Map<string, Array<{ key: string; name: string }>>();
+  for (const collection of collections) {
+    const bucket = byLibrary.get(collection.libraryName) ?? [];
+    bucket.push({ key: collection.key, name: collection.name });
+    byLibrary.set(collection.libraryName, bucket);
+  }
+
+  return {
+    libraries: [...byLibrary.entries()].map(([name, list]) => ({ name, collections: list })),
+    note:
+      "The Plugin API exposes published variable collections per library, not a full component " +
+      "catalogue. Libraries that publish no variables do not appear here. Pass a collection key " +
+      "back as collectionKey to list its variables; use search_design_system for components.",
+  };
+};

@@ -3,7 +3,7 @@ import { addLayersToFrame } from "../html-figma/figma";
 import { runScript } from "./script-runner";
 import { EDIT_REQUEST_TYPES, requireEditorMode } from "./editor-gate";
 import { describeForCodeConnect, type NodeLike } from "./component-identity";
-import { whoami } from "./library";
+import { getLibraries, whoami } from "./library";
 
 export type RequestType =
   | "get_document"
@@ -45,7 +45,8 @@ export type RequestType =
   | "set_timeline_duration"
   | "run_script"
   | "get_context_for_code_connect"
-  | "whoami";
+  | "whoami"
+  | "get_libraries";
 
 type ServerRequestParams = Record<string, unknown> & {
   format?: "PNG" | "SVG" | "JPG" | "PDF";
@@ -1854,6 +1855,17 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
           requestId: request.requestId,
           data: await whoami(() => figma.currentUser),
         };
+      case "get_libraries": {
+        const collectionKey = request.params?.collectionKey;
+        return {
+          type: request.type,
+          requestId: request.requestId,
+          data: await getLibraries(
+            figma.teamLibrary,
+            typeof collectionKey === "string" ? collectionKey : undefined
+          ),
+        };
+      }
       default:
         throw new Error(`Unknown request type: ${request.type}`);
     }

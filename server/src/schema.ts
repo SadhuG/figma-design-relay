@@ -949,6 +949,17 @@ export const toolInputSchemas = {
   whoami: z.object({
     fileKey: fileKeyField,
   }),
+
+  get_libraries: z.object({
+    collectionKey: z
+      .string()
+      .min(1, "collectionKey must not be empty")
+      .optional()
+      .describe(
+        "A collection key from a previous get_libraries call. When given, lists that collection's variables with the keys import_library_asset takes."
+      ),
+    fileKey: fileKeyField,
+  }),
 } as const;
 
 type ToolName = keyof typeof toolInputSchemas;
@@ -1054,6 +1065,7 @@ const rpcToArgs: Record<
   get_code_connect_suggestions: (nodeIds, params) => ({ nodeIds, ...params }),
   add_code_connect_map: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
   whoami: (_nodeIds, params) => ({ ...params }),
+  get_libraries: (_nodeIds, params) => ({ ...params }),
 };
 
 /**
