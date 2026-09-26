@@ -100,6 +100,27 @@ The node's `absoluteRenderBounds` as `{ x, y, width, height }`. Emitted **only w
 `absoluteBoundingBox`** — that is, when a shadow, blur or overflow pushes the rendered area past the
 layout box. When the two boxes are identical the render bounds are pure noise, so they are omitted.
 
+## FigJam fields
+
+Nodes that exist only in FigJam carry their meaning outside the geometry, so
+[`figjam-serializer.ts`](../plugin/src/main/figjam-serializer.ts) lifts it onto the top level of the
+node. Every field is omitted on every other node type.
+
+| Field          | Node types                                           | Omitted when                                                 |
+| -------------- | ---------------------------------------------------- | ------------------------------------------------------------ |
+| `text`         | `STICKY`, `SHAPE_WITH_TEXT`, `CONNECTOR` (its label) | The node has no text sublayer                                |
+| `text`         | `CODE_BLOCK` (its `code`)                            | Never on a code block                                        |
+| `authorName`   | `STICKY`                                             | The sticky's author is hidden (`authorVisible` is `false`)   |
+| `shapeType`    | `SHAPE_WITH_TEXT` — `SQUARE`, `DIAMOND`, `ELLIPSE`…  | Never on a shape-with-text                                   |
+| `codeLanguage` | `CODE_BLOCK`                                         | Never on a code block                                        |
+| `connector`    | `CONNECTOR` — `{ from, to, lineType }`               | Never on a connector                                         |
+| `table`        | `TABLE` — rows of cell text, `table[row][column]`    | The table reports no rows or columns (an empty `{}` instead) |
+
+`connector.from` and `connector.to` are the ids of the nodes the connector is attached to, or `null`
+for an end that floats free on the canvas. They are what make a board's topology survive the round
+trip: without them a flowchart serializes as a pile of unrelated shapes. `SECTION` needs no field of
+its own — it is a container, and its children serialize like any other.
+
 ## Why the lookups are async
 
 `plugin/manifest.json` declares `documentAccess: "dynamic-page"`, under which the synchronous

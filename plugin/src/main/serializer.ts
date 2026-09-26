@@ -21,6 +21,7 @@ import {
   type LayoutIntent,
   type ReactionSummary,
 } from "./intent";
+import { serializeFigJamNode, type FigJamFields } from "./figjam-serializer";
 
 // --- Serialized paint types (discriminated union) ---
 type SerializedSolidPaint = {
@@ -119,7 +120,7 @@ export interface SerializedDesign {
   styles?: Record<string, StyleRef | "mixed">;
 }
 
-export type SerializedNode = {
+export type SerializedNode = FigJamFields & {
   id: string;
   name: string;
   type: string;
@@ -511,6 +512,10 @@ export const serializeNode = async (
 
   const renderBounds = serializeRenderBounds(raw);
   if (renderBounds) base.renderBounds = renderBounds;
+
+  // Stickies, connectors, shapes-with-text, code blocks and tables (FigJam).
+  const figjam = serializeFigJamNode(raw);
+  if (figjam && Object.keys(figjam).length > 0) Object.assign(base, figjam);
 
   if (node.type === "TEXT") {
     return serializeText(node, base);

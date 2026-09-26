@@ -171,3 +171,32 @@ describe("serializeNode depth limit", () => {
 });
 
 type SerializedNodeWithCount = Awaited<ReturnType<typeof serializeNode>> & { childCount?: number };
+
+// FigJam nodes carry their meaning in fields a design node does not have — a
+// connector is nothing without its endpoints, a sticky nothing without its text.
+describe("serializeNode on a FigJam board", () => {
+  test("a connector keeps the ids it joins", async () => {
+    const out = await serializeNode({
+      ...rectangle,
+      id: "4:3",
+      type: "CONNECTOR",
+      connectorStart: { endpointNodeId: "4:1", magnet: "AUTO" },
+      connectorEnd: { endpointNodeId: "4:2", magnet: "AUTO" },
+      connectorLineType: "ELBOWED",
+      text: { characters: "then" },
+    } as unknown as SceneNode);
+    expect(out.connector).toEqual({ from: "4:1", to: "4:2", lineType: "ELBOWED" });
+    expect(out.text).toBe("then");
+  });
+
+  test("a section serializes with its children", async () => {
+    const out = await serializeNode({
+      ...rectangle,
+      id: "4:9",
+      type: "SECTION",
+      children: [{ ...rectangle, id: "4:10", type: "STICKY", text: { characters: "Idea" } }],
+    } as unknown as SceneNode);
+    expect(out.type).toBe("SECTION");
+    expect(out.children?.[0].text).toBe("Idea");
+  });
+});
