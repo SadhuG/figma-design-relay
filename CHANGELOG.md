@@ -18,6 +18,35 @@ with its tag.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-26
+
+Phase 6 of the parity plan set: FigJam, Slides and diagrams (R43–R50).
+
+### Added
+
+- The plugin runs in FigJam boards and Slides decks as well as design files. `list_files`,
+  `get_metadata` and the plugin panel report each file's `editorType`.
+- FigJam boards serialize their own node types: sticky text and author, shape-with-text shape,
+  code block language, table cells, and connector endpoints (`connector.from` / `connector.to`),
+  so a board's topology survives the read.
+- `create_sticky`, `create_shape_with_text`, `create_connector` and `create_section` write to
+  FigJam boards; `create_section` works in design files too.
+- `generate_diagram` draws Mermaid flowcharts, sequence, ER and state diagrams as native FigJam
+  shapes and connectors, within a documented subset. Anything outside it is refused with its line
+  number and nothing is drawn; a failure part-way removes whatever had been drawn.
+- `docs/figjam.md` and `docs/slides.md` state what each editor supports and what it does not.
+
+### Changed
+
+- An editor capability table replaces the Dev Mode write gate. A tool used in the wrong editor is
+  refused before it runs, with a message naming the editor it needs and what to do next.
+
+### Removed
+
+- Dev Mode support. Figma does not let one plugin declare both `dev` and `figjam`, so the
+  manifest drops `dev` and the `inspect` capability. Every read Dev Mode offered works in the
+  design editor. The spec's R43 is amended to record why.
+
 ## [0.6.0] - 2026-09-26
 
 Phase 5 of the parity plan set: library reach and identity (R36–R42).
@@ -174,7 +203,9 @@ Phase 1: `run_script`, the Plugin API escape hatch (R1–R10). The first version
 
 The upstream `@gethopp/figma-mcp-bridge` code this fork started from.
 
-[Unreleased]: https://github.com/SadhuG/figma-design-relay/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/SadhuG/figma-design-relay/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/SadhuG/figma-design-relay/compare/v0.6.0...v0.7.0
+[0.6.0]: https://github.com/SadhuG/figma-design-relay/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/SadhuG/figma-design-relay/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/SadhuG/figma-design-relay/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/SadhuG/figma-design-relay/compare/v0.3.0...v0.4.0

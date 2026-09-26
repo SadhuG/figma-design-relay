@@ -14,16 +14,16 @@ Figma plugin ──ws://localhost:1994/ws──> leader server ──stdio──
 
 ## Commands
 
-| Where     | Command                                   | Notes                                                         |
-| --------- | ----------------------------------------- | ------------------------------------------------------------- |
-| root      | `bun install`                             | installs Husky's pre-commit hook                              |
-| root      | `bun run format` / `bun run format:check` | Prettier 3.9.6 over everything                                |
-| root      | `bun scripts/check-version.mjs`           | server + plugin versions agree and have a changelog entry     |
-| `server/` | `bun run build`                           | `tsc` → `dist/`                                               |
-| `plugin/` | `bun run build`                           | two Vite passes: UI, then `main`                              |
-| `plugin/` | `bun run typecheck`                       | `tsc --noEmit`; `bun run build` runs it first                 |
-| `server/` | `bun test`                                | 164 tests: schemas, rpc guards, codegen, assets, Code Connect |
-| `plugin/` | `bun test`                                | 123 tests: scripts, serializer, editor gate, library tools    |
+| Where     | Command                                   | Notes                                                                     |
+| --------- | ----------------------------------------- | ------------------------------------------------------------------------- |
+| root      | `bun install`                             | installs Husky's pre-commit hook                                          |
+| root      | `bun run format` / `bun run format:check` | Prettier 3.9.6 over everything                                            |
+| root      | `bun scripts/check-version.mjs`           | server + plugin versions agree and have a changelog entry                 |
+| `server/` | `bun run build`                           | `tsc` → `dist/`                                                           |
+| `plugin/` | `bun run build`                           | two Vite passes: UI, then `main`                                          |
+| `plugin/` | `bun run typecheck`                       | `tsc --noEmit`; `bun run build` runs it first                             |
+| `server/` | `bun test`                                | 233 tests: schemas, rpc guards, codegen, assets, Code Connect, Mermaid    |
+| `plugin/` | `bun test`                                | 161 tests: scripts, serializer, capability table, library tools, diagrams |
 
 **Bun everywhere — never `npm` or `yarn`.**
 
@@ -100,7 +100,15 @@ Things that cost real time before they were understood:
 - **Backslashes collapse in the agent's shell heredocs and `bun -e` strings.** Source written
   that way lost `\\` → `\`, turning `\\b` in a template-string `RegExp` into a backspace and
   shipping a matcher that never matched. Write regex-bearing source with the Edit/Write tools,
-  and use `String.raw` for `new RegExp` templates.
+  and use `String.raw` for `new RegExp` templates. The same goes for a backslash inside an
+  ordinary string literal: a `\\` written through a script can land in the file as a lone `\`,
+  which TypeScript then drops (`\ ` is just a space), so `generate_diagram`'s description once
+  advertised `A[ ]` for the `A[\ \]` shape. Check the compiled string, not the source.
+- **A plugin cannot declare both `dev` and `figjam` in `editorType`.** Figma's docs say so, and
+  the symptom of trying is a plugin that drops off `list_files` after the rebuild and never comes
+  back — a manifest Figma rejects closes the plugin instead of hot-reloading it, and no later
+  rebuild revives it; relaunch it from the Development menu. Phase 6 dropped `dev` (and its
+  `inspect` capability) to open FigJam and Slides; R43 records why.
 
 ## Layout
 
@@ -112,11 +120,12 @@ server/src/
   bridge.ts    socket registry keyed by fileKey; 180s per-request timeout
   election.ts  leader election
   schema.ts    Zod input schemas + the RPC validation layer
-  tools.ts     all 48 MCP tool registrations
+  tools.ts     all 53 MCP tool registrations
   content.ts   typed MCP content blocks (text + image) for tool results
   assets.ts    writes exported design assets inside the working directory
   codegen/     tokens, then React / HTML / CSS reference code behind index.ts's dispatcher
   code-connect/ discovers, parses, indexes, suggests and writes local *.figma.tsx mappings
+  mermaid/     parse.ts (the strict Mermaid subset) + layout.ts (positions) for generate_diagram
   types.ts     shared types; LOOPBACK_HOST lives here
 plugin/src/
   main/code.ts        request dispatcher, one switch case per tool
@@ -124,7 +133,9 @@ plugin/src/
   main/references.ts        variable + style ids → resolved names
   main/component-identity.ts component and instance identity
   main/intent.ts            layout intent, reactions, annotations, exports
-  main/editor-gate.ts       Dev Mode write gate
+  main/capabilities.ts      which tool runs in which editor; the dispatcher's up-front gate
+  main/figjam-serializer.ts stickies, connectors (with endpoints), shapes, code blocks, tables
+  main/diagram.ts           render_diagram's payload check, shape/cap mapping, placement
   main/script-runner.ts     run_script; eval-direct.ts + script-result.ts beside it
   main/library.ts           whoami, get_libraries, import_library_asset, search_design_system
   main/permissions.ts       permission and plan refusals → actionable errors
@@ -135,28 +146,31 @@ plugin/src/
 
 ### Landmarks worth knowing before editing
 
-- `server/src/schema.ts:593` — `toolInputSchemas`, the advertised MCP input shapes.
-- `server/src/schema.ts:1033` — `rpcToArgs`, typed `Record<ToolName, …>`. **Adding a key to
+- `server/src/schema.ts:676` — `toolInputSchemas`, the advertised MCP input shapes.
+- `server/src/schema.ts:1132` — `rpcToArgs`, typed `Record<ToolName, …>`. **Adding a key to
   `toolInputSchemas` without adding its mapper here is a compile error.** That is deliberate; do not
   work around it.
-- `server/src/schema.ts:1121` — `validateRpc`, the follower→leader guard.
-- `server/src/tools.ts:273` — `registerTools`; `:1165` — `renderResponse`, the shared handler wrapper
+- `server/src/schema.ts:1225` — `validateRpc`, the follower→leader guard.
+- `server/src/tools.ts:279` — `registerTools`; `:1245` — `renderResponse`, the shared handler wrapper
   that turns a `BridgeResponse.error` into an MCP error result.
-- `plugin/src/main/editor-gate.ts:7` — `EDIT_REQUEST_TYPES`; `:43` — `requireEditorMode`, which
-  takes `editorType` as a parameter rather than reading `figma.editorType`, so the Dev Mode gate is
-  unit-testable. Dispatch calls both at `plugin/src/main/code.ts:351`. Phase 6 replaces the pair with
-  a capability table.
-- `plugin/src/main/serializer.ts:483` — `serializeNode`, `async` since phase 2 and awaited at four
+- `plugin/src/main/capabilities.ts:58` — `CAPABILITIES`; `:113` — `assertEditorSupports`, which
+  takes the editor as a parameter rather than reading `figma.editorType`, so the gate is
+  unit-testable. Dispatch calls it at `plugin/src/main/code.ts:396`. **The table is keyed by the
+  request type the plugin receives, not the MCP tool name** — `generate_diagram` arrives as
+  `render_diagram`, and an entry under the tool name never matches; `tool` on an entry sets the
+  name the refusal shows. Tools absent from the table run everywhere.
+  `capabilities.regression.test.ts` fails if a tool turns design-only without being listed.
+- `plugin/src/main/serializer.ts:484` — `serializeNode`, `async` since phase 2 and awaited at four
   call sites in `code.ts`. Only `get_design_context` type-errors if you forget an `await` — the other
   three sites type `data` as `unknown` and will happily ship an unresolved promise. The `figma`
-  lookups it feeds to `references.ts` live at `:413`; the three helper modules never name the global.
+  lookups it feeds to `references.ts` live at `:412`; the three helper modules never name the global.
   `docs/serialized-nodes.md` documents the emitted shape and, for every field, when it is omitted.
-- `plugin/src/main/code.ts:1915` — the UI-collapse block that closes the file: window sizing,
+- `plugin/src/main/code.ts:2105` — the UI-collapse block that closes the file: window sizing,
   the `ui-collapsed` `figma.clientStorage` key, and the `request-ui-state` / `set-ui-collapsed`
   messages the React panel exchanges with the main thread. Note `figma.showUI` runs with
   `visible: false` and the panel is only shown once the stored state resolves — anything that
   returns early before `figma.ui.show()` leaves the plugin window invisible. Came from upstream
-  `ef0cf04`; phase 6 edits this file heavily and should leave the tail alone.
+  `ef0cf04`; leave it alone when editing the dispatcher above it.
 
 ## The plan set
 
@@ -164,14 +178,14 @@ One spec measures the gap; six plans close it. **Read `docs/superpowers/specs/20
 first** — it holds all 55 numbered requirements (R1–R55), and every plan task cites the ones it
 satisfies.
 
-| Phase | Plan (`docs/superpowers/plans/…`)                  | Reqs    | Tasks | Needs                  | Status      |
-| ----- | -------------------------------------------------- | ------- | ----- | ---------------------- | ----------- |
-| 1     | `2026-09-01-run-script-plugin-api-escape-hatch.md` | R1–R10  | 7     | —                      | **done**    |
-| 2     | `2026-09-01-serializer-enrichment.md`              | R11–R19 | 6     | phase 1's test harness | **done**    |
-| 3     | `2026-09-01-design-context-v2.md`                  | R20–R27 | 7     | **phase 2** (R14, R15) | **done**    |
-| 4     | `2026-09-01-code-connect.md`                       | R28–R35 | 8     | **phase 2** (R13)      | **done**    |
-| 5     | `2026-09-01-library-reach.md`                      | R36–R42 | 7     | phase 1's test harness | **done**    |
-| 6     | `2026-09-01-figjam-slides-diagrams.md`             | R43–R50 | 8     | phase 1's test harness | not started |
+| Phase | Plan (`docs/superpowers/plans/…`)                  | Reqs    | Tasks | Needs                  | Status   |
+| ----- | -------------------------------------------------- | ------- | ----- | ---------------------- | -------- |
+| 1     | `2026-09-01-run-script-plugin-api-escape-hatch.md` | R1–R10  | 7     | —                      | **done** |
+| 2     | `2026-09-01-serializer-enrichment.md`              | R11–R19 | 6     | phase 1's test harness | **done** |
+| 3     | `2026-09-01-design-context-v2.md`                  | R20–R27 | 7     | **phase 2** (R14, R15) | **done** |
+| 4     | `2026-09-01-code-connect.md`                       | R28–R35 | 8     | **phase 2** (R13)      | **done** |
+| 5     | `2026-09-01-library-reach.md`                      | R36–R42 | 7     | phase 1's test harness | **done** |
+| 6     | `2026-09-01-figjam-slides-diagrams.md`             | R43–R50 | 8     | phase 1's test harness | **done** |
 
 R51–R55 are cross-cutting and apply to every tool any phase adds.
 
@@ -213,10 +227,13 @@ Use `superpowers:subagent-driven-development` or `superpowers:executing-plans` t
   `server/src/code-connect/discover.ts`, which skips `node_modules` and friends, drops links that
   resolve outside, and stops after 10,000 directories — some MCP clients start servers in `/`, and
   `get_design_context` walks on every call.
-- **Dev Mode is read-only.** Write tools are rejected up front rather than failing at runtime. Phase 6
-  generalises this to a per-editor capability table. **Dev Mode needs a paid Figma seat, which this
-  project does not have**, so the gate cannot be exercised by hand — verify it with
-  `plugin/src/main/editor-gate.test.ts` instead, and do not budget a manual Dev Mode step in a plan.
+- **Tools are gated per editor, before they run.** The plugin runs in design files, FigJam and
+  Slides (not Dev Mode — see the gotcha above), and `capabilities.ts` refuses a tool the current
+  editor cannot run with a message naming the editor it needs. `figma.createPage()` exists only in
+  design files, `createSticky`/`createConnector`/`createShapeWithText` only in FigJam. A new write
+  tool gets a table entry in the same commit. The table still carries Dev Mode rules so `dev` can
+  return with one manifest line; **Dev Mode needs a paid Figma seat, which this project does not
+  have**, so verify those rules with `capabilities.test.ts` and do not budget a manual Dev Mode step.
   Not everything that looks Dev-Mode-only needs the seat, though: **annotations can be written from
   the design editor** with `node.annotations = [{ label: "…" }]` in a `run_script`, even though only
   Dev Mode lets a person type one. Phase 2's live check of the annotation field was done that way.
@@ -295,7 +312,7 @@ After the merge onto `main`, tag that commit `vX.Y.Z` and push the tag by name
 
 `0.2.0`–`0.5.0` were assigned after the fact. Their tags point at where each phase finished, but the
 `package.json` in those commits still says `0.1.1`; `0.5.1` is the first where they agree. Phase 5
-is `0.6.0`; phase 6 will be `0.7.0`.
+is `0.6.0`; phase 6 is `0.7.0`.
 
 `.github/workflows/release.yml` is `workflow_dispatch` with one input, `dry_run`, which **defaults
 to true**. The version is not an input: the workflow reads it with `check-version.mjs` and uses the

@@ -201,9 +201,9 @@
             </dl>
 
             <ol class="steps">
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt1s1" />
+                  <input type="checkbox" id="figjamt1s1" checked />
                   <label class="step__label" for="figjamt1s1">Write the failing test</label>
                 </div>
                 <div class="step__body">
@@ -288,9 +288,9 @@ describe("assertEditorSupports", () =&gt; {
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt1s2" />
+                  <input type="checkbox" id="figjamt1s2" checked />
                   <label class="step__label" for="figjamt1s2">Run it to make sure it fails</label>
                 </div>
                 <div class="step__body">
@@ -303,9 +303,9 @@ describe("assertEditorSupports", () =&gt; {
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt1s3" />
+                  <input type="checkbox" id="figjamt1s3" checked />
                   <label class="step__label" for="figjamt1s3">Write the implementation</label>
                 </div>
                 <div class="step__body">
@@ -412,9 +412,9 @@ export const assertEditorSupports = (tool: string, editor: EditorType): void =&g
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt1s4" />
+                  <input type="checkbox" id="figjamt1s4" checked />
                   <label class="step__label" for="figjamt1s4"
                     >Run the tests and make sure they pass</label
                   >
@@ -428,9 +428,9 @@ export const assertEditorSupports = (tool: string, editor: EditorType): void =&g
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt1s5" />
+                  <input type="checkbox" id="figjamt1s5" checked />
                   <label class="step__label" for="figjamt1s5">Commit</label>
                 </div>
                 <div class="step__body">
@@ -486,19 +486,24 @@ git commit -m "feat(plugin): add an editor capability table"</code></pre>
             </dl>
 
             <ol class="steps">
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt2s1" />
+                  <input type="checkbox" id="figjamt2s1" checked />
                   <label class="step__label" for="figjamt2s1">Open the manifest</label>
                 </div>
                 <div class="step__body">
-                  <pre><code>  "editorType": ["figma", "figjam", "slides", "dev"],</code></pre>
+                  <pre><code>  "editorType": ["figma", "figjam", "slides"],</code></pre>
+                  <p>
+                    _Amended during execution:_ Figma does not let one plugin declare both
+                    <code>dev</code> and <code>figjam</code>, so <code>dev</code> and the
+                    <code>inspect</code> capability were dropped (see R43 in the spec).
+                  </p>
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt2s2" />
+                  <input type="checkbox" id="figjamt2s2" checked />
                   <label class="step__label" for="figjamt2s2"
                     >Replace the gate in the dispatcher</label
                   >
@@ -517,9 +522,9 @@ assertEditorSupports(request.type, figma.editorType as EditorType);</code></pre>
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt2s3" />
+                  <input type="checkbox" id="figjamt2s3" checked />
                   <label class="step__label" for="figjamt2s3">Report the editor</label>
                 </div>
                 <div class="step__body">
@@ -546,9 +551,9 @@ assertEditorSupports(request.type, figma.editorType as EditorType);</code></pre>
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt2s4" />
+                  <input type="checkbox" id="figjamt2s4" checked />
                   <label class="step__label" for="figjamt2s4"
                     >Verify design files are unchanged</label
                   >
@@ -610,9 +615,9 @@ assertEditorSupports(request.type, figma.editorType as EditorType);</code></pre>
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt2s7" />
+                  <input type="checkbox" id="figjamt2s7" checked />
                   <label class="step__label" for="figjamt2s7">Commit</label>
                 </div>
                 <div class="step__body">
@@ -669,9 +674,9 @@ git commit -m "feat(plugin): support FigJam and Slides editors behind the capabi
             </dl>
 
             <ol class="steps">
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt3s1" />
+                  <input type="checkbox" id="figjamt3s1" checked />
                   <label class="step__label" for="figjamt3s1">Write the failing test</label>
                 </div>
                 <div class="step__body">
@@ -748,9 +753,9 @@ describe("serializeFigJamNode", () =&gt; {
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt3s2" />
+                  <input type="checkbox" id="figjamt3s2" checked />
                   <label class="step__label" for="figjamt3s2">Run it to make sure it fails</label>
                 </div>
                 <div class="step__body">
@@ -764,9 +769,9 @@ describe("serializeFigJamNode", () =&gt; {
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt3s3" />
+                  <input type="checkbox" id="figjamt3s3" checked />
                   <label class="step__label" for="figjamt3s3">Write the implementation</label>
                 </div>
                 <div class="step__body">
@@ -873,9 +878,9 @@ export const serializeFigJamNode = (node: Raw): FigJamFields | undefined =&gt; {
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt3s4" />
+                  <input type="checkbox" id="figjamt3s4" checked />
                   <label class="step__label" for="figjamt3s4"
                     >Delegate from the main serializer</label
                   >
@@ -897,9 +902,9 @@ if (figjam &amp;&amp; Object.keys(figjam).length &gt; 0) Object.assign(base, fig
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt3s5" />
+                  <input type="checkbox" id="figjamt3s5" checked />
                   <label class="step__label" for="figjamt3s5">Run the tests and build</label>
                 </div>
                 <div class="step__body">
@@ -933,9 +938,9 @@ if (figjam &amp;&amp; Object.keys(figjam).length &gt; 0) Object.assign(base, fig
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt3s7" />
+                  <input type="checkbox" id="figjamt3s7" checked />
                   <label class="step__label" for="figjamt3s7">Commit</label>
                 </div>
                 <div class="step__body">
@@ -994,9 +999,9 @@ git commit -m "feat(plugin): serialize FigJam stickies, connectors and shapes"</
             </dl>
 
             <ol class="steps">
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt4s1" />
+                  <input type="checkbox" id="figjamt4s1" checked />
                   <label class="step__label" for="figjamt4s1">Add the params</label>
                 </div>
                 <div class="step__body">
@@ -1014,9 +1019,9 @@ git commit -m "feat(plugin): serialize FigJam stickies, connectors and shapes"</
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt4s2" />
+                  <input type="checkbox" id="figjamt4s2" checked />
                   <label class="step__label" for="figjamt4s2">Add the sticky and shape cases</label>
                 </div>
                 <div class="step__body">
@@ -1062,9 +1067,9 @@ git commit -m "feat(plugin): serialize FigJam stickies, connectors and shapes"</
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt4s3" />
+                  <input type="checkbox" id="figjamt4s3" checked />
                   <label class="step__label" for="figjamt4s3"
                     >Add the connector and section cases</label
                   >
@@ -1117,9 +1122,9 @@ git commit -m "feat(plugin): serialize FigJam stickies, connectors and shapes"</
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt4s4" />
+                  <input type="checkbox" id="figjamt4s4" checked />
                   <label class="step__label" for="figjamt4s4">Add the schemas and mappers</label>
                 </div>
                 <div class="step__body">
@@ -1166,9 +1171,9 @@ git commit -m "feat(plugin): serialize FigJam stickies, connectors and shapes"</
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt4s5" />
+                  <input type="checkbox" id="figjamt4s5" checked />
                   <label class="step__label" for="figjamt4s5">Register the four tools</label>
                 </div>
                 <div class="step__body">
@@ -1213,9 +1218,9 @@ git commit -m "feat(plugin): serialize FigJam stickies, connectors and shapes"</
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt4s7" />
+                  <input type="checkbox" id="figjamt4s7" checked />
                   <label class="step__label" for="figjamt4s7">Commit</label>
                 </div>
                 <div class="step__body">
@@ -1266,9 +1271,9 @@ git commit -m "feat: add FigJam sticky, shape, connector and section tools"</cod
             </dl>
 
             <ol class="steps">
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt5s1" />
+                  <input type="checkbox" id="figjamt5s1" checked />
                   <label class="step__label" for="figjamt5s1">Write the failing test</label>
                 </div>
                 <div class="step__body">
@@ -1296,9 +1301,9 @@ git commit -m "feat: add FigJam sticky, shape, connector and section tools"</cod
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt5s2" />
+                  <input type="checkbox" id="figjamt5s2" checked />
                   <label class="step__label" for="figjamt5s2">Run it</label>
                 </div>
                 <div class="step__body">
@@ -1312,9 +1317,9 @@ git commit -m "feat: add FigJam sticky, shape, connector and section tools"</cod
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt5s3" />
+                  <input type="checkbox" id="figjamt5s3" checked />
                   <label class="step__label" for="figjamt5s3">Write the scope document</label>
                 </div>
                 <div class="step__body">
@@ -1330,9 +1335,9 @@ git commit -m "feat: add FigJam sticky, shape, connector and section tools"</cod
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt5s4" />
+                  <input type="checkbox" id="figjamt5s4" checked />
                   <label class="step__label" for="figjamt5s4">Commit</label>
                 </div>
                 <div class="step__body">
@@ -1382,9 +1387,9 @@ git commit -m "docs: state the Slides support scope"</code></pre>
             </dl>
 
             <ol class="steps">
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt6s1" />
+                  <input type="checkbox" id="figjamt6s1" checked />
                   <label class="step__label" for="figjamt6s1">Write the failing test</label>
                 </div>
                 <div class="step__body">
@@ -1502,9 +1507,9 @@ describe("refusals", () =&gt; {
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt6s2" />
+                  <input type="checkbox" id="figjamt6s2" checked />
                   <label class="step__label" for="figjamt6s2">Run it to make sure it fails</label>
                 </div>
                 <div class="step__body">
@@ -1517,9 +1522,9 @@ describe("refusals", () =&gt; {
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt6s3" />
+                  <input type="checkbox" id="figjamt6s3" checked />
                   <label class="step__label" for="figjamt6s3">Write the implementation</label>
                 </div>
                 <div class="step__body">
@@ -1723,9 +1728,9 @@ export const parseMermaid = (source: string): Diagram =&gt; {
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt6s4" />
+                  <input type="checkbox" id="figjamt6s4" checked />
                   <label class="step__label" for="figjamt6s4"
                     >Run the tests and make sure they pass</label
                   >
@@ -1739,9 +1744,9 @@ export const parseMermaid = (source: string): Diagram =&gt; {
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt6s5" />
+                  <input type="checkbox" id="figjamt6s5" checked />
                   <label class="step__label" for="figjamt6s5">Commit</label>
                 </div>
                 <div class="step__body">
@@ -1804,9 +1809,9 @@ git commit -m "feat(server): parse a documented Mermaid subset"</code></pre>
             </dl>
 
             <ol class="steps">
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt7s1" />
+                  <input type="checkbox" id="figjamt7s1" checked />
                   <label class="step__label" for="figjamt7s1">Write the failing test</label>
                 </div>
                 <div class="step__body">
@@ -1862,9 +1867,9 @@ describe("layoutDiagram", () =&gt; {
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt7s2" />
+                  <input type="checkbox" id="figjamt7s2" checked />
                   <label class="step__label" for="figjamt7s2">Run it to make sure it fails</label>
                 </div>
                 <div class="step__body">
@@ -1877,9 +1882,9 @@ describe("layoutDiagram", () =&gt; {
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt7s3" />
+                  <input type="checkbox" id="figjamt7s3" checked />
                   <label class="step__label" for="figjamt7s3">Write the implementation</label>
                 </div>
                 <div class="step__body">
@@ -1995,9 +2000,9 @@ export const layoutDiagram = (diagram: Diagram): PositionedDiagram =&gt; {
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt7s4" />
+                  <input type="checkbox" id="figjamt7s4" checked />
                   <label class="step__label" for="figjamt7s4">Run the layout tests</label>
                 </div>
                 <div class="step__body">
@@ -2009,9 +2014,9 @@ export const layoutDiagram = (diagram: Diagram): PositionedDiagram =&gt; {
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt7s5" />
+                  <input type="checkbox" id="figjamt7s5" checked />
                   <label class="step__label" for="figjamt7s5">Add the plugin renderer</label>
                 </div>
                 <div class="step__body">
@@ -2084,9 +2089,9 @@ export const layoutDiagram = (diagram: Diagram): PositionedDiagram =&gt; {
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt7s6" />
+                  <input type="checkbox" id="figjamt7s6" checked />
                   <label class="step__label" for="figjamt7s6"
                     >Add the schema, mapper and tool</label
                   >
@@ -2151,9 +2156,9 @@ export const layoutDiagram = (diagram: Diagram): PositionedDiagram =&gt; {
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt7s8" />
+                  <input type="checkbox" id="figjamt7s8" checked />
                   <label class="step__label" for="figjamt7s8">Prove the refusal</label>
                 </div>
                 <div class="step__body">
@@ -2165,9 +2170,9 @@ export const layoutDiagram = (diagram: Diagram): PositionedDiagram =&gt; {
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt7s9" />
+                  <input type="checkbox" id="figjamt7s9" checked />
                   <label class="step__label" for="figjamt7s9">Commit</label>
                 </div>
                 <div class="step__body">
@@ -2218,9 +2223,9 @@ git commit -m "feat: render Mermaid diagrams into FigJam boards"</code></pre>
             </dl>
 
             <ol class="steps">
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt8s1" />
+                  <input type="checkbox" id="figjamt8s1" checked />
                   <label class="step__label" for="figjamt8s1">Write the regression test</label>
                 </div>
                 <div class="step__body">
@@ -2278,9 +2283,9 @@ describe("capability regression", () =&gt; {
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt8s2" />
+                  <input type="checkbox" id="figjamt8s2" checked />
                   <label class="step__label" for="figjamt8s2">Run the whole suite</label>
                 </div>
                 <div class="step__body">
@@ -2296,9 +2301,9 @@ describe("capability regression", () =&gt; {
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt8s3" />
+                  <input type="checkbox" id="figjamt8s3" checked />
                   <label class="step__label" for="figjamt8s3"
                     >Verify design files by hand one last time</label
                   >
@@ -2318,9 +2323,9 @@ describe("capability regression", () =&gt; {
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt8s4" />
+                  <input type="checkbox" id="figjamt8s4" checked />
                   <label class="step__label" for="figjamt8s4">Write the FigJam guide</label>
                 </div>
                 <div class="step__body">
@@ -2336,9 +2341,9 @@ describe("capability regression", () =&gt; {
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt8s5" />
+                  <input type="checkbox" id="figjamt8s5" checked />
                   <label class="step__label" for="figjamt8s5">Update the README</label>
                 </div>
                 <div class="step__body">
@@ -2350,16 +2355,16 @@ describe("capability regression", () =&gt; {
 | `generate_diagram` | Render Mermaid source as a FigJam diagram — flowchart, sequence, ER, state |</code></pre>
                   <p>
                     Update the plugin install section to say the plugin now runs in design files,
-                    FigJam boards, Slides and Dev Mode, and append to Editing Notes:
+                    FigJam boards and Slides (not Dev Mode — see R43), and append to Editing Notes:
                   </p>
                   <pre><code>- Tools are gated by editor, not just by Dev Mode: `create_page` and the design write tools need a design file, sticky notes and connectors need FigJam, and Slides support is limited to reads plus text edits inside existing slides ([scope](docs/slides.md)). A tool used in the wrong editor is refused up front with a message naming the editor it needs.
 - `generate_diagram` supports flowchart, sequenceDiagram, erDiagram and stateDiagram-v2. Anything else is refused by name — the bridge will not draw an approximation of a diagram type it does not understand.</code></pre>
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt8s6" />
+                  <input type="checkbox" id="figjamt8s6" checked />
                   <label class="step__label" for="figjamt8s6">Format and run everything</label>
                 </div>
                 <div class="step__body">
@@ -2373,9 +2378,9 @@ cd ../plugin &amp;&amp; bun run test &amp;&amp; bunx tsc --noEmit -p tsconfig.js
                 </div>
               </li>
 
-              <li class="step">
+              <li class="step is-done">
                 <div class="step__top">
-                  <input type="checkbox" id="figjamt8s7" />
+                  <input type="checkbox" id="figjamt8s7" checked />
                   <label class="step__label" for="figjamt8s7">Commit</label>
                 </div>
                 <div class="step__body">
@@ -2402,8 +2407,8 @@ git commit -m "docs: document FigJam, Slides and diagram support"</code></pre>
                 phase — checked by the regression test and by hand.
               </li>
               <li>
-                The plugin connects in FigJam, Slides and Dev Mode, and
-                <code>get_metadata</code> reports the editor.
+                The plugin connects in FigJam and Slides as well as design files, and
+                <code>get_metadata</code> reports the editor. (Dev Mode was dropped; see R43.)
               </li>
               <li>
                 A FigJam board serializes with connector endpoints intact, so its topology survives.
