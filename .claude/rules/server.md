@@ -8,10 +8,10 @@ paths:
 ## Landmarks
 
 - `server/src/schema.ts:676` — `toolInputSchemas`, the advertised MCP input shapes.
-- `server/src/schema.ts:1141` — `rpcToArgs`, typed `Record<ToolName, …>`. **Adding a key to
+- `server/src/schema.ts:1147` — `rpcToArgs`, typed `Record<ToolName, …>`. **Adding a key to
   `toolInputSchemas` without its mapper here is a compile error.** That is deliberate; do not work
   around it.
-- `server/src/schema.ts:1234` — `validateRpc`, the follower → leader guard.
+- `server/src/schema.ts:1240` — `validateRpc`, the follower → leader guard.
 - `server/src/tools.ts:279` — `registerTools`; `:1245` — `renderResponse`, the shared handler
   wrapper that turns a `BridgeResponse.error` into an MCP error result.
 

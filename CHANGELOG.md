@@ -18,6 +18,26 @@ with its tag.
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-09-26
+
+Closes the two places the parity plans delivered less than the spec asked for (R25, R40).
+
+### Added
+
+- `search_design_system` takes `allPages: true` to load and search every page of the file, not
+  just the current one. It is opt-in because loading every page is slow on a large file; a
+  current-page result's note now suggests it. Searching several connected files in one call is
+  still not supported.
+- `mainComponent.description` on a serialized instance: the variant's own description, else its
+  component set's.
+
+### Fixed
+
+- `get_design_context` now applies all five of R25's hint tiers. React and HTML output carry the
+  main component's description and each Dev Mode annotation as `component description:` and
+  `annotation:` comments, between Code Connect and tokens. Before, both were dropped, even though
+  annotations were already reaching the server.
+
 ## [0.7.1] - 2026-09-26
 
 Fixes from the phase 6 code review.
@@ -252,7 +272,9 @@ Phase 1: `run_script`, the Plugin API escape hatch (R1–R10). The first version
 
 The upstream `@gethopp/figma-mcp-bridge` code this fork started from.
 
-[Unreleased]: https://github.com/SadhuG/figma-design-relay/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/SadhuG/figma-design-relay/compare/v0.7.2...HEAD
+[0.7.2]: https://github.com/SadhuG/figma-design-relay/compare/v0.7.1...v0.7.2
+[0.7.1]: https://github.com/SadhuG/figma-design-relay/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/SadhuG/figma-design-relay/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/SadhuG/figma-design-relay/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/SadhuG/figma-design-relay/compare/v0.5.0...v0.5.1
