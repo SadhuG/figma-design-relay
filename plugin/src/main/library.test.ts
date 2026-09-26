@@ -271,6 +271,53 @@ describe("importLibraryAsset failures", () => {
       /published.*enabled.*local/s
     );
   });
+
+  test("joins Figma's sentence and the guidance cleanly", async () => {
+    const importers = stubImporters();
+    importers.component = async () => {
+      throw new Error("Could not find a published component with key abc.");
+    };
+    const error = await importLibraryAsset(importers, "component", "abc").catch((e: Error) => e);
+    expect((error as Error).message).toStartWith(
+      "Could not find a published component with key abc. The key must belong"
+    );
+  });
+
+  test("treats an access refusal as a key problem, not a missing manifest permission", async () => {
+    const importers = stubImporters();
+    importers.component = async () => {
+      throw new Error("You do not have permission to access this component");
+    };
+    const error = await importLibraryAsset(importers, "component", "abc").catch((e: Error) => e);
+    expect((error as Error).message).toContain("enabled for this file");
+    expect((error as Error).message).not.toContain("manifest.json");
+  });
+
+  test("maps an importer that throws synchronously", async () => {
+    const importers = stubImporters();
+    importers.style = (() => {
+      throw new Error("Invalid key");
+    }) as unknown as LibraryImporters["style"];
+    await expect(importLibraryAsset(importers, "style", "abc")).rejects.toThrow(
+      /Invalid key\. The key must belong to a style/
+    );
+  });
+});
+
+describe("getLibraries failures", () => {
+  test("says where a collection key comes from when Figma rejects it", async () => {
+    const failing = getLibraries(
+      stubTeamLibrary({
+        getVariablesInLibraryCollectionAsync: async () => {
+          throw new Error("Collection not found");
+        },
+      }),
+      "nope"
+    );
+    await expect(failing).rejects.toThrow(
+      /^Collection not found\. Pass a collection key returned by get_libraries/
+    );
+  });
 });
 
 describe("reading figma.teamLibrary itself", () => {

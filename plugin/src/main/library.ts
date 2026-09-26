@@ -70,8 +70,11 @@ export const getLibraries = async (
   collectionKey?: string
 ): Promise<LibrariesResult> => {
   if (collectionKey) {
-    const variables = await withPermissionContext("teamLibrary", () =>
-      readTeamLibrary().getVariablesInLibraryCollectionAsync(collectionKey)
+    const variables = await withPermissionContext(
+      "teamLibrary",
+      () => readTeamLibrary().getVariablesInLibraryCollectionAsync(collectionKey),
+      "Pass a collection key returned by get_libraries without a collectionKey, for this file — " +
+        "collection keys are not node ids or variable keys."
     );
     return {
       collectionKey,
@@ -148,17 +151,14 @@ export const importLibraryAsset = async (
     throw new Error("import_library_asset requires a non-empty `key` string parameter.");
   }
 
-  const imported = await withPermissionContext("teamLibrary", () => importers[kind](key)).catch(
-    (error: Error) => {
-      // A permission or plan refusal already names its fix; anything else is
-      // almost always a key Figma cannot resolve, and its message stops there.
-      if (/permission|\bplans?\b/i.test(error.message)) throw error;
-      throw new Error(
-        `${error.message}. The key must belong to a ${kind} published in a library that is ` +
-          `enabled for this file (Assets → Libraries). A component that only exists locally ` +
-          `in this file is not importable — use its node id directly instead.`
-      );
-    }
+  // A permission or plan refusal already names its fix; anything else is
+  // almost always a key Figma cannot resolve, and its message stops there.
+  const imported = await withPermissionContext(
+    "teamLibrary",
+    () => importers[kind](key),
+    `The key must belong to a ${kind} published in a library that is enabled for this file ` +
+      `(Assets → Libraries). A component that only exists locally in this file is not ` +
+      `importable — use its node id directly instead.`
   );
   const result: ImportResult = { kind, id: imported.id, name: imported.name };
   if (imported.type !== undefined) result.type = imported.type;
