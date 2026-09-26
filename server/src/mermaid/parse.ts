@@ -109,14 +109,15 @@ const KNOWN_UNSUPPORTED = new Set(
   ].map((name) => name.toLowerCase())
 );
 
-const HEADERS: Record<string, DiagramKind> = {
-  flowchart: "flowchart",
-  graph: "flowchart",
-  sequencediagram: "sequence",
-  erdiagram: "er",
-  statediagram: "state",
-  "statediagram-v2": "state",
-};
+/** A Map, not an object literal, so `constructor` or `toString` is not a diagram type. */
+const HEADERS = new Map<string, DiagramKind>([
+  ["flowchart", "flowchart"],
+  ["graph", "flowchart"],
+  ["sequencediagram", "sequence"],
+  ["erdiagram", "er"],
+  ["statediagram", "state"],
+  ["statediagram-v2", "state"],
+]);
 
 interface Statement {
   text: string;
@@ -151,11 +152,21 @@ const splitStatements = (line: string): string[] => {
   return parts;
 };
 
+/** Cuts a `%%` comment off a line, leaving a `%%` inside a quoted label alone. */
+const stripComment = (line: string): string => {
+  let quoted = false;
+  for (let at = 0; at < line.length; at++) {
+    if (line[at] === '"') quoted = !quoted;
+    else if (!quoted && line.startsWith("%%", at)) return line.slice(0, at);
+  }
+  return line;
+};
+
 /** Strips comments and blank lines, keeping statement order and line numbers. */
 const statementsOf = (source: string): Statement[] => {
   const statements: Statement[] = [];
   source.split(/\r?\n/).forEach((raw, index) => {
-    const line = raw.replace(/%%.*$/, "");
+    const line = stripComment(raw);
     for (const part of splitStatements(line)) {
       const text = part.trim();
       if (text !== "") statements.push({ text, line: index + 1 });
@@ -224,17 +235,21 @@ class Builder {
 
 // ---------------------------------------------------------------- flowchart
 
+/**
+ * Mermaid's own spellings, matched case-sensitively: `End` or `Style` is a node
+ * id, and Mermaid's docs recommend capitalising `end` for exactly that reason.
+ */
 const FLOW_KEYWORDS = new Set([
   "subgraph",
   "end",
   "direction",
-  "classdef",
+  "classDef",
   "class",
   "style",
-  "linkstyle",
+  "linkStyle",
   "click",
-  "acctitle",
-  "accdescr",
+  "accTitle",
+  "accDescr",
   "title",
 ]);
 
@@ -339,10 +354,16 @@ interface FlowLink {
   label?: string;
 }
 
-/** `-- text -->`, `-. text .->`, `== text ==>`. */
-const TEXT_LINK = /(<)?(--|==|-\.)\s*([^\s\-=.>|][^|]*?)\s*(-{2,}|={2,}|\.-+)([>ox])?(?![-=.>])/y;
-/** `-->`, `---`, `-.->`, `==>`, `--o`, `<-->` and their longer forms. */
-const PLAIN_LINK = /(<)?(-{2,}|={2,}|-\.+-)([>ox])?/y;
+/**
+ * `-- text -->`, `-. text .->`, `== text ==>`, read as Mermaid's lexer does:
+ * - `--o` / `==o` with nothing between is a circle-ended link, never a text link opening on "o";
+ * - the text stops at the first `--` or `==`, so it cannot swallow a node from a chain;
+ * - the closing mark is a whole link end — `---`, `-->`, `===`, `==>`, `.->` — never a bare `--`.
+ */
+const TEXT_LINK =
+  /(<)?(--(?![ox])|==(?![ox])|-\.)\s*([^\s\-=.>|](?:(?!--|==)[^|])*?)\s*(-{2,}(?=[>ox])|-{3,}|={2,}(?=[>ox])|={3,}|\.-+)([>ox])?(?![-=.>])/y;
+/** `-->`, `---`, `-.->`, `==>`, `--o`, `<-->` and their longer forms; a bare `--` is not a link. */
+const PLAIN_LINK = /(<)?(-{2,}(?=[>ox])|-{3,}|={2,}(?=[>ox])|={3,}|-\.+-)([>ox])?/y;
 const PIPE_LABEL = /\s*\|([^|]*)\|/y;
 
 const readFlowLink = (text: string, start: number, line: number): FlowLink | null => {
@@ -394,7 +415,7 @@ const registerFlowNode = (ref: FlowNodeRef, builder: Builder): string =>
 const parseFlowchart = (statements: Statement[], builder: Builder): void => {
   for (const { text, line } of statements) {
     const keyword = text.match(/^([A-Za-z]+)(?:\s|$)/)?.[1];
-    if (keyword && FLOW_KEYWORDS.has(keyword.toLowerCase())) {
+    if (keyword && FLOW_KEYWORDS.has(keyword)) {
       fail(line, `"${keyword}" statements are not supported. ${FLOW_SUBSET}`);
     }
 
@@ -712,7 +733,7 @@ export const parseMermaid = (source: string): Diagram => {
 
   const [header, ...body] = statements;
   const [word, ...rest] = header.text.split(/\s+/);
-  const kind = HEADERS[word.toLowerCase()];
+  const kind = HEADERS.get(word.toLowerCase());
   if (!kind) {
     throw new Error(
       KNOWN_UNSUPPORTED.has(word.toLowerCase())

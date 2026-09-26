@@ -87,6 +87,39 @@ describe("flowchart syntax", () => {
     });
   });
 
+  // A circle-ended link is `--o` with nothing between; `-- o` would open a text link.
+  test("reads a circle-ended link followed by another link as two links", () => {
+    expect(edgesOf("A --o B --> C").map((edge) => [edge.from, edge.to, edge.label])).toEqual([
+      ["A", "B", undefined],
+      ["B", "C", undefined],
+    ]);
+    expect(edgesOf("A ==o B ==> C")).toHaveLength(2);
+  });
+
+  test("reads a text label starting with o", () => {
+    expect(edgesOf("A -- ok --> B")[0]).toMatchObject({ from: "A", to: "B", label: "ok" });
+  });
+
+  // Mermaid ends link text at the first `--`; reading the rest as a node invents one.
+  test("refuses link text that contains a double dash", () => {
+    expect(() => parseMermaid("flowchart LR\nA -- text with -- dashes --> B")).toThrow(/line 2/i);
+    expect(() => parseMermaid("flowchart LR\nA -- a -- B --> C")).toThrow(/line 2/i);
+  });
+
+  test("refuses a bare double dash, which is not a link", () => {
+    expect(() => parseMermaid("flowchart LR\nA -- B")).toThrow(/line 2/i);
+  });
+
+  test("keeps %% inside a quoted label", () => {
+    expect(nodeOf('A["50%% done"] --> B').label).toBe("50%% done");
+    expect(edgesOf('A["50%% done"] --> B %% trailing comment')).toHaveLength(1);
+  });
+
+  // Only the lowercase spellings are keywords; `End` is the documented way to name a node end.
+  test("reads node ids that differ from a keyword only in case", () => {
+    expect(edgesOf("End --> Style\nStyle --> Class")).toHaveLength(2);
+  });
+
   test("keeps the reversed directions", () => {
     expect(parseMermaid("flowchart BT\n A --> B").direction).toBe("BT");
     expect(parseMermaid("graph RL\n A --> B").direction).toBe("RL");
@@ -222,6 +255,11 @@ describe("refusals", () => {
 
   test("refuses input with no recognisable header", () => {
     expect(() => parseMermaid("just some text")).toThrow(/could not determine/i);
+  });
+
+  test("does not read a built-in object property as a diagram type", () => {
+    expect(() => parseMermaid("constructor\n A --> B")).toThrow(/could not determine/i);
+    expect(() => parseMermaid("toString\n A --> B")).toThrow(/could not determine/i);
   });
 
   test("refuses an empty diagram rather than rendering nothing", () => {
