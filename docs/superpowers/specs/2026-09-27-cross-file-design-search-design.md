@@ -40,15 +40,15 @@ An example answer, three files open, searching "button":
 
 ## Decisions and why
 
-| Decision                                                                 | Why                                                                                                                                                                                                                                                                                                  |
-| ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Serve both workflows: point at the original **and** list every file      | The user maintains a system and builds from it. Pointing at the original serves design-to-code (the definition is what `get_design_context` and Code Connect need); the file list serves system management (where is this used). Once results are grouped, the list costs little.                   |
-| With several files open and none named, **search all of them**           | Today that call fails with "specify a fileKey", so no working call changes meaning. An opt-in flag would add a round trip, and a weaker agent would pick one file and miss the original.                                                                                                           |
-| The agent can **narrow by file name**                                    | Keeps the default cheap: the agent reads `list_files` names and passes only the relevant files. Names, not only fileKeys, because the fileKey is usually an `unsaved-…` session key that means nothing to an agent reasoning about "the design system file".                                       |
-| The **server** fans out and merges; plugin and bridge are untouched      | Reuses the per-file request that already works and has been checked live. A bridge-level broadcast would change the path all 53 tools share, for no visible gain. Leaving the merge to the agent would make "one entry, original first" depend on every agent getting it right.                    |
-| Skip FigJam and Slides                                                   | They do not hold design-system components; searching them only adds latency.                                                                                                                                                                                                                         |
-| Partial failure is a result, not an error                                | A search over five files where one plugin was hot-reloaded should still return four files' worth of answers, and say how to recover the fifth.                                                                                                                                                      |
-| `allPages` stays opt-in, per call                                        | Every page of every file multiplies the slowest case. The agent turns it on when a current-page search came back short, as today.                                                                                                                                                                  |
+| Decision                                                            | Why                                                                                                                                                                                                                                                                               |
+| ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Serve both workflows: point at the original **and** list every file | The user maintains a system and builds from it. Pointing at the original serves design-to-code (the definition is what `get_design_context` and Code Connect need); the file list serves system management (where is this used). Once results are grouped, the list costs little. |
+| With several files open and none named, **search all of them**      | Today that call fails with "specify a fileKey", so no working call changes meaning. An opt-in flag would add a round trip, and a weaker agent would pick one file and miss the original.                                                                                          |
+| The agent can **narrow by file name**                               | Keeps the default cheap: the agent reads `list_files` names and passes only the relevant files. Names, not only fileKeys, because the fileKey is usually an `unsaved-…` session key that means nothing to an agent reasoning about "the design system file".                      |
+| The **server** fans out and merges; plugin and bridge are untouched | Reuses the per-file request that already works and has been checked live. A bridge-level broadcast would change the path all 53 tools share, for no visible gain. Leaving the merge to the agent would make "one entry, original first" depend on every agent getting it right.   |
+| Skip FigJam and Slides                                              | They do not hold design-system components; searching them only adds latency.                                                                                                                                                                                                      |
+| Partial failure is a result, not an error                           | A search over five files where one plugin was hot-reloaded should still return four files' worth of answers, and say how to recover the fifth.                                                                                                                                    |
+| `allPages` stays opt-in, per call                                   | Every page of every file multiplies the slowest case. The agent turns it on when a current-page search came back short, as today.                                                                                                                                                 |
 
 ## Requirements
 
@@ -90,6 +90,7 @@ An example answer, three files open, searching "button":
 
   `searched` stays the list of scopes (pages, collections) and is the same in every file.
   `libraryError` is reported once: library access is per account, not per file.
+
 - **X7. Partial failure.** A file whose request rejects or returns an error (disconnect, the 180 s
   bridge timeout, a plugin error) is listed under `files.skipped` with the error and the recovery
   step — for a disconnect or timeout, "run the plugin in that file again". The call fails only when
@@ -112,14 +113,14 @@ An example answer, three files open, searching "button":
 
 ## Where it lives
 
-| Piece                           | Place                                                                                              |
-| ------------------------------- | -------------------------------------------------------------------------------------------------- |
-| File selection (X1–X3)          | `server/src/search/select-files.ts`, pure: connected files + `files` → selected and skipped        |
-| Merge (X5–X7)                   | `server/src/search/merge.ts`, pure: per-file settled results → one response                        |
-| Fan-out and wiring (X4)         | the `search_design_system` handler in `server/src/tools.ts`                                        |
-| Connected-file lookup           | the leader/follower branch already inside the `list_files` handler, lifted into a helper both use |
-| Schema (`files`, the refusal)   | `server/src/schema.ts`                                                                             |
-| Plugin                          | no change                                                                                          |
+| Piece                         | Place                                                                                             |
+| ----------------------------- | ------------------------------------------------------------------------------------------------- |
+| File selection (X1–X3)        | `server/src/search/select-files.ts`, pure: connected files + `files` → selected and skipped       |
+| Merge (X5–X7)                 | `server/src/search/merge.ts`, pure: per-file settled results → one response                       |
+| Fan-out and wiring (X4)       | the `search_design_system` handler in `server/src/tools.ts`                                       |
+| Connected-file lookup         | the leader/follower branch already inside the `list_files` handler, lifted into a helper both use |
+| Schema (`files`, the refusal) | `server/src/schema.ts`                                                                            |
+| Plugin                        | no change                                                                                         |
 
 ## Out of scope
 
