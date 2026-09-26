@@ -97,6 +97,12 @@ describe("assertEditorSupports", () => {
     expect(() => assertEditorSupports("render_diagram", "figjam")).not.toThrow();
   });
 
+  test("the refusal names the tool the agent called, not the internal request", () => {
+    expect(() => assertEditorSupports("render_diagram", "figma")).toThrow(
+      /^generate_diagram requires/
+    );
+  });
+
   test("an unknown tool is allowed rather than blocked", () => {
     expect(() => assertEditorSupports("some_future_tool", "figjam")).not.toThrow();
   });

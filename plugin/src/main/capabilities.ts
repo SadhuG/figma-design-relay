@@ -20,6 +20,8 @@ export interface Capability {
   editors: EditorType[];
   /** Appended to the refusal so the caller learns why, not just that. */
   reason?: string;
+  /** The MCP tool to name in the refusal, when it differs from the request type. */
+  tool?: string;
 }
 
 const EDITOR_LABEL: Record<EditorType, string> = {
@@ -95,7 +97,11 @@ export const CAPABILITIES: Record<string, Capability> = {
   },
   create_section: { editors: ["figma", "figjam"] },
   // The request generate_diagram sends once the server has parsed and laid out the Mermaid.
-  render_diagram: { editors: FIGJAM_ONLY, reason: "diagrams are rendered as FigJam boards" },
+  render_diagram: {
+    editors: FIGJAM_ONLY,
+    reason: "diagrams are rendered as FigJam boards",
+    tool: "generate_diagram",
+  },
 };
 
 /**
@@ -121,6 +127,6 @@ export const assertEditorSupports = (tool: string, editor: EditorType): void => 
           .join(" or ")} and retry, passing that file's fileKey.`;
 
   throw new Error(
-    `${tool} requires ${wanted}${because}, but the plugin is currently in ${CURRENT_LABEL[editor]}. ${next}`
+    `${capability.tool ?? tool} requires ${wanted}${because}, but the plugin is currently in ${CURRENT_LABEL[editor]}. ${next}`
   );
 };
