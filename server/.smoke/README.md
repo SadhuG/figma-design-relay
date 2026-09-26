@@ -33,7 +33,7 @@ Each probe loses the election, becomes a follower, and proxies to the client's l
 `/rpc`. The **tool handler runs in the probe's own process**, from the `dist` you just built — but
 validation and the plugin bridge run in the leader, from whatever `dist` it was started with.
 After changing `schema.ts`, `leader.ts`, `bridge.ts` or `election.ts`, restart the client's server
-(or use the isolated setup below) before trusting a probe.
+(or work in a feature worktree, whose relay is its own — see below) before trusting a probe.
 
 **Hold your own leader** (nothing on the port, e.g. a plain terminal with no MCP client running):
 

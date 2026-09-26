@@ -217,7 +217,7 @@ The main checkout is the **stable** relay: it runs on port **1994** and appears 
 gives it a plugin name, plugin id and port of its own:
 
 ```bash
-git worktree add ../figma-design-relay-<feature> -b feat/<feature> origin/main
+git worktree add --no-track -b feat/<feature> ../figma-design-relay-<feature> origin/main
 cd ../figma-design-relay-<feature> && bun install
 bun scripts/dev-slot.mjs      # writes .dev-slot.json and prints the next steps
 ```
@@ -230,9 +230,11 @@ half-built feature cannot break the plugin you use for real work. The
 [`start-feature` skill](.claude/skills/start-feature/SKILL.md) has the full procedure, including
 tearing a slot down after the merge.
 
-The plugin panel's **Relay:** row shows the address a running plugin is dialing. The server's port
-can still be forced with `FIGMA_DESIGN_RELAY_PORT`, and the smoke-test probes in `server/.smoke/`
-follow the slot too (`SMOKE_PORT` overrides).
+The plugin panel's **Relay:** row shows the address a running plugin is dialing. The smoke-test
+probes in `server/.smoke/` follow the slot too. `FIGMA_DESIGN_RELAY_PORT` and `SMOKE_PORT` still
+override the port, but only 1994 and a slot's own port have a plugin that can dial them — the stable
+manifest allows 1994 alone, and a slotted build refuses any other address — so treat them as tools
+for tests, not a way to run another plugin.
 
 ### Code style
 

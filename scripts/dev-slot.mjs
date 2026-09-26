@@ -26,7 +26,7 @@ if (resolve(gitDir) === resolve(commonDir)) {
   console.error(
     "This is the main checkout, which always builds the stable plugin on 1994.\n" +
       "Create a worktree for the feature first:\n" +
-      "  git worktree add ../figma-design-relay-<feature> -b feat/<feature> origin/main"
+      "  git worktree add --no-track -b feat/<feature> ../figma-design-relay-<feature> origin/main"
   );
   process.exit(1);
 }
@@ -58,10 +58,17 @@ if (slot) {
     process.exit(1);
   }
   // parseDevSlot applies the same rules the build will, so a bad name fails here.
-  slot = parseDevSlot(
-    JSON.stringify({ name, port: pickSlotPort(others.map((other) => other.port)) }),
-    "the requested slot"
-  );
+  try {
+    slot = parseDevSlot(
+      JSON.stringify({ name, port: pickSlotPort(others.map((other) => other.port)) }),
+      "the requested slot"
+    );
+  } catch (err) {
+    console.error(
+      `${err.message}\nPass a name of lowercase letters, digits and dashes: bun scripts/dev-slot.mjs <name>`
+    );
+    process.exit(1);
+  }
   writeFileSync(join(root, SLOT_FILE), JSON.stringify(slot, null, 2) + "\n");
   console.log(`Claimed slot ${slot.name} on port ${slot.port} (${SLOT_FILE}).\n`);
 }

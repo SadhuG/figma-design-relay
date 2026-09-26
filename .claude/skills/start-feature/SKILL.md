@@ -25,7 +25,7 @@ From the main checkout (which must never hold a slot):
 
 ```bash
 git fetch origin
-git worktree add ../figma-design-relay-<feature> -b feat/<feature> origin/main
+git worktree add --no-track -b feat/<feature> ../figma-design-relay-<feature> origin/main
 cd ../figma-design-relay-<feature>
 bun install && (cd server && bun install) && (cd plugin && bun install)
 bun scripts/dev-slot.mjs            # or: bun scripts/dev-slot.mjs <name>

@@ -31,8 +31,8 @@ transport.stderr?.on("data", (chunk) => {
   if (text.includes("Became FOLLOWER")) {
     console.error(
       `\nPort ${PORT} already has a leader (probably your MCP client's relay). ` +
-        `Probes can use it directly — no holder needed — or set SMOKE_PORT to an isolated port ` +
-        `and rebuild the plugin for it. See .smoke/README.md.`
+        `Probes can use it directly — no holder needed. To test a rebuilt leader beside it, ` +
+        `work in a feature worktree with its own dev slot. See .smoke/README.md.`
     );
     process.exit(2);
   }
