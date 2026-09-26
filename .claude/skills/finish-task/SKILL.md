@@ -49,30 +49,37 @@ same commit (`.claude/rules/release.md`).
 
 ## 4. Review by a separate agent
 
-**No merge happens before this step passes.** Commit everything first, then spawn a fresh agent
-(the Agent tool — never review your own work and call it done) to do a full code review of
+**No merge into `dev` or `main` happens before this step passes.** The review must cover exactly
+what step 5 will merge, so first bring the branch up to date on the feature branch itself:
+
+```bash
+git fetch origin
+git merge --no-edit origin/dev origin/main   # anything that landed on either directly
+```
+
+If that brought something in, re-run steps 1–2. Commit everything, then spawn a fresh agent (the
+Agent tool — never review your own work and call it done) to do a full code review of
 `git diff origin/dev...<branch>`. Give it the branch name, what the task set out to do, and ask for
 correctness bugs, missed wiring (the `add-mcp-tool` checklist, when a tool changed), stale docs,
 and violations of CLAUDE.md's rules — ranked by severity, with file and line.
 
 Then act on it:
 
-- Fix every real finding in a new commit and re-run step 1. Re-review if the fixes were more than
-  small.
+- Fix every real finding in a new commit and re-run steps 1–2. Every fix commit gets its own
+  review by a separate agent (scoped to those commits) before merging — the author does not get to
+  judge a fix too small to need one.
 - Push back on a finding that is wrong, with the reason — do not change code just to satisfy it.
-- Tell the user what the review found and what happened to each item before merging.
-
-If the diff against `dev` changes during step 5 (something new came in from `main`), what came in
-has not been reviewed: review that too before pushing it to `main`.
+- Tell the user what the review found and what happened to each item, then carry on to step 5. The
+  user does not need to approve the merge unless a finding needs their decision.
 
 ## 5. Merge: feature → dev → main
 
 Real merges only — no rebase, no squash — so the branches keep sharing history. Each push runs CI.
+Start with `git fetch origin`: if `origin/dev` or `origin/main` moved since the review, go back to
+step 4 — what arrived has not been reviewed.
 
 ```bash
 git switch dev && git pull --ff-only && git merge --no-edit <branch> && git push origin dev
-git fetch origin && git merge --no-edit origin/main   # anything that landed on main directly
-git push origin dev                                   # only if that brought something in
 git switch main && git pull --ff-only && git merge --no-edit dev && git push origin main
 ```
 

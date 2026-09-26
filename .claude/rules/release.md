@@ -37,7 +37,8 @@ paths:
 
 - `ci.yml` runs the version check, the plugin type-check, both test suites and both builds on
   **every push to every branch** and on pull requests. Every branch, because upstream merges are
-  resolved on a feature branch and fast-forwarded onto `dev` without a PR.
+  resolved on a feature branch and merged onto `dev` without a PR — after a separate agent's
+  review (`finish-task` step 4), never before.
 - Every action runs on **node24**. When adding one, check `action.yml`'s `runs.using` at the exact
   ref you pin — a high major version does not imply a current runtime
   (`softprops/action-gh-release@v2` was still node20 after v3 shipped).
