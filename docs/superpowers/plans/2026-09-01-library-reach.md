@@ -38,7 +38,7 @@
 - Consumes: nothing.
 - Produces: `figma.currentUser` and `figma.teamLibrary` become reachable in the plugin sandbox. Tasks 3, 4, 5 and 6 depend on this.
 
-- [ ] **Step 1: Add the permissions**
+- [x] **Step 1: Add the permissions**
 
 Replace the empty array in `plugin/manifest.json`:
 
@@ -48,14 +48,14 @@ Replace the empty array in `plugin/manifest.json`:
 
 Leave every other field alone — `documentAccess`, `editorType`, `networkAccess` and `capabilities` are all still correct.
 
-- [ ] **Step 2: Verify the manifest is still valid JSON and the plugin loads**
+- [x] **Step 2: Verify the manifest is still valid JSON and the plugin loads**
 
 Run: `cd plugin && bun run build && node -e "JSON.parse(require('fs').readFileSync('manifest.json','utf8')); console.log('manifest ok')"`
 Expected: PASS — prints `manifest ok` and the build succeeds
 
 Then re-import the plugin in Figma (_Plugins → Development → Import plugin from manifest_) and run it. Figma shows the requested permissions on import; confirm it starts without an error.
 
-- [ ] **Step 3: Explain the permissions in the README**
+- [x] **Step 3: Explain the permissions in the README**
 
 Add to the plugin install section in `README.md`:
 
@@ -66,7 +66,7 @@ The plugin requests two permissions:
 - `teamlibrary` — so `get_libraries`, `import_library_asset` and `search_design_system` can reach published libraries. Team library APIs are gated by Figma plan; on plans without them these three tools return an explicit "not available on this plan" error and every other tool is unaffected.
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add plugin/manifest.json README.md
@@ -89,7 +89,7 @@ Figma refuses a team-library call with a message that tells a human nothing and 
 - Consumes: nothing.
 - Produces: `describeApiError(error, api): string` and `withPermissionContext(api, fn): Promise<T>`. Tasks 3, 4, 5 and 6 wrap every permission-gated call in `withPermissionContext`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 _plugin/src/main/permissions.test.ts — create_
 
@@ -137,12 +137,12 @@ describe("withPermissionContext", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `cd plugin && bun test src/main/permissions.test.ts`
 Expected: FAIL — `Cannot find module './permissions'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 _plugin/src/main/permissions.ts — create_
 
@@ -206,12 +206,12 @@ export const withPermissionContext = async <T>(api: GatedApi, fn: () => Promise<
 };
 ```
 
-- [ ] **Step 4: Run the tests and make sure they pass**
+- [x] **Step 4: Run the tests and make sure they pass**
 
 Run: `cd plugin && bun test src/main/permissions.test.ts`
 Expected: PASS — 6 pass, 0 fail
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add plugin/src/main/permissions.ts plugin/src/main/permissions.test.ts
@@ -235,7 +235,7 @@ The smallest tool in the phase, and the one that proves task 1 worked. `figma.cu
 - Consumes: `withPermissionContext` from `./permissions`.
 - Produces: a bridge request `whoami` returning `{ user: { id, name, photoUrl } | null, note?: string }`, and the MCP tool that wraps it.
 
-- [ ] **Step 1: Add the plugin case**
+- [x] **Step 1: Add the plugin case**
 
 Add `"whoami"` to the `RequestType` union in `plugin/src/main/code.ts`, import `withPermissionContext` from `./permissions`, and add the case before `default:`:
 
@@ -266,7 +266,7 @@ Add `"whoami"` to the `RequestType` union in `plugin/src/main/code.ts`, import `
 
 `whoami` is a read, so do **not** add it to `EDIT_REQUEST_TYPES` — it should work in Dev Mode.
 
-- [ ] **Step 2: Add the schema and mapper**
+- [x] **Step 2: Add the schema and mapper**
 
 In `server/src/schema.ts`:
 
@@ -280,7 +280,7 @@ In `server/src/schema.ts`:
   whoami: (_nodeIds, params) => ({ ...params }),
 ```
 
-- [ ] **Step 3: Register the tool**
+- [x] **Step 3: Register the tool**
 
 In `server/src/tools.ts`:
 
@@ -295,18 +295,18 @@ server.tool(
 );
 ```
 
-- [ ] **Step 4: Verify both halves build**
+- [x] **Step 4: Verify both halves build**
 
 Run: `cd server && bun run build && cd ../plugin && bunx tsc --noEmit -p tsconfig.json && bun run build`
 Expected: PASS — no errors from either
 
-- [ ] **Step 5: Prove it in Figma**
+- [x] **Step 5: Prove it in Figma**
 
 With the rebuilt plugin running, call `whoami`.
 
 Expected: your Figma display name and user id. If it returns `null` with the note, the manifest permission did not take — re-import the plugin rather than debugging the tool.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add plugin/src/main/code.ts server/src/schema.ts server/src/tools.ts
@@ -330,7 +330,7 @@ The Plugin API exposes published **variable collections** per library, not a gen
 - Consumes: `withPermissionContext` from `./permissions`.
 - Produces: a bridge request `get_libraries` returning `{ libraries: Array<{ name, collections: Array<{ key, name }> }> }`. Tasks 5 and 6 rely on the collection `key` being present.
 
-- [ ] **Step 1: Add the plugin case**
+- [x] **Step 1: Add the plugin case**
 
 ```ts
       case "get_libraries": {
@@ -363,7 +363,7 @@ The Plugin API exposes published **variable collections** per library, not a gen
       }
 ```
 
-- [ ] **Step 2: Add the schema and mapper**
+- [x] **Step 2: Add the schema and mapper**
 
 ```ts
   get_libraries: z.object({
@@ -375,7 +375,7 @@ The Plugin API exposes published **variable collections** per library, not a gen
   get_libraries: (_nodeIds, params) => ({ ...params }),
 ```
 
-- [ ] **Step 3: Register the tool**
+- [x] **Step 3: Register the tool**
 
 ```ts
 server.tool(
@@ -388,18 +388,18 @@ server.tool(
 );
 ```
 
-- [ ] **Step 4: Verify the build**
+- [x] **Step 4: Verify the build**
 
 Run: `cd server && bun run build && cd ../plugin && bunx tsc --noEmit -p tsconfig.json`
 Expected: PASS — no errors
 
-- [ ] **Step 5: Prove both paths in Figma**
+- [x] **Step 5: Prove both paths in Figma**
 
 Call `get_libraries` from a file that has a published library enabled.
 
 Expected: either the grouped list, or — on a plan without team library APIs — the plan message from task 2, naming the plan requirement. Both are correct outcomes; a raw Figma error is not.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add plugin/src/main/code.ts server/src/schema.ts server/src/tools.ts
@@ -423,7 +423,7 @@ Four importable kinds, one tool. Returning the imported object's id is the whole
 - Consumes: `withPermissionContext` from `./permissions`.
 - Produces: a bridge request `import_library_asset` with `params: { kind, key }` returning `{ kind, id, name, type }`.
 
-- [ ] **Step 1: Add `kind` and `key` to the params type**
+- [x] **Step 1: Add `kind` and `key` to the params type**
 
 In `ServerRequestParams` in `plugin/src/main/code.ts`:
 
@@ -432,7 +432,7 @@ In `ServerRequestParams` in `plugin/src/main/code.ts`:
   key?: string;
 ```
 
-- [ ] **Step 2: Add the plugin case**
+- [x] **Step 2: Add the plugin case**
 
 Import is a write — it brings an object into the document — so add `"import_library_asset"` to `EDIT_REQUEST_TYPES` as well as the `RequestType` union.
 
@@ -474,7 +474,7 @@ Import is a write — it brings an object into the document — so add `"import_
       }
 ```
 
-- [ ] **Step 3: Add the schema and mapper**
+- [x] **Step 3: Add the schema and mapper**
 
 ```ts
   import_library_asset: z.object({
@@ -493,7 +493,7 @@ Import is a write — it brings an object into the document — so add `"import_
   import_library_asset: (_nodeIds, params) => ({ ...params }),
 ```
 
-- [ ] **Step 4: Register the tool**
+- [x] **Step 4: Register the tool**
 
 ```ts
 server.tool(
@@ -508,7 +508,7 @@ server.tool(
 );
 ```
 
-- [ ] **Step 5: Verify the build**
+- [x] **Step 5: Verify the build**
 
 Run: `cd server && bun run build && cd ../plugin && bunx tsc --noEmit -p tsconfig.json && bun run build`
 Expected: PASS — no errors
@@ -526,7 +526,7 @@ figma.currentPage.appendChild(instance);
 return { createdNodeIds: [instance.id] };
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add plugin/src/main/code.ts server/src/schema.ts server/src/tools.ts
@@ -552,7 +552,7 @@ This is where honesty matters more than capability. The Plugin API has no full-t
 - Consumes: nothing.
 - Produces: `matchesQuery(query, name): boolean` and `rankResults(query, candidates): SearchHit[]`, plus the `SearchCandidate` and `SearchHit` types.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 _plugin/src/main/search.test.ts — create_
 
@@ -606,12 +606,12 @@ describe("rankResults", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `cd plugin && bun test src/main/search.test.ts`
 Expected: FAIL — `Cannot find module './search'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 _plugin/src/main/search.ts — create_
 
@@ -675,12 +675,12 @@ export const rankResults = (query: string, candidates: SearchCandidate[]): Searc
 };
 ```
 
-- [ ] **Step 4: Run the tests and make sure they pass**
+- [x] **Step 4: Run the tests and make sure they pass**
 
 Run: `cd plugin && bun test src/main/search.test.ts`
 Expected: PASS — 8 pass, 0 fail
 
-- [ ] **Step 5: Add the plugin case**
+- [x] **Step 5: Add the plugin case**
 
 Add `"search_design_system"` to the `RequestType` union and `query?: string;` to `ServerRequestParams`, then:
 
@@ -736,7 +736,7 @@ Add `"search_design_system"` to the `RequestType` union and `query?: string;` to
       }
 ```
 
-- [ ] **Step 6: Add the schema, mapper and tool**
+- [x] **Step 6: Add the schema, mapper and tool**
 
 ```ts
   search_design_system: z.object({
@@ -764,7 +764,7 @@ server.tool(
 );
 ```
 
-- [ ] **Step 7: Verify the build and prove the scope note**
+- [x] **Step 7: Verify the build and prove the scope note**
 
 Run: `cd server && bun run build && cd ../plugin && bun run test && bunx tsc --noEmit -p tsconfig.json`
 Expected: PASS — no errors, all plugin tests green
@@ -773,7 +773,7 @@ Then call `search_design_system` with a query that matches nothing.
 
 Expected: an empty `results` array **and** the note explaining that an empty result is not proof of absence.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add plugin/src/main/search.ts plugin/src/main/search.test.ts plugin/src/main/code.ts server/src/schema.ts server/src/tools.ts
@@ -796,7 +796,7 @@ Four tools, two of which depend on a plan the developer running this plan may no
 - Consumes: the four shipped tools.
 - Produces: documentation only.
 
-- [ ] **Step 1: Confirm the whole suite is green**
+- [x] **Step 1: Confirm the whole suite is green**
 
 Run: `cd plugin && bun run test && cd ../server && bun run test`
 Expected: PASS — plugin and server suites both green, including the permissions and search modules from this phase
@@ -807,23 +807,23 @@ If you have an Organization or Enterprise account, run `whoami`, `get_libraries`
 
 Expected: real data from each; the imported id creates a working instance.
 
-- [ ] **Step 3: Verify the refusal path**
+- [x] **Step 3: Verify the refusal path**
 
 On an account without team library APIs — or by temporarily removing `teamlibrary` from `plugin/manifest.json`, rebuilding and re-importing — call `get_libraries`.
 
 Expected: the message from task 2 naming the permission or the plan and the next step, not a raw Figma error. Restore the manifest afterwards and rebuild.
 
-- [ ] **Step 4: Verify graceful degradation of search**
+- [x] **Step 4: Verify graceful degradation of search**
 
 With `teamlibrary` unavailable, call `search_design_system` for a component that exists on the current page.
 
 Expected: the local component is still found. Losing library reach must not break the tool.
 
-- [ ] **Step 5: Write the guide**
+- [x] **Step 5: Write the guide**
 
 Create `docs/libraries.md` covering: the two manifest permissions and what each unlocks; that team library APIs are plan-gated and what happens when they are not available; what `get_libraries` returns and why it is collections rather than a catalogue; the four kinds `import_library_asset` accepts and where each key comes from; and — most importantly — `search_design_system`'s real scope, with the sentence an agent needs: an empty result is not proof of absence, and the fix is to ask the user to open the library file with the plugin.
 
-- [ ] **Step 6: Update the README**
+- [x] **Step 6: Update the README**
 
 Add four rows to the tool table:
 
@@ -840,7 +840,7 @@ And append to Editing Notes:
 - Team library tools (`get_libraries`, `import_library_asset`, `search_design_system`) need the `teamlibrary` permission and a Figma plan that allows team library APIs. Without them these three return an explicit error naming the requirement; every other tool is unaffected. `search_design_system` is narrower than Figma's own: the Plugin API cannot full-text search published component libraries, so an empty result is not proof a component does not exist.
 ```
 
-- [ ] **Step 7: Format and run everything**
+- [x] **Step 7: Format and run everything**
 
 ```bash
 bun run format
@@ -850,7 +850,7 @@ cd ../plugin && bun run test && bunx tsc --noEmit -p tsconfig.json && bun run bu
 
 Expected: PASS — Prettier reports no remaining changes on a second run, both suites green, both builds clean
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add README.md docs/libraries.md
