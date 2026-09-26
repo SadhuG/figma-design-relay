@@ -54,7 +54,11 @@ export type RequestType =
   | "whoami"
   | "get_libraries"
   | "import_library_asset"
-  | "search_design_system";
+  | "search_design_system"
+  | "create_sticky"
+  | "create_shape_with_text"
+  | "create_connector"
+  | "create_section";
 
 type ServerRequestParams = Record<string, unknown> & {
   format?: "PNG" | "SVG" | "JPG" | "PDF";
@@ -345,6 +349,17 @@ const decodeBase64ToBytes = (base64: string): Uint8Array => {
     throw new Error("Invalid base64 image payload");
   }
 };
+
+/** The response every FigJam creator returns, shaped like the design creators'. */
+const describeCreated = (node: SceneNode) => ({
+  nodeId: node.id,
+  nodeName: node.name,
+  type: node.type,
+  x: node.x,
+  y: node.y,
+  width: node.width,
+  height: node.height,
+});
 
 const handleRequest = async (request: ServerRequest): Promise<PluginResponse> => {
   try {
@@ -1858,6 +1873,76 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
           requestId: request.requestId,
           data: describeForCodeConnect(node as unknown as NodeLike, main?.id),
         };
+      }
+      case "create_sticky": {
+        const params = request.params ?? {};
+        const sticky = figma.createSticky();
+        // FigJam text needs its font loaded before characters change, exactly
+        // as design text does.
+        await figma.loadFontAsync(sticky.text.fontName as FontName);
+        if (typeof params.text === "string") sticky.text.characters = params.text;
+        positionNode(sticky, params.x, params.y);
+        return { type: request.type, requestId: request.requestId, data: describeCreated(sticky) };
+      }
+      case "create_shape_with_text": {
+        const params = request.params ?? {};
+        const shape = figma.createShapeWithText();
+        if (typeof params.shapeType === "string") {
+          shape.shapeType = params.shapeType as ShapeWithTextNode["shapeType"];
+        }
+        await figma.loadFontAsync(shape.text.fontName as FontName);
+        if (typeof params.text === "string") shape.text.characters = params.text;
+        if (typeof params.width === "number" && typeof params.height === "number") {
+          shape.resize(params.width, params.height);
+        }
+        positionNode(shape, params.x, params.y);
+        return { type: request.type, requestId: request.requestId, data: describeCreated(shape) };
+      }
+      case "create_connector": {
+        const params = request.params ?? {};
+        const startId = params.startNodeId;
+        const endId = params.endNodeId;
+        if (typeof startId !== "string" || typeof endId !== "string") {
+          throw new Error("create_connector requires `startNodeId` and `endNodeId`.");
+        }
+        // A connector to a missing node fails deep in the API with a message
+        // that names neither end, so check both first.
+        for (const id of [startId, endId]) {
+          const endpoint = await figma.getNodeByIdAsync(id);
+          if (!endpoint || endpoint.type === "DOCUMENT" || endpoint.type === "PAGE") {
+            throw new Error(
+              `Connector endpoint ${id} is not a node on this board. Check the id with get_document and the fileKey with list_files.`
+            );
+          }
+        }
+        const connector = figma.createConnector();
+        connector.connectorStart = { endpointNodeId: startId, magnet: "AUTO" };
+        connector.connectorEnd = { endpointNodeId: endId, magnet: "AUTO" };
+        if (typeof params.text === "string" && params.text !== "") {
+          await figma.loadFontAsync(connector.text.fontName as FontName);
+          connector.text.characters = params.text;
+        }
+        return {
+          type: request.type,
+          requestId: request.requestId,
+          data: {
+            nodeId: connector.id,
+            nodeName: connector.name,
+            type: connector.type,
+            startNodeId: startId,
+            endNodeId: endId,
+          },
+        };
+      }
+      case "create_section": {
+        const params = request.params ?? {};
+        const section = figma.createSection();
+        if (typeof params.name === "string") section.name = params.name;
+        if (typeof params.width === "number" && typeof params.height === "number") {
+          section.resizeWithoutConstraints(params.width, params.height);
+        }
+        positionNode(section, params.x, params.y);
+        return { type: request.type, requestId: request.requestId, data: describeCreated(section) };
       }
       case "whoami":
         // A read, so absent from CAPABILITIES: it works in every editor.

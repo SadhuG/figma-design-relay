@@ -29,6 +29,10 @@ import {
   ungroupNodeInput,
   setTextPropertiesShape,
   setTextPropertiesInput,
+  createShapeWithTextShape,
+  createShapeWithTextInput,
+  createSectionShape,
+  createSectionInput,
   toolInputSchemas,
 } from "./schema.js";
 import { LOOPBACK_HOST } from "./types.js";
@@ -923,6 +927,54 @@ export function registerTools(server: McpServer, node: Node, port: number): void
     async ({ query, fileKey }): Promise<ToolResult> => {
       return renderResponse(() =>
         node.sendWithParams("search_design_system", undefined, { query }, fileKey)
+      );
+    }
+  );
+
+  server.tool(
+    "create_sticky",
+    "Create a FigJam sticky note. FigJam boards only — refused in design files and Slides; list_files shows each file's editorType. Returns the new node's id and type. When multiple files are connected, specify fileKey.",
+    toolInputSchemas.create_sticky.shape,
+    async ({ fileKey, ...params }): Promise<ToolResult> => {
+      return renderResponse(() => node.sendWithParams("create_sticky", undefined, params, fileKey));
+    }
+  );
+
+  server.tool(
+    "create_shape_with_text",
+    "Create a FigJam shape with text inside it — the flowchart building block, with shapes such as SQUARE, DIAMOND, ELLIPSE and ENG_DATABASE. FigJam boards only — refused in design files and Slides; use create_shape for design files. Returns the new node's id and type; pass it to create_connector to join shapes. When multiple files are connected, specify fileKey.",
+    createShapeWithTextShape.shape,
+    async (args): Promise<ToolResult> => {
+      const parsed = parseToolInput(createShapeWithTextInput, args);
+      if (!parsed.success) return parsed.error;
+      const { fileKey, ...params } = parsed.data;
+      return renderResponse(() =>
+        node.sendWithParams("create_shape_with_text", undefined, params, fileKey)
+      );
+    }
+  );
+
+  server.tool(
+    "create_connector",
+    "Connect two nodes on a FigJam board with a connector, optionally labelled. FigJam boards only — refused in design files and Slides. Both endpoints must already exist in the same file; the connector attaches to them, so it follows when they move. Returns the connector's id and type. When multiple files are connected, specify fileKey.",
+    toolInputSchemas.create_connector.shape,
+    async ({ fileKey, ...params }): Promise<ToolResult> => {
+      return renderResponse(() =>
+        node.sendWithParams("create_connector", undefined, params, fileKey)
+      );
+    }
+  );
+
+  server.tool(
+    "create_section",
+    "Create a section in a FigJam board or a design file. Refused in Slides. Sections group content on the canvas; move nodes into one with reparent_nodes. Returns the new node's id and type. When multiple files are connected, specify fileKey.",
+    createSectionShape.shape,
+    async (args): Promise<ToolResult> => {
+      const parsed = parseToolInput(createSectionInput, args);
+      if (!parsed.success) return parsed.error;
+      const { fileKey, ...params } = parsed.data;
+      return renderResponse(() =>
+        node.sendWithParams("create_section", undefined, params, fileKey)
       );
     }
   );
