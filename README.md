@@ -248,8 +248,8 @@ GitHub Actions runs all of the above on every push and pull request.
 
 ```
 Figma-Design-Relay/
+├── .claude/      # For AI agents: CLAUDE.md (project notes), path-scoped rules/ and skills/
 ├── CHANGELOG.md  # What changed in each version
-├── CLAUDE.md     # Contributor notes for AI agents; .claude/ holds its path-scoped rules and skills
 ├── docs/         # guides/ per tool family, reference/, and superpowers/ specs and plans
 ├── scripts/      # check-version.mjs: one version across server, plugin and changelog
 ├── plugin/       # Figma plugin (TypeScript/React)

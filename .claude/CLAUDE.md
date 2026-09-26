@@ -80,7 +80,7 @@ plugin/src/
   html-figma/               vendored html-to-figma importer
   ui/                       React panel
 docs/           guides/ and reference/ for users; superpowers/ for specs and plans
-.claude/        rules/ (path-scoped) and skills/ — the table above
+.claude/        this file, rules/ (path-scoped) and skills/ — the table above
 ```
 
 ## Rules that apply everywhere

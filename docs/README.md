@@ -19,5 +19,5 @@
 
 - [`serialized-nodes.md`](reference/serialized-nodes.md) — the serialized node shape, and for every field when it is omitted.
 
-Contributor workflow — building, testing, releasing, verifying against a live file — is in the
-repository's [`CLAUDE.md`](../CLAUDE.md) and the `.claude/` folder it points to.
+Contributor workflow — building, testing, releasing, verifying against a live file — is in
+[`.claude/CLAUDE.md`](../.claude/CLAUDE.md) and the rules and skills beside it.
