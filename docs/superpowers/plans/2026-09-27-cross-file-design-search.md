@@ -57,7 +57,7 @@ are unchanged: each file still receives today's single-file request.
   - `interface FileSelection { selected: ConnectedFile[]; skipped: SkippedFile[] }`
   - `selectSearchFiles(connected: readonly ConnectedFile[], request: { fileKey?: string; files?: readonly string[] }): FileSelection`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 import { describe, expect, test } from "bun:test";
@@ -161,12 +161,12 @@ describe("selectSearchFiles with fileKey", () => {
 });
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `cd server && bun test src/search/select-files.test.ts`
 Expected: FAIL, cannot resolve `./select-files.js`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```ts
 import type { ConnectedFile } from "../types.js";
@@ -262,12 +262,12 @@ export const selectSearchFiles = (
 };
 ```
 
-- [ ] **Step 4: Run to verify they pass**
+- [x] **Step 4: Run to verify they pass**
 
 Run: `cd server && bun test src/search/select-files.test.ts`
 Expected: PASS, 10 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/search/select-files.ts server/src/search/select-files.test.ts
@@ -291,7 +291,7 @@ git commit -m "feat(server): pick the files a cross-file search covers"
   - `interface MergedSearchResult { results: MergedHit[]; searched: string[]; files: { searched: Array<{ fileKey: string; fileName: string }>; skipped: SkippedFile[] }; total?: number; libraryError?: string; instanceError?: string; instanceErrors?: Array<{ fileName: string; message: string }>; note: string }`
   - `mergeSearchResults(input: { outcomes: readonly FileOutcome[]; skipped: readonly SkippedFile[]; limit?: number; allPages?: boolean }): MergedSearchResult` — throws when no file answered.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 import { describe, expect, test } from "bun:test";
@@ -540,12 +540,12 @@ describe("mergeSearchResults files and errors", () => {
 });
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `cd server && bun test src/search/merge.test.ts`
 Expected: FAIL, cannot resolve `./merge.js`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```ts
 import type { ConnectedFile } from "../types.js";
@@ -756,12 +756,12 @@ export const mergeSearchResults = (input: {
 };
 ```
 
-- [ ] **Step 4: Run to verify they pass**
+- [x] **Step 4: Run to verify they pass**
 
 Run: `cd server && bun test src/search/merge.test.ts`
 Expected: PASS, 13 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/search/merge.ts server/src/search/merge.test.ts
@@ -786,7 +786,7 @@ git commit -m "feat(server): merge per-file search results, original first"
   - `interface SearchIo { listFiles: () => Promise<ConnectedFile[]>; send: (params: Record<string, unknown>, fileKey: string) => Promise<BridgeResponse> }`
   - `searchAcrossFiles(io: SearchIo, args: { query: string; limit?: number; allPages?: boolean; fileKey?: string; files?: string[] }): Promise<MergedSearchResult>`
 
-- [ ] **Step 1: Write the failing orchestrator tests**
+- [x] **Step 1: Write the failing orchestrator tests**
 
 ```ts
 import { describe, expect, test } from "bun:test";
@@ -876,7 +876,7 @@ describe("searchAcrossFiles", () => {
 });
 ```
 
-- [ ] **Step 2: Add the schema tests**
+- [x] **Step 2: Add the schema tests**
 
 In `server/src/schema.test.ts`, inside `describe("validateRpc search_design_system", …)`:
 
@@ -899,12 +899,12 @@ test.each([[[]], [[""]], [Array.from({ length: 21 }, (_, i) => `f${i}`)]])(
 );
 ```
 
-- [ ] **Step 3: Run to verify they fail**
+- [x] **Step 3: Run to verify they fail**
 
 Run: `cd server && bun test src/search/index.test.ts src/schema.test.ts`
 Expected: FAIL: `./index.js` does not resolve; the `files` tests fail because the key is stripped.
 
-- [ ] **Step 4: Implement the orchestrator**
+- [x] **Step 4: Implement the orchestrator**
 
 `server/src/search/index.ts`:
 
@@ -956,7 +956,7 @@ export const searchAcrossFiles = async (
 };
 ```
 
-- [ ] **Step 5: Add `files` to the schema**
+- [x] **Step 5: Add `files` to the schema**
 
 In `server/src/schema.ts`, in `search_design_system: z.object({ … })`, after `allPages`:
 
@@ -973,7 +973,7 @@ In `server/src/schema.ts`, in `search_design_system: z.object({ … })`, after `
       ),
 ```
 
-- [ ] **Step 6: Wire the tool**
+- [x] **Step 6: Wire the tool**
 
 In `server/src/tools.ts`, import the orchestrator and the file type:
 
@@ -1018,12 +1018,12 @@ Replace the `search_design_system` registration's description and handler:
   });
 ```
 
-- [ ] **Step 7: Run to verify they pass, then the whole suite and build**
+- [x] **Step 7: Run to verify they pass, then the whole suite and build**
 
 Run: `cd server && bun test && bun run build`
 Expected: PASS, no failures; `tsc` clean.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add server/src
@@ -1039,12 +1039,12 @@ git commit -m "feat(server): search_design_system searches every open design fil
   `docs/superpowers/specs/2026-09-27-cross-file-design-search-design.md` (status),
   `.claude/CLAUDE.md` (layout: `server/src/search/`), `CHANGELOG.md`
 
-- [ ] **Step 1: Libraries guide.** In "`search_design_system`: what it really searches": every open
+- [x] **Step 1: Libraries guide.** In "`search_design_system`: what it really searches": every open
       design file by default, `files` to narrow (names ignore case), FigJam/Slides skipped, one
       entry per component with `fileKey`/`fileName`/`alsoIn`, originals first, `files.searched` /
       `files.skipped`, `instanceErrors`, and a new example response with two files.
-- [ ] **Step 2: README.** Tool-table row and the library note: every open design file, `files`.
-- [ ] **Step 3: Design history.** R40 row → delivered, citing this plan; parity spec status line;
+- [x] **Step 2: README.** Tool-table row and the library note: every open design file, `files`.
+- [x] **Step 3: Design history.** R40 row → delivered, citing this plan; parity spec status line;
       this spec's status → delivered; the plan listed under "Other specs".
 - [ ] **Step 4: Live check (X10).** Build this worktree, import its dev plugin into a design-system
       file and a screen file that uses it, and with the smoke harness

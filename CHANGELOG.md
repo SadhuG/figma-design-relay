@@ -18,6 +18,30 @@ with its tag.
 
 ## [Unreleased]
 
+## [0.7.5] - 2026-09-27
+
+`search_design_system` now covers every open design file, closing the last gap in R40.
+
+### Added
+
+- One search covers **every open design file** at once. With several files connected and no
+  `fileKey`, it used to refuse; now it asks every design file in parallel and merges the answers.
+  FigJam boards and Slides decks are skipped and listed under `files.skipped`.
+- `files` narrows a search to the files it names, by name as `list_files` shows it (case ignored)
+  or by fileKey. A name that is not open is reported, not an error. `fileKey` still means exactly
+  one file.
+- Each component appears once. The entry carries `fileKey` and `fileName` and points at the
+  **original** when an open file holds it; `alsoIn` lists every other file it appears in, with
+  that file's node id. Library variable collections appear once.
+- `files.searched` and `files.skipped` say which files answered and why any did not. A file whose
+  plugin closed or timed out no longer fails the search; only a search where no file answered does.
+  Several files' instance-resolution problems are reported per file as `instanceErrors`.
+
+### Fixed
+
+- The libraries guide said a search with library access refused falls back to the current page;
+  it falls back to local components. 0.7.2's edit to say so never landed.
+
 ## [0.7.4] - 2026-09-27
 
 Stable and in-progress builds can now run side by side in Figma.
@@ -303,7 +327,9 @@ Phase 1: `run_script`, the Plugin API escape hatch (R1–R10). The first version
 
 The upstream `@gethopp/figma-mcp-bridge` code this fork started from.
 
-[Unreleased]: https://github.com/SadhuG/figma-design-relay/compare/v0.7.3...HEAD
+[Unreleased]: https://github.com/SadhuG/figma-design-relay/compare/v0.7.5...HEAD
+[0.7.5]: https://github.com/SadhuG/figma-design-relay/compare/v0.7.4...v0.7.5
+[0.7.4]: https://github.com/SadhuG/figma-design-relay/compare/v0.7.3...v0.7.4
 [0.7.3]: https://github.com/SadhuG/figma-design-relay/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/SadhuG/figma-design-relay/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/SadhuG/figma-design-relay/compare/v0.7.0...v0.7.1

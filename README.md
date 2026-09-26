@@ -249,7 +249,8 @@ bun run format:check  # verify formatting without writing (useful in CI)
 
 ```bash
 cd server && bun test       # schemas, /rpc guards, codegen, content blocks, asset export, Code Connect,
-                            # the Mermaid parser and diagram layout, the startup port and dev slots
+                            # the Mermaid parser and diagram layout, the startup port and dev slots,
+                            # cross-file search: file selection, result merging and fan-out
 cd plugin && bun test       # run_script, serializer and its helpers (FigJam nodes too), Code Connect context,
                             # the editor capability table and its regression guard, diagram payloads,
                             # library tools and search against stubbed figma.teamLibrary / currentUser,

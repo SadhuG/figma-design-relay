@@ -40,7 +40,7 @@ This file holds only what applies to every task. The rest loads when it is relev
 | root      | `bun scripts/check-version.mjs`           | server + plugin versions agree and have a changelog entry                 |
 | root      | `bun scripts/dev-slot.mjs [name]`         | in a feature worktree: claim its dev plugin name and port (1995–2019)     |
 | `server/` | `bun run build`                           | `tsc` → `dist/`; this is the server's type-check                          |
-| `server/` | `bun test`                                | 258 tests: schemas, rpc guards, codegen, assets, Code Connect, Mermaid    |
+| `server/` | `bun test`                                | 291 tests: schemas, rpc guards, codegen, assets, Code Connect, Mermaid    |
 | `plugin/` | `bun run typecheck`                       | `tsc --noEmit`; must stay at zero errors                                  |
 | `plugin/` | `bun run build`                           | typecheck, then two Vite passes: UI, then `main`                          |
 | `plugin/` | `bun test`                                | 210 tests: scripts, serializer, capability table, library tools, diagrams |
