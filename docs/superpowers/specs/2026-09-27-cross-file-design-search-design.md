@@ -60,13 +60,17 @@ An example answer, three files open, searching "button":
   reported under `files.skipped` with the reason.
 - **X2. Narrowing by name.** A new optional parameter `files: string[]` (1–20 entries) limits the
   search to the connected files it names. Each entry matches a connected file by exact fileKey, or
-  by file name compared case-insensitively after trimming. An entry matching several files (two
+  by file name compared case-insensitively after trimming. The selected files keep connected-file
+  order, whatever order `files` names them in, so X5's choice of original does not depend on it. An entry matching several files (two
   files named "Untitled") selects all of them. An entry that matches nothing is reported under
   `files.skipped` as not open, with the list of open file names, and does not fail the call. A named
   FigJam board or Slides deck is skipped as in X1.
 - **X3. `fileKey` stays.** `fileKey` keeps working and means "exactly this one file". Passing both
   `fileKey` and `files` is a validation error that says to pass one. Behaviour for a single
-  connected file is unchanged except for the added fields in X5 and X6.
+  connected file is unchanged except for the added fields in X5 and X6, and X5's tie-break, which
+  lists originals before library copies among equal scores. The refusal is raised by the tool
+  handler (`search/index.ts`), not the schema, since `files` never crosses the follower hop; its
+  test lives in `search/index.test.ts`.
 - **X4. Fan-out.** The server sends the existing per-file `search_design_system` request —
   `{ query, limit, allPages }` — to every selected file concurrently, through `node.sendWithParams`
   with that file's fileKey, so it works from the leader and from followers alike. The plugin

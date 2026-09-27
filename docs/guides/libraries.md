@@ -236,8 +236,11 @@ The project has no Figma account whose plan allows team library APIs, so the lib
 tools has only been tested against stubbed `figma.teamLibrary` and importer objects in
 `plugin/src/main/library.test.ts`. Checked against a live file: `whoami`, `search_design_system`'s
 local results, and the refusal path — `get_libraries` naming the missing permission, and search
-falling back to local components with `libraryError`. **Never exercised live:** real data from
-`get_libraries`, a successful `import_library_asset`, a search hit found through a library
-instance, and a search across several open files (0.7.5). If one of those misbehaves on a plan
+falling back to local components with `libraryError`. A search across several open files (0.7.5)
+was checked live with a design-system file and a screen file holding instances pasted from it:
+each component came back once, pointing at the design-system file, with the screen file under
+`alsoIn`. **Never exercised live:** real data from `get_libraries`, a successful
+`import_library_asset`, and a search hit found through an instance of a _published_ library
+component. If one of those misbehaves on a plan
 that allows them, that is the untested ground, and a report of what Figma returned is the quickest
 way to close it.

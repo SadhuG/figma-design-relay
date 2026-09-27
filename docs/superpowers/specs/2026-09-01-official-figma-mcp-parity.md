@@ -3,8 +3,8 @@
 **Status:** Delivered — all six phases shipped (0.2.0–0.7.0). The gap analysis below is the
 measurement taken on 2026-09-01, before any of them; read its "missing" and "partial" rows as history.
 R25 and R40 shipped narrower than written; 0.7.2 closed R25 and 0.7.5 closed R40.
-Phase 6's FigJam/Slides live checks are still open —
-see "What is not implemented, and when it can be" in `docs/superpowers/README.md`.
+Phase 6's FigJam/Slides live checks passed on 2026-09-27 — see "What is not implemented, and when
+it can be" in `docs/superpowers/README.md` for what is still open.
 **Date:** 2026-09-01
 **Goal:** Make `figma-design-relay` a viable full-time replacement for Figma's
 first-party MCP server for an agent doing design→code and code→design work,

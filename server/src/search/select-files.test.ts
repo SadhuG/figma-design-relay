@@ -110,6 +110,20 @@ describe("selectSearchFiles after review", () => {
   test("tells the agent what to do about a skipped FigJam board", () => {
     const { skipped } = selectSearchFiles([board], {});
     expect(skipped[0].reason).toContain("Open a design file");
-    expect(skipped[0].reason).toContain("pass its fileKey");
+    expect(skipped[0].reason).toContain("pass it as `fileKey`");
+  });
+});
+
+describe("selectSearchFiles after the merge review", () => {
+  test("returns named files in connection order, not the order they were named", () => {
+    const { selected } = selectSearchFiles([system, checkout], {
+      files: ["Checkout Screens", "Acme Design System"],
+    });
+    expect(keys(selected)).toEqual(["k-sys", "k-co"]);
+  });
+
+  test("reports a missing name once however it is repeated", () => {
+    const { skipped } = selectSearchFiles([system], { files: ["Foo", " foo "] });
+    expect(skipped.map((entry) => entry.fileName)).toEqual(["Foo"]);
   });
 });

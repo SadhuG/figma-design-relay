@@ -65,7 +65,8 @@ export const selectSearchFiles = (
         fileName: file.fileName,
         reason:
           `Skipped: ${editor}. Only design files hold components to search. Open a design ` +
-          `file and run the plugin there, or pass its fileKey to search this one anyway.`,
+          `file and run the plugin there, or pass it as \`fileKey\` (not in \`files\`) to ` +
+          `search this one anyway.`,
       });
       return;
     }
@@ -77,19 +78,24 @@ export const selectSearchFiles = (
     return { selected, skipped };
   }
 
+  const missing = new Set<string>();
   for (const entry of request.files) {
     const wanted = comparable(entry);
     const matches = connected.filter(
       (file) => file.fileKey === entry.trim() || comparable(file.fileName) === wanted
     );
-    if (matches.length === 0) {
+    if (matches.length > 0) {
+      matches.forEach(take);
+    } else if (!missing.has(wanted)) {
+      missing.add(wanted);
       skipped.push({
         fileName: entry,
         reason: `Not open with the plugin. ${openFiles(connected)}`,
       });
-    } else {
-      matches.forEach(take);
     }
   }
+  // The merge picks an original by file order, so the order the files were named must not matter.
+  const order = (file: ConnectedFile): number => connected.indexOf(file);
+  selected.sort((a, b) => order(a) - order(b));
   return { selected, skipped };
 };

@@ -38,6 +38,8 @@ with its tag.
   Several files' instance-resolution problems are reported per file as `instanceErrors`.
 - A file that timed out is told to retry with a lighter search (no `allPages`, fewer `files`), and
   one whose plugin is older than the server is told to rebuild it.
+- Hits with equal scores now list originals before library copies, in a one-file search too; the
+  set of hits returned is unchanged. The order `files` lists names in never changes the answer.
 
 ### Fixed
 
