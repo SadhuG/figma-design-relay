@@ -172,9 +172,9 @@ takes about as long as the slowest file. The answers are merged:
   where-is-this-used inventory. A library variable collection appears once, with the other files
   under `alsoIn`.
 - Entries are ranked by `score`, then originals before library copies, then name, and capped at
-  `limit`. When some were cut, `total` says how many matched. From one file it is exact; across
-  several files the same component may be counted in more than one, so it is a lower bound and
-  the note says "at least".
+  `limit`. When some were cut, `total` says how many matched. It is exact unless a file had to cut
+  its own list while several files were searched: the same component may then be counted in more
+  than one file, so `total` is a lower bound and the note says "at least".
 
 A file that fails — its plugin was closed, hot-reloaded or timed out — does not fail the search. It
 is listed under `files.skipped` with the reason and what to do: for a dropped connection, "run the
