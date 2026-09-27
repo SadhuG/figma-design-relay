@@ -55,17 +55,18 @@ The table stays as the record of what was missing and why.
 
 The code and unit tests for these are done; they have not been run against real Figma yet.
 
-| Change | Check                                                                                                                                                            | Needs                                                                          |
-| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| 0.7.2  | R25 hints in `get_design_context`; `search_design_system` with `allPages`                                                                                        | a design file with an annotated, described component instance on a second page |
-| 0.7.5  | `search_design_system` across files (spec X10): one entry pointing at the original, the screen file under `alsoIn`; a closed plugin listed under `files.skipped` | a design-system file and a screen file using it, both running the plugin       |
+| Change | Check                                                                     | Needs                                                                          |
+| ------ | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| 0.7.2  | R25 hints in `get_design_context`; `search_design_system` with `allPages` | a design file with an annotated, described component instance on a second page |
 
 **When:** now. Nothing external blocks it; each needs one session with such files open, driven by
 the `live-figma-check` skill.
 
 Phase 6's live checks — connecting in FigJam and Slides, the cross-editor refusals, stickies and
 connectors, shapes with text, and `generate_diagram` — all passed on 2026-09-27. That first run
-found two connector bugs no unit test had caught; 0.7.3 fixed both.
+found two connector bugs no unit test had caught; 0.7.3 fixed both. 0.7.5's cross-file search
+(spec X10) passed on 2026-09-27: one entry pointing at the design-system file with the screen file
+under `alsoIn`, and a closed plugin reported under `files.skipped` when the search names it.
 
 #### 3. Verified differently, and blocked on a paid plan
 

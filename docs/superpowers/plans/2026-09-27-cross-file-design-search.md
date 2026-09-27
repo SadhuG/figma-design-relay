@@ -1046,9 +1046,13 @@ git commit -m "feat(server): search_design_system searches every open design fil
 - [x] **Step 2: README.** Tool-table row and the library note: every open design file, `files`.
 - [x] **Step 3: Design history.** R40 row → delivered, citing this plan; parity spec status line;
       this spec's status → delivered; the plan listed under "Other specs".
-- [ ] **Step 4: Live check (X10).** Build this worktree, import its dev plugin into a design-system
+- [x] **Step 4: Live check (X10).** Build this worktree, import its dev plugin into a design-system
       file and a screen file that uses it, and with the smoke harness
       (`node server/.smoke/call.mjs search_design_system '{"query":"<component>"}'`) confirm one hit
       whose `fileName` is the design-system file, with the screen file under `alsoIn`. Close the
       plugin in one file and confirm the search still answers and lists it under `files.skipped`.
+      Passed on 2026-09-27 with a DS file and a Screen file holding pasted DS instances: Button and
+      Card each came back once from DS with Screen under `alsoIn`, also when Screen was searched
+      first; after closing Screen's plugin the search answered from DS and, with
+      `files: ["DS", "Screen"]`, listed Screen as not open.
 - [ ] **Step 5: `finish-task`** — facts, version, changelog, separate-agent review, merge.

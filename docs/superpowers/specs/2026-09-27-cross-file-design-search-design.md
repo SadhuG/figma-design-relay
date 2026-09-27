@@ -2,7 +2,7 @@
 
 **Status:** Delivered in 0.7.5 by
 [`../plans/2026-09-27-cross-file-design-search.md`](../plans/2026-09-27-cross-file-design-search.md).
-The live check (X10) is still open.
+The live check (X10) passed on 2026-09-27.
 **Date:** 2026-09-27
 **Closes:** the last gap in R40 of the
 [parity spec](2026-09-01-official-figma-mcp-parity.md) — "components present or instantiated in
@@ -114,7 +114,9 @@ An example answer, three files open, searching "button":
 - **X10. Live check.** Before release, with a design-system file and a screen file that uses it
   both running the plugin: a search for a shared component returns one hit whose `fileName` is the
   design-system file, with the screen file under `alsoIn`. Then close the plugin in one file and
-  confirm the search still answers and lists that file under `files.skipped`.
+  confirm the search still answers and lists that file under `files.skipped`. A closed file is
+  listed there only when `files` names it: a search with no `files` cannot know a file whose plugin
+  is closed was ever open, so it simply searches the rest.
 
 ## Where it lives
 

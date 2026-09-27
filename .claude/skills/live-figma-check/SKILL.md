@@ -32,6 +32,27 @@ node .smoke/call.mjs get_selection
 - Development-menu imports: exactly one **Figma Design Relay** (the main checkout's
   `plugin/manifest.json`) and one **(Dev: <name>)** per live worktree (its `plugin/dist/manifest.json`).
 
+## Steps the Plugin API cannot take
+
+A plugin sees only its own file, so anything across files — putting a design-system instance into a
+screen file — needs Figma's own UI. `importComponentByKeyAsync` fails for an unpublished component,
+and publishing needs a plan this machine lacks. Drive the desktop app from PowerShell instead of
+asking the user (proved 2026-09-27 for the cross-file search check):
+
+1. In the source file, `run_script` creates the instances and sets `figma.currentPage.selection`.
+2. `SetForegroundWindow` on the Figma process, then `SendKeys` `^c`. The clipboard's `HTML Format`
+   containing `figmeta` proves the copy.
+3. `^{TAB}` cycles Figma's tabs; stop when the window title reads `<file> - Figma`.
+4. The canvas rarely has keyboard focus after that — a bare `^v` lands nowhere. Click a layer row in
+   the Layers panel (keeps the selection, takes focus), then `^v`. Screenshot the window
+   (`CopyFromScreen`) to find coordinates.
+5. Pasted instances of an unpublished component come in `remote: true` with the source's keys —
+   exactly what a library would give.
+
+To close the plugin in a file, `run_script` `setTimeout(() => figma.closePlugin(), 300)`. To
+relaunch it, focus that file's tab as in step 4 and send `^%p` (Run last plugin); it reconnects with
+a new `unsaved-…` key.
+
 ## Symptoms that cost real time
 
 | Symptom                                                         | Cause and fix                                                                                                                                                     |
