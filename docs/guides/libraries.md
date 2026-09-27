@@ -172,12 +172,15 @@ takes about as long as the slowest file. The answers are merged:
   where-is-this-used inventory. A library variable collection appears once, with the other files
   under `alsoIn`.
 - Entries are ranked by `score`, then originals before library copies, then name, and capped at
-  `limit`; `total` is the merged count when some were cut.
+  `limit`. When some were cut, `total` says how many matched. From one file it is exact; across
+  several files the same component may be counted in more than one, so it is a lower bound and
+  the note says "at least".
 
 A file that fails — its plugin was closed, hot-reloaded or timed out — does not fail the search. It
-is listed under `files.skipped` with the reason and, for a dropped connection or timeout, "run the
-plugin in that file again". The search fails only when no file could answer, and then its error
-names every file's reason.
+is listed under `files.skipped` with the reason and what to do: for a dropped connection, "run the
+plugin in that file again"; for a timeout, that or a lighter search (without `allPages`, or fewer
+`files`); for a plugin build older than the server, "rebuild the plugin". The search fails only
+when no file could answer, and then its error names every file's reason.
 
 The response states its own reach, so an agent never has to guess it:
 
@@ -234,5 +237,6 @@ tools has only been tested against stubbed `figma.teamLibrary` and importer obje
 local results, and the refusal path — `get_libraries` naming the missing permission, and search
 falling back to local components with `libraryError`. **Never exercised live:** real data from
 `get_libraries`, a successful `import_library_asset`, a search hit found through a library
-instance, and a search across several open files (0.7.5). If one of those misbehaves on a plan that allows them, that is the untested ground, and a
-report of what Figma returned is the quickest way to close it.
+instance, and a search across several open files (0.7.5). If one of those misbehaves on a plan
+that allows them, that is the untested ground, and a report of what Figma returned is the quickest
+way to close it.

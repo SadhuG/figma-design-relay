@@ -60,6 +60,8 @@ const RECONNECT =
   /disconnect|timed out|timeout|abort|not connected|no plugin connected|connection error/i;
 // A plugin build older than the tool does not know the request at all.
 const OUTDATED = /unknown request type/i;
+// A timeout can also be allPages loading every page of a large file; rerunning alone repeats it.
+const TIMEOUT = /timed out|timeout/i;
 const REBUILD = "Rebuild the plugin and run it in that file again.";
 
 const isHit = (value: unknown): value is FileHit => {
@@ -88,6 +90,12 @@ const isFileSearchResult = (value: unknown): value is FileSearchResult => {
 
 const failureReason = (error: string): string => {
   if (OUTDATED.test(error)) return `${error} ${REBUILD}`;
+  if (TIMEOUT.test(error)) {
+    return (
+      `${error} Run the plugin in that file again, then retry — without allPages, or with ` +
+      `files naming fewer files, if the search was heavy.`
+    );
+  }
   if (RECONNECT.test(error)) return `${error} Run the plugin in that file again, then retry.`;
   return error;
 };

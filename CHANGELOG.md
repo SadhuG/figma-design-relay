@@ -36,6 +36,8 @@ with its tag.
 - `files.searched` and `files.skipped` say which files answered and why any did not. A file whose
   plugin closed or timed out no longer fails the search; only a search where no file answered does.
   Several files' instance-resolution problems are reported per file as `instanceErrors`.
+- A file that timed out is told to retry with a lighter search (no `allPages`, fewer `files`), and
+  one whose plugin is older than the server is told to rebuild it.
 
 ### Fixed
 

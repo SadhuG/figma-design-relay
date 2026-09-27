@@ -306,3 +306,43 @@ describe("mergeSearchResults after review", () => {
     expect(merged.files.skipped[0].reason).toContain(advice);
   });
 });
+
+describe("mergeSearchResults after the second review", () => {
+  test("a timeout also suggests a lighter search, since allPages on a large file can cause it", () => {
+    const merged = mergeSearchResults({
+      outcomes: [answered(system, []), { file: checkout, error: "Request timed out (3 minutes)" }],
+      skipped: [],
+    });
+    expect(merged.files.skipped[0].reason).toContain("Run the plugin in that file again");
+    expect(merged.files.skipped[0].reason).toContain("without allPages");
+  });
+
+  test("a dropped connection does not get the allPages advice", () => {
+    const merged = mergeSearchResults({
+      outcomes: [answered(system, []), { file: checkout, error: "Plugin disconnected" }],
+      skipped: [],
+    });
+    expect(merged.files.skipped[0].reason).not.toContain("allPages");
+  });
+
+  test("skips a file whose hit has a field of the wrong type", () => {
+    const merged = mergeSearchResults({
+      outcomes: [
+        answered(system, [button("1:1")]),
+        {
+          file: checkout,
+          result: {
+            results: [{ id: "2:2", name: "Button", kind: "component", score: "1" }],
+            searched: [],
+          },
+        },
+      ],
+      skipped: [],
+    });
+    expect(merged.results).toHaveLength(1);
+    expect(merged.files.skipped[0]).toMatchObject({
+      fileName: "Checkout Screens",
+      reason: expect.stringContaining("Rebuild"),
+    });
+  });
+});
