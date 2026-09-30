@@ -40,10 +40,10 @@ This file holds only what applies to every task. The rest loads when it is relev
 | root      | `bun scripts/check-version.mjs`           | server + plugin versions agree and have a changelog entry                 |
 | root      | `bun scripts/dev-slot.mjs [name]`         | in a feature worktree: claim its dev plugin name and port (1995–2019)     |
 | `server/` | `bun run build`                           | `tsc` → `dist/`; this is the server's type-check                          |
-| `server/` | `bun test`                                | 305 tests: schemas, rpc guards, codegen, assets, Code Connect, Mermaid    |
+| `server/` | `bun test`                                | 307 tests: schemas, rpc guards, codegen, assets, Code Connect, Mermaid    |
 | `plugin/` | `bun run typecheck`                       | `tsc --noEmit`; must stay at zero errors                                  |
 | `plugin/` | `bun run build`                           | typecheck, then two Vite passes: UI, then `main`                          |
-| `plugin/` | `bun test`                                | 210 tests: scripts, serializer, capability table, library tools, diagrams |
+| `plugin/` | `bun test`                                | 215 tests: scripts, serializer, capability table, library tools, diagrams |
 
 Tests live beside the code as `*.test.ts` (excluded from both tsconfigs). CI (`.github/workflows/ci.yml`)
 runs all of the above on every push to every branch.
@@ -59,7 +59,7 @@ server/src/
   bridge.ts     socket registry keyed by fileKey; 180 s per-request timeout
   election.ts   leader election
   schema.ts     Zod input schemas + the RPC validation layer
-  tools.ts      all 53 MCP tool registrations
+  tools.ts      all 54 MCP tool registrations
   content.ts    typed MCP content blocks (text + image) for tool results
   assets.ts     writes exported design assets inside the working directory
   codegen/      tokens, then React / HTML / CSS reference code behind index.ts's dispatcher
@@ -71,6 +71,7 @@ server/.smoke/  live harness: probe.mjs (run_script), call.mjs (any tool) — se
 plugin/dev-slot.ts        dev slot rules + the dev manifest both Vite configs emit into dist/
 plugin/src/
   main/code.ts              request dispatcher, one switch case per tool
+  main/layout-tree.ts       bounded absolute geometry for get_layout_tree
   main/serializer.ts        scene graph → JSON (async)
   main/references.ts        variable + style ids → resolved names
   main/component-identity.ts component and instance identity

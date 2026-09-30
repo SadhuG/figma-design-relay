@@ -18,3 +18,9 @@
 # Never apply line-ending conversion to binaries. `text=auto` detects these
 # anyway; listing them is documentation, and insurance against a bad heuristic.
 *.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
