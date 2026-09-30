@@ -1,6 +1,21 @@
 import { describe, expect, test } from "bun:test";
 import { validateRpc } from "./schema.js";
 
+describe("validateRpc get_layout_tree", () => {
+  test("retains the root and bounded budget on the follower hop", () => {
+    const result = validateRpc("get_layout_tree", ["3:0"], { maxNodes: 2 });
+    expect(result.error).toBeNull();
+    expect(result.params).toMatchObject({ rootId: "3:0", maxNodes: 2 });
+  });
+  test("rejects invalid roots and budgets", () => {
+    expect(validateRpc("get_layout_tree", ["3-0"]).error).toContain("colon format");
+    expect(validateRpc("get_layout_tree").error).not.toBeNull();
+    for (const maxNodes of [0, 10001, 1.5]) {
+      expect(validateRpc("get_layout_tree", ["3:0"], { maxNodes }).error).not.toBeNull();
+    }
+  });
+});
+
 describe("validateRpc", () => {
   test("accepts a well-formed get_node request", () => {
     const result = validateRpc("get_node", ["4029:12345"]);

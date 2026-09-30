@@ -1,3 +1,4 @@
+import { getLayoutTree } from "./layout-tree";
 import { serializeNode } from "./serializer";
 import { addLayersToFrame } from "../html-figma/figma";
 import { runScript } from "./script-runner";
@@ -30,6 +31,7 @@ export type RequestType =
   | "get_document"
   | "get_selection"
   | "get_node"
+  | "get_layout_tree"
   | "get_styles"
   | "get_metadata"
   | "get_design_context"
@@ -413,6 +415,19 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
           requestId: request.requestId,
           data: await Promise.all(figma.currentPage.selection.map((node) => serializeNode(node))),
         };
+      case "get_layout_tree": {
+        const rootId = request.nodeIds?.[0];
+        if (!rootId) throw new Error("rootId is required");
+        return {
+          type: request.type,
+          requestId: request.requestId,
+          data: await getLayoutTree(rootId, Number(request.params?.maxNodes ?? 2000), {
+            getNodeByIdAsync: (id) => figma.getNodeByIdAsync(id),
+            fileKey: figma.fileKey,
+            fileName: figma.root.name,
+          }),
+        };
+      }
       case "get_node": {
         const nodeId = request.nodeIds && request.nodeIds[0];
         if (!nodeId) {
@@ -876,8 +891,9 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
           ) {
             throw new Error(`Node does not support setting cornerRadius: ${nodeId}`);
           }
-          node.cornerRadius = params.cornerRadius;
-          applied.cornerRadius = node.cornerRadius;
+          const cornerNode = node as CornerMixin;
+          cornerNode.cornerRadius = params.cornerRadius;
+          applied.cornerRadius = cornerNode.cornerRadius;
         }
 
         return {

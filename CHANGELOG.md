@@ -18,6 +18,26 @@ with its tag.
 
 ## [Unreleased]
 
+## [0.7.6] - 2026-09-30
+
+### Added
+
+- Sync upstream through `e8db933`, including `get_layout_tree` for bounded,
+  absolute layout geometry. Screenshot calls remain separate and non-atomic;
+  masks and painted visibility are not evaluated. The page id identifies the
+  root's containing page, including roots outside the current page.
+
+### Fixed
+
+- Preserve the fork's asynchronous serializer, type-checking build and product
+  names while merging upstream's plugin build fixes and Figma app clarification.
+- Read render bounds only when a node exposes them, so FigJam nodes are supported.
+
+### Verification
+
+- Geometry and follower RPC behavior are covered by automated tests. This sync
+  has not been checked against a running Figma plugin.
+
 ## [0.7.5] - 2026-09-27
 
 `search_design_system` now covers every open design file, closing the last gap in R40.

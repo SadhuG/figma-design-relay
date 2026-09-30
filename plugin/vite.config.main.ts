@@ -9,7 +9,9 @@ const slot = readDevSlot(fileURLToPath(new URL("..", import.meta.url)));
 export default defineConfig({
   plugins: [devManifestPlugin(manifest, slot)],
   build: {
-    target: "es2015",
+    // Figma's sandbox runs es2020 code and beyond:
+    // https://developers.figma.com/docs/plugins/how-plugins-run/
+    target: "es2020",
     lib: {
       entry: "src/main/code.ts",
       formats: ["iife"],
