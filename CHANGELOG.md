@@ -35,8 +35,10 @@ with its tag.
 
 ### Verification
 
-- Geometry and follower RPC behavior are covered by automated tests. This sync
-  has not been checked against a running Figma plugin.
+- Geometry and follower RPC behavior are covered by automated tests. Design,
+  FigJam and Slides paths were also checked live after the merge; see the
+  [live verification report](docs/reference/2026-10-01-upstream-sync-live-check.md)
+  for the tested build, cases, results and remaining coverage.
 
 ## [0.7.5] - 2026-09-27
 

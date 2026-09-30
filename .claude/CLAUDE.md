@@ -132,6 +132,18 @@ strings.
   `.dev-slot.json`. Docs-only work may use a plain branch.
 - Commit messages: `feat(scope): …`, `fix(scope): …`, `docs: …`, `test: …`, `chore: …`.
 - New behaviour is test-first: failing test, see it fail, implement, see it pass, commit.
+- **Any code change that might affect behaviour in Figma must pass live Figma checks before
+  opening a PR and before merging into `dev` or `main`.** This includes upstream syncs,
+  plugin/UI/build changes, and server routing, schema, serialization or tool changes that affect
+  what Figma receives or returns. Unit tests, type-checks, builds, CI and agent review do not
+  replace this gate. Use the `live-figma-check` skill: build the exact candidate in its worktree,
+  restart its relay when server code changed, relaunch its Dev plugin after every plugin rebuild,
+  and exercise the changed paths in each affected editor, including one follower call for a
+  node-addressed tool. Record the tested commit/build, setup, cases and results in the repository
+  and PR. If the candidate changes after testing, repeat the affected live checks before merging.
+  If Figma, a required editor, plan or permission is unavailable, stop before opening the PR or
+  merging, report the specific blocker, and ask the user for an explicit exception; an
+  "unverified" note is not permission to proceed. Docs-only changes need no live check.
 - **Before the last commit of any task, run the `finish-task` skill** — unasked. It refreshes the
   facts in this file that drift with the code (test counts, landmarks, layout, tool count), bumps
   the version (minor per finished phase, patch per fix or tooling change, none for docs-only), and

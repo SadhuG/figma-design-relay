@@ -20,6 +20,14 @@ bun scripts/check-version.mjs
 
 The plugin type-check must report zero errors. Read the `Ran N tests` lines — step 2 needs them.
 
+For any code that might change behaviour in Figma, run the `live-figma-check` skill against the
+exact candidate build before opening a PR or merging. Cover the affected editor(s) and changed
+paths, including the follower hop for node-addressed tools, and record evidence in the repository
+and PR. Restart/relaunch after rebuilds. Recheck affected paths if later fixes or merges change
+the candidate. If a required live check cannot run, stop before opening the PR or merging and
+ask the user for an explicit exception with the specific blocker. Automated checks and a note
+that a path is unverified do not satisfy this gate. Docs-only changes are exempt.
+
 ## 2. Refresh the facts that drift
 
 Some facts describe the code rather than a decision about it, so they go stale with commits nobody

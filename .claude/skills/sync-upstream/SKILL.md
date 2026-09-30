@@ -23,7 +23,11 @@ to `DISABLED` so nothing can be pushed there by accident.
 6. Verify locally — `bun run typecheck` and `bun test` in `plugin/`, `bun test` in `server/`, and a
    build of each. **A non-zero plugin type-check count means the merge broke something**; do not
    wave it through.
-7. Finish with the `finish-task` skill (patch bump, a full review by a separate agent, then merge
+7. Before opening a PR or merging, check every changed path that might affect Figma live using
+   the `live-figma-check` skill. Upstream code and build changes are subject to the same gate as
+   local code; record the exact build and results. If a required check is blocked, stop and ask
+   the user for an explicit exception rather than proceeding with an unverified note.
+8. Finish with the `finish-task` skill (patch bump, a full review by a separate agent, then merge
    to `dev` then `main`). The review covers everything upstream brought in, not just the conflict
    resolutions: upstream's code has never been reviewed against this fork's rules (loopback-only
    binding, no old names, no npm publishing).

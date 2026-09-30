@@ -18,6 +18,7 @@
 ## Reference
 
 - [`serialized-nodes.md`](reference/serialized-nodes.md) — the serialized node shape, and for every field when it is omitted.
+- [`2026-10-01-upstream-sync-live-check.md`](reference/2026-10-01-upstream-sync-live-check.md) — the 0.7.6 upstream sync's live Figma evidence and tested build.
 
 Contributor workflow — building, testing, releasing, verifying against a live file — is in
 [`.claude/CLAUDE.md`](../.claude/CLAUDE.md) and the rules and skills beside it.
