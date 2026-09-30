@@ -5,6 +5,14 @@ description: Use when verifying a figma-design-relay change against a real Figma
 
 # Checking against a live Figma file
 
+**Required before opening a PR or merging any code that might affect behaviour in Figma.**
+Upstream syncs and plugin build changes are included. Test the exact candidate build, cover
+each affected editor and changed path, include a follower call for node-addressed tools, and
+record the commit/build, setup, cases and results in the repository and PR. Rerun affected
+checks after candidate changes. If a required check is unavailable, stop before opening the
+PR or merging and ask the user for an explicit exception; automated tests and an unverified
+note do not replace live evidence. Docs-only changes are exempt.
+
 `server/.smoke/` drives real tool calls exactly as an MCP client would: `probe.mjs` runs
 `run_script`, `call.mjs` runs any tool by name. **Read `server/.smoke/README.md` first** — it covers
 the setups (join the client's relay, hold your own leader), how ports follow a worktree's dev slot,
@@ -67,9 +75,11 @@ a new `unsaved-…` key.
 | Plugin drops off `list_files` after a rebuild and never returns | Figma rejected the manifest (e.g. `dev` and `figjam` together in `editorType`) and closed the plugin. Fix it and relaunch from the Development menu.              |
 | A regex or `\` in shipped source silently wrong                 | It was written through a shell heredoc or `bun -e`, which collapses `\\`. Write it with Edit/Write, use `String.raw` for `new RegExp`, check the compiled output. |
 
-A rebuilt manifest's permissions **do** reach a hot-reloaded plugin, so a refusal path can be probed
-by dropping the permission, rebuilding, and waiting for the reconnect.
+A rebuilt manifest's permissions **do** reach a hot-reloaded plugin. To check a permission
+refusal, drop the permission in the candidate worktree, rebuild, then close and relaunch that
+Dev plugin before probing. A hot-reload reconnect alone does not satisfy the live-check gate.
 
-Two things cannot be checked live on this machine, so do not plan either: Dev Mode (needs a paid
-seat) and any team-library success path (needs an Organization or Enterprise plan and a published
-library). Probe their refusal paths instead.
+Dev Mode needs a paid seat, and team-library success paths need an Organization or Enterprise
+plan and a published library. If a change requires either unavailable path, probe the available
+refusal path, report the remaining blocker, and obtain an explicit user exception before opening
+the PR or merging. Unit tests alone do not waive the live-check gate.
