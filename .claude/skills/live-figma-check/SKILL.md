@@ -75,8 +75,9 @@ a new `unsaved-…` key.
 | Plugin drops off `list_files` after a rebuild and never returns | Figma rejected the manifest (e.g. `dev` and `figjam` together in `editorType`) and closed the plugin. Fix it and relaunch from the Development menu.              |
 | A regex or `\` in shipped source silently wrong                 | It was written through a shell heredoc or `bun -e`, which collapses `\\`. Write it with Edit/Write, use `String.raw` for `new RegExp`, check the compiled output. |
 
-A rebuilt manifest's permissions **do** reach a hot-reloaded plugin, so a refusal path can be probed
-by dropping the permission, rebuilding, and waiting for the reconnect.
+A rebuilt manifest's permissions **do** reach a hot-reloaded plugin. To check a permission
+refusal, drop the permission in the candidate worktree, rebuild, then close and relaunch that
+Dev plugin before probing. A hot-reload reconnect alone does not satisfy the live-check gate.
 
 Dev Mode needs a paid seat, and team-library success paths need an Organization or Enterprise
 plan and a published library. If a change requires either unavailable path, probe the available
