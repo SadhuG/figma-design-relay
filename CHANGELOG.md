@@ -20,6 +20,8 @@ with its tag.
 
 ## [0.7.7] - 2026-10-01
 
+<<<<<<< HEAD
+
 ### Fixed
 
 - Keep plugin responses scoped to the socket that received the request; ignore malformed responses.
@@ -37,6 +39,16 @@ with its tag.
 ### Verification
 
 - Automated regression tests and 13 live checks across Design, FigJam and Slides cover the reviewed fixes. File routing, off-page reads, image import, exports and connection recovery were checked against the candidate; see the [project review](docs/reference/2026-10-01-project-review.md) for results and limits.
+  \=======
+
+### Changed
+
+- A Dev plugin's name now carries its port — **Figma Design Relay (Dev: _name_, port _port_)** —
+  so Figma's Development menu says which relay each one dials and it can't be mistaken for the
+  stable plugin on 1994. See the
+  [live verification report](docs/reference/2026-10-01-dev-name-port-live-check.md).
+
+> > > > > > > origin/dev
 
 ## [0.7.6] - 2026-09-30
 
@@ -373,7 +385,9 @@ Phase 1: `run_script`, the Plugin API escape hatch (R1–R10). The first version
 
 The upstream `@gethopp/figma-mcp-bridge` code this fork started from.
 
-[Unreleased]: https://github.com/SadhuG/figma-design-relay/compare/v0.7.5...HEAD
+[Unreleased]: https://github.com/SadhuG/figma-design-relay/compare/v0.7.7...HEAD
+[0.7.7]: https://github.com/SadhuG/figma-design-relay/compare/v0.7.6...v0.7.7
+[0.7.6]: https://github.com/SadhuG/figma-design-relay/compare/v0.7.5...v0.7.6
 [0.7.5]: https://github.com/SadhuG/figma-design-relay/compare/v0.7.4...v0.7.5
 [0.7.4]: https://github.com/SadhuG/figma-design-relay/compare/v0.7.3...v0.7.4
 [0.7.3]: https://github.com/SadhuG/figma-design-relay/compare/v0.7.2...v0.7.3

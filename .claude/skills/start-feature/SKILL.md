@@ -7,9 +7,9 @@ description: Use when starting any feature, fix or tooling task in figma-design-
 
 Every task that changes code gets its own git worktree and **dev slot**, unasked. The slot gives the
 work a plugin name, a plugin id and a relay port of its own, so in Figma the user sees the stable
-**Figma Design Relay** and one **Figma Design Relay (Dev: <name>, port <port>)** per feature in progress, and
-nothing a half-built feature does can reach the stable relay. Docs-only work may stay on a plain
-branch; it has nothing to run.
+**Figma Design Relay** and one **Figma Design Relay (Dev: `<name>`, port `<port>`)** per feature in
+progress, and nothing a half-built feature does can reach the stable relay. Docs-only work may stay
+on a plain branch; it has nothing to run.
 
 |                   | Main checkout (stable) | Feature worktree (dev slot)                          |
 | ----------------- | ---------------------- | ---------------------------------------------------- |
