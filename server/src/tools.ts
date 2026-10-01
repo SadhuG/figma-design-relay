@@ -60,6 +60,7 @@ import { findExportedComponents, scoreCandidates } from "./code-connect/suggest.
 import { writeMapping } from "./code-connect/write.js";
 import { layoutDiagram } from "./mermaid/layout.js";
 import { parseMermaid } from "./mermaid/parse.js";
+import { isInsideWorkspace, resolveWorkspacePath } from "./workspace-path.js";
 
 const MAX_IMAGE_BYTES = 32 * 1024 * 1024;
 const IMAGE_FETCH_TIMEOUT_MS = 15_000;
@@ -1321,15 +1322,8 @@ function parseToolInput<T>(
  * @param workspaceRoot - Root directory that must contain the resolved path.
  * @returns Absolute path inside the workspace root.
  */
-function resolveAndValidateOutputPath(outputPath: string, workspaceRoot: string): string {
-  const resolvedRoot = path.resolve(workspaceRoot);
-  const resolvedPath = path.resolve(resolvedRoot, outputPath);
-  const relativePath = path.relative(resolvedRoot, resolvedPath);
-  const escapesRoot = relativePath.startsWith("..") || path.isAbsolute(relativePath);
-  if (escapesRoot) {
-    throw new Error(`outputPath must be inside the MCP server working directory: ${resolvedRoot}`);
-  }
-  return resolvedPath;
+function resolveAndValidateOutputPath(outputPath: string, workspaceRoot: string): Promise<string> {
+  return resolveWorkspacePath(workspaceRoot, outputPath, "outputPath");
 }
 
 /**
@@ -1361,9 +1355,7 @@ async function loadLayersJson(
   } catch {
     throw new Error(`Layers source not found: ${source}`);
   }
-  const relativePath = path.relative(resolvedRoot, resolvedPath);
-  const escapesRoot = relativePath.startsWith("..") || path.isAbsolute(relativePath);
-  if (escapesRoot) {
+  if (!isInsideWorkspace(resolvedRoot, resolvedPath)) {
     throw new Error(
       `layers source must be inside the MCP server working directory: ${resolvedRoot}`
     );
@@ -1405,14 +1397,13 @@ async function loadImageSourceAsBase64(source: string, workspaceRoot: string): P
     return dataUrlMatch[1];
   }
 
-  const resolvedRoot = path.resolve(workspaceRoot);
-  const resolvedPath = path.resolve(resolvedRoot, source);
-  const relativePath = path.relative(resolvedRoot, resolvedPath);
-  const escapesRoot = relativePath.startsWith("..") || path.isAbsolute(relativePath);
-  if (escapesRoot) {
-    throw new Error(
-      `image source must be inside the MCP server working directory: ${resolvedRoot}`
-    );
+  const resolvedPath = await resolveWorkspacePath(workspaceRoot, source, "image source");
+  const info = await stat(resolvedPath);
+  if (!info.isFile()) {
+    throw new Error(`Image source is not a regular file: ${source}`);
+  }
+  if (info.size > MAX_IMAGE_BYTES) {
+    throw new Error(`Image exceeds ${MAX_IMAGE_BYTES} bytes`);
   }
   const bytes = await readFile(resolvedPath);
   if (bytes.length > MAX_IMAGE_BYTES) {
@@ -1435,12 +1426,46 @@ async function fetchImageBytes(source: string): Promise<Buffer> {
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), IMAGE_FETCH_TIMEOUT_MS);
-    let resp: Response;
     try {
-      resp = await fetch(url, {
+      const resp = await fetch(url, {
         signal: controller.signal,
         redirect: "manual",
       });
+
+      if (resp.status >= 300 && resp.status < 400) {
+        await resp.body?.cancel();
+        const location = resp.headers.get("location");
+        if (!location) {
+          throw new Error(`Image redirect missing Location header: ${resp.status}`);
+        }
+        redirects += 1;
+        if (redirects > MAX_IMAGE_REDIRECTS) {
+          throw new Error(`Image fetch exceeded ${MAX_IMAGE_REDIRECTS} redirects`);
+        }
+        url = new URL(location, url);
+        continue;
+      }
+
+      if (!resp.ok) {
+        await resp.body?.cancel();
+        throw new Error(`Failed to fetch image: ${resp.status} ${resp.statusText}`);
+      }
+
+      const contentLength = resp.headers.get("content-length");
+      if (contentLength !== null) {
+        const size = Number(contentLength);
+        if (!Number.isFinite(size) || size < 0 || size > MAX_IMAGE_BYTES) {
+          await resp.body?.cancel();
+          throw new Error(
+            size > MAX_IMAGE_BYTES
+              ? `Image exceeds ${MAX_IMAGE_BYTES} bytes`
+              : "Invalid image Content-Length header"
+          );
+        }
+      }
+
+      // Await the body here so the deadline and error handling cover the entire download.
+      return await readBoundedResponse(resp, MAX_IMAGE_BYTES);
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
         throw new Error(`Timed out fetching image after ${IMAGE_FETCH_TIMEOUT_MS}ms`);
@@ -1449,36 +1474,6 @@ async function fetchImageBytes(source: string): Promise<Buffer> {
     } finally {
       clearTimeout(timeout);
     }
-
-    if (resp.status >= 300 && resp.status < 400) {
-      const location = resp.headers.get("location");
-      if (!location) {
-        throw new Error(`Image redirect missing Location header: ${resp.status}`);
-      }
-      redirects += 1;
-      if (redirects > MAX_IMAGE_REDIRECTS) {
-        throw new Error(`Image fetch exceeded ${MAX_IMAGE_REDIRECTS} redirects`);
-      }
-      url = new URL(location, url);
-      continue;
-    }
-
-    if (!resp.ok) {
-      throw new Error(`Failed to fetch image: ${resp.status} ${resp.statusText}`);
-    }
-
-    const contentLength = resp.headers.get("content-length");
-    if (contentLength !== null) {
-      const size = Number(contentLength);
-      if (!Number.isFinite(size) || size < 0) {
-        throw new Error("Invalid image Content-Length header");
-      }
-      if (size > MAX_IMAGE_BYTES) {
-        throw new Error(`Image exceeds ${MAX_IMAGE_BYTES} bytes`);
-      }
-    }
-
-    return readBoundedResponse(resp, MAX_IMAGE_BYTES);
   }
 }
 
@@ -1534,7 +1529,14 @@ function isBlockedIp(address: string): boolean {
 
   const normalized = address.toLowerCase();
   if (normalized.startsWith("::ffff:")) {
-    return isBlockedIp(normalized.slice("::ffff:".length));
+    const mapped = normalized.slice("::ffff:".length);
+    if (isIP(mapped) === 4) return isBlockedIp(mapped);
+    const words = mapped.split(":");
+    if (words.length === 2 && words.every((word) => /^[0-9a-f]{1,4}$/.test(word))) {
+      const [high, low] = words.map((word) => parseInt(word, 16));
+      return isBlockedIp(`${high >> 8}.${high & 255}.${low >> 8}.${low & 255}`);
+    }
+    return true;
   }
 
   return (
@@ -1542,7 +1544,7 @@ function isBlockedIp(address: string): boolean {
     normalized === "::1" ||
     normalized.startsWith("fc") ||
     normalized.startsWith("fd") ||
-    /^fe[89ab]:/.test(normalized) ||
+    /^fe[89ab][0-9a-f]:/.test(normalized) ||
     normalized.startsWith("ff")
   );
 }
@@ -1676,7 +1678,7 @@ async function saveScreenshotItemToFile(
   let resolvedOutputPath = item.outputPath;
 
   try {
-    resolvedOutputPath = resolveAndValidateOutputPath(item.outputPath, workspaceRoot);
+    resolvedOutputPath = await resolveAndValidateOutputPath(item.outputPath, workspaceRoot);
     const inferredFormat = inferFormatFromPath(resolvedOutputPath);
     const resolvedFormat = resolveExportFormat(item.format ?? defaultFormat, inferredFormat);
     const resolvedScale = resolveScale(item.scale, defaultScale);
@@ -1696,6 +1698,8 @@ async function saveScreenshotItemToFile(
     }
 
     const screenshotExport = getSingleScreenshotExport(resp.data);
+    // The plugin call can take minutes; revalidate before creating directories.
+    await resolveAndValidateOutputPath(resolvedOutputPath, workspaceRoot);
     const bytesWritten = await writeBase64ToFile(screenshotExport.base64, resolvedOutputPath);
 
     return {

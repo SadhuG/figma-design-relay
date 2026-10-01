@@ -184,7 +184,7 @@ const render = (
   if (file) {
     lines.push(...hintLines(node, pad, false));
     lines.push(
-      `${pad}<img src="${file}" alt="${escapeText(node.name)}" data-figma-node="${node.id}" />`
+      `${pad}<img src="${escapeText(file).replace(/"/g, "&quot;")}" alt="${escapeText(node.name).replace(/"/g, "&quot;")}" data-figma-node="${node.id}" />`
     );
     return lines;
   }
@@ -196,7 +196,9 @@ const render = (
   // component, so the code names it rather than a placeholder.
   const mapped = node.type === "INSTANCE" ? mappings[node.id] : undefined;
   if (mapped) {
-    lines.push(`${pad}{/* Code Connect: ${mapped.component} — ${mapped.source} */}`);
+    lines.push(
+      `${pad}{/* Code Connect: ${commentText(`${mapped.component} — ${mapped.source}`)} */}`
+    );
     lines.push(...hintLines(node, pad, true));
     const inner = node.children ?? [];
     if (inner.length === 0) {
@@ -211,7 +213,7 @@ const render = (
 
   if (node.type === "INSTANCE" && node.design?.mainComponent?.name) {
     lines.push(
-      `${pad}{/* Figma component: ${componentLabel(node.design.mainComponent)} — map with Code Connect */}`
+      `${pad}{/* Figma component: ${commentText(componentLabel(node.design.mainComponent))} — map with Code Connect */}`
     );
     lines.push(...hintLines(node, pad, true));
     const inner = node.children ?? [];
@@ -232,7 +234,7 @@ const render = (
   if (node.type === "TEXT") {
     const style = node.design?.styles?.text;
     const styleName = style && style !== "mixed" ? style.name : undefined;
-    if (styleName) lines.push(`${pad}{/* text style: ${styleName} */}`);
+    if (styleName) lines.push(`${pad}{/* text style: ${commentText(styleName)} */}`);
     const characters = typeof node.characters === "string" ? escapeText(node.characters) : "";
     lines.push(`${pad}<span${attributes(node)}>${characters}</span>`);
     return lines;

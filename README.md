@@ -252,14 +252,19 @@ bun run format:check  # verify formatting without writing (useful in CI)
 
 ### Tests and type-checking
 
+From the repository root, `bun run check` validates versions, runs both test suites, builds both
+packages (including type-checking), and checks formatting. `bun run test` runs only the suites.
+
 ```bash
 cd server && bun test       # schemas, /rpc guards, codegen, content blocks, asset export, Code Connect,
                             # the Mermaid parser and diagram layout, the startup port and dev slots,
-                            # cross-file search: file selection, result merging and fan-out
+                            # cross-file search: file selection, result merging and fan-out,
+                            # bridge response ownership, leader cleanup and filesystem/URL safety
 cd plugin && bun test       # run_script, serializer and its helpers (FigJam nodes too), Code Connect context,
                             # the editor capability table and its regression guard, diagram payloads,
                             # library tools and search against stubbed figma.teamLibrary / currentUser,
-                            # bounded absolute layout geometry, dev slot rules and the dev manifest
+                            # bounded absolute layout geometry, dev slot rules and the dev manifest,
+                            # page-loading dispatch, UI startup status and HTML image imports
 cd plugin && bun run typecheck   # tsc --noEmit; also runs as part of `bun run build`
 ```
 
@@ -291,6 +296,7 @@ Figma-Design-Relay/
         ├── election.ts   # Leader election & health monitoring
         ├── schema.ts     # Tool input schemas & /rpc validation
         ├── tools.ts      # MCP tool definitions
+        ├── workspace-path.ts # Shared filesystem containment checks
         ├── content.ts    # Text and image blocks for tool results
         ├── assets.ts     # Exports design assets into the workspace
         ├── codegen/      # Tokens and React / HTML / CSS reference code
