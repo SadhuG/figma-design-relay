@@ -37,7 +37,6 @@ with its tag.
 ### Verification
 
 - Automated regression tests and 13 live checks across Design, FigJam and Slides cover the reviewed fixes. File routing, off-page reads, image import, exports and connection recovery were checked against the candidate; see the [project review](docs/reference/2026-10-01-project-review.md) for results and limits.
-  \
 
 ## [0.7.7] - 2026-10-01
 
@@ -47,8 +46,6 @@ with its tag.
   so Figma's Development menu says which relay each one dials and it can't be mistaken for the
   stable plugin on 1994. See the
   [live verification report](docs/reference/2026-10-01-dev-name-port-live-check.md).
-
-> > > > > > > origin/dev
 
 ## [0.7.6] - 2026-09-30
 
