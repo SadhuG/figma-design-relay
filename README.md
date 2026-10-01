@@ -226,8 +226,8 @@ cd ../figma-design-relay-<feature> && bun install
 bun scripts/dev-slot.mjs      # writes .dev-slot.json and prints the next steps
 ```
 
-That worktree's builds then produce **Figma Design Relay (Dev: _feature_)** on a port from
-1995–2019: the plugin build writes its manifest to `plugin/dist/manifest.json` (import that one in
+That worktree's builds then produce **Figma Design Relay (Dev: _feature_, port _port_)** on a port from
+1995–2019 (the name carries the port, so the Development menu says which relay it dials): the plugin build writes its manifest to `plugin/dist/manifest.json` (import that one in
 Figma), and the server listens on the slot's port by itself (add it to your MCP config as
 `figma-design-relay-dev-<feature>`). Stable and dev relays never talk to each other, so a
 half-built feature cannot break the plugin you use for real work. The

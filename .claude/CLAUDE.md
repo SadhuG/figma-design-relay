@@ -114,13 +114,17 @@ Renamed from "Figma MCP Bridge" in `5ae5a0b`
 (`docs/superpowers/specs/2026-09-02-figma-design-relay-name-change.md`). Never reintroduce the old
 strings.
 
-| Surface                   | Value                                                   |
-| ------------------------- | ------------------------------------------------------- |
-| Product                   | Figma Design Relay                                      |
-| CLI / plugin id / MCP key | `figma-design-relay`                                    |
-| Dev slot plugin / MCP key | `Figma Design Relay (Dev: <name>)`, `…-dev-<name>`      |
-| Env vars                  | `FIGMA_DESIGN_RELAY_PORT`, `VITE_FIGMA_DESIGN_RELAY_WS` |
-| npm package               | none — `figma-design-relay-server`, `"private": true`   |
+| Surface                   | Value                                                           |
+| ------------------------- | --------------------------------------------------------------- |
+| Product                   | Figma Design Relay                                              |
+| CLI / plugin id / MCP key | `figma-design-relay`                                            |
+| Dev slot plugin / MCP key | `Figma Design Relay (Dev: <name>, port <port>)`, `…-dev-<name>` |
+| Env vars                  | `FIGMA_DESIGN_RELAY_PORT`, `VITE_FIGMA_DESIGN_RELAY_WS`         |
+| npm package               | none — `figma-design-relay-server`, `"private": true`           |
+
+**A Dev plugin's name always carries its port.** `devManifest` in `plugin/dev-slot.ts` builds it,
+so Figma's Development menu says which relay each Dev plugin dials and it can't be mistaken for
+the stable one, which dials 1994. Never drop the port from the name.
 
 ## Workflow
 
@@ -128,7 +132,7 @@ strings.
 - **Every code task is built in its own git worktree with its own dev slot** — run the
   `start-feature` skill before the first edit, unasked. The main checkout stays on `main` as the
   stable relay: **Figma Design Relay** on port 1994. Each worktree runs as **Figma Design Relay
-  (Dev: `<name>`)** with its own plugin id and a port from 1995–2019, so the user can tell stable
+  (Dev: `<name>`, port `<port>`)** with its own plugin id and a port from 1995–2019, so the user can tell stable
   from in-progress in Figma and several features can run at once. The main checkout never holds a
   `.dev-slot.json`. Docs-only work may use a plain branch.
 - Commit messages: `feat(scope): …`, `fix(scope): …`, `docs: …`, `test: …`, `chore: …`.

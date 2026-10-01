@@ -80,8 +80,8 @@ describe("pickSlotPort", () => {
 describe("devManifest", () => {
   const manifest = devManifest(baseManifest, { name: "diagrams", port: 1997 });
 
-  test("gives the dev plugin its own name and id", () => {
-    expect(manifest.name).toBe("Figma Design Relay (Dev: diagrams)");
+  test("gives the dev plugin its own name, carrying its port, and id", () => {
+    expect(manifest.name).toBe("Figma Design Relay (Dev: diagrams, port 1997)");
     expect(manifest.id).toBe("figma-design-relay-dev-diagrams");
   });
 
