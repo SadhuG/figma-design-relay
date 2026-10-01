@@ -108,5 +108,20 @@ operation with `blocked by policy`; no process was stopped by that attempt. This
 the observed recovery, not an intentional restart, and does not claim that UI close/relaunch was
 automated. The user manually launched the candidate after its last runtime build.
 
-No PR was opened, and nothing was merged or pushed. The DNS-rebinding and WebSocket pairing/origin
-findings above remain unresolved and should be addressed before treating this as security-complete.
+## Final integration verification
+
+The cleanup branch was merged with `origin/dev` and `origin/main` at
+`1155e50d929237f0ea181ccf0fd0cf60db1fc0ce`. Their independent 0.7.7 release is preserved;
+the cleanup release is **0.7.8**. Integration changed documentation and package metadata,
+without changing the previously tested runtime source.
+
+Final automated verification passed: 327 server tests, 2 Windows leaf-symlink skips,
+218 plugin tests, both builds, type-checking, formatting and version validation.
+The plugin builds used temporary output directories to preserve the user's running imports.
+Both resulting runtime hashes match the table above exactly, as does the rebuilt server
+`tools.js`. The user-launched plugin therefore still runs the exact compiled candidate.
+The complete 13-case live harness passed again through a newly started follower on port 1995,
+with all four editors connected and owned fixtures removed afterward.
+
+The DNS-rebinding and WebSocket pairing/origin findings above remain unresolved follow-ups;
+this cleanup does not constitute a complete security audit remediation.
