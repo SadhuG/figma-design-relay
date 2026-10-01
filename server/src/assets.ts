@@ -1,5 +1,6 @@
 import { mkdir, realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { resolveWorkspacePath } from "./workspace-path.js";
 import type { SerializedNode } from "./codegen/tokens.js";
 import type { ScreenshotSender } from "./tools.js";
 
@@ -128,23 +129,6 @@ const fileStem = (name: string, nodeId: string): string => {
 };
 
 /**
- * Real path of the nearest ancestor of `target` that already exists — the
- * directory `mkdir -p` would start creating from.
- */
-const realpathOfExistingAncestor = async (target: string): Promise<string> => {
-  let current = target;
-  for (;;) {
-    try {
-      return await realpath(current);
-    } catch {
-      const parent = path.dirname(current);
-      if (parent === current) return current;
-      current = parent;
-    }
-  }
-};
-
-/**
  * Exports nodes to files under `outputDir` and returns their relative paths.
  *
  * `outputDir` must resolve inside the MCP server's working directory, matching
@@ -165,26 +149,10 @@ export const exportAssets = async (
   if (nodeIds.length === 0) return [];
 
   const root = await realpath(process.cwd());
-  const escapes = (): never => {
-    throw new Error(
-      `assetDir "${outputDir}" resolves outside the MCP server working directory (${root}). ` +
-        `Choose a directory inside the workspace.`
-    );
-  };
-  const inside = (candidate: string): boolean =>
-    candidate === root || candidate.startsWith(root + path.sep);
-
-  // Nothing may be created until the path is known to land inside the
-  // workspace. The lexical check catches `../x`; resolving the deepest existing
-  // ancestor catches a link inside the workspace that points out, which mkdir
-  // would otherwise follow and create directories through. The final realpath
-  // is the belt to those braces.
-  const target = path.resolve(root, outputDir);
-  if (!inside(target)) escapes();
-  if (!inside(await realpathOfExistingAncestor(target))) escapes();
+  const target = await resolveWorkspacePath(root, outputDir, "assetDir");
   await mkdir(target, { recursive: true });
   const resolved = await realpath(target);
-  if (!inside(resolved)) escapes();
+  await resolveWorkspacePath(root, resolved, "assetDir");
 
   const response = await sender.sendWithParams(
     "get_screenshot",
@@ -203,7 +171,8 @@ export const exportAssets = async (
   for (const item of exports) {
     const bytes = Buffer.from(item.base64, "base64");
     const file = `${fileStem(item.nodeName, item.nodeId)}.svg`;
-    await writeFile(path.join(resolved, file), bytes);
+    const output = await resolveWorkspacePath(root, path.join(resolved, file), "asset file");
+    await writeFile(output, bytes);
     records.push({
       nodeId: item.nodeId,
       nodeName: item.nodeName,

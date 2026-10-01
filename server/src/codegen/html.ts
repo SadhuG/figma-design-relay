@@ -4,7 +4,7 @@ import type { SerializedNode } from "./tokens.js";
 /**
  * Renders the React output as plain HTML.
  *
- * The two grammars differ in exactly three places for the subset we emit, so
+ * The two grammars differ in four places for the subset we emit, so
  * deriving one from the other keeps a single structural code path — and means
  * a structural bug shows up in both tests, not one.
  * @param node - The serialized root.
@@ -20,5 +20,10 @@ export const toHtml = (node: SerializedNode, options: ReactOptions = {}): string
         const kebab = property.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
         return `style="${kebab}: ${value}"`;
       }
+    )
+    .replace(
+      /^(\s*)<([A-Za-z][\w.:-]*)([^>\n]*?)\s*\/>$/gm,
+      (element: string, pad: string, tag: string, attributes: string) =>
+        tag === "img" ? element : `${pad}<${tag}${attributes}></${tag}>`
     )
     .replace(/\{\/\*\s*(.*?)\s*\*\/\}/g, "<!-- $1 -->");

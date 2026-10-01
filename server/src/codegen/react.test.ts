@@ -176,6 +176,51 @@ describe("toReact hint priority", () => {
 });
 
 describe("toReact real-data hygiene", () => {
+  test("escapes exported asset paths in quoted attributes", () => {
+    const out = toReact({ id: "5:6", name: "Icon", type: "VECTOR" } as SerializedNode, {
+      assets: { "5:6": 'assets&copy;/"icon".svg' },
+    });
+    expect(out).toContain('src="assets&amp;copy;/&quot;icon&quot;.svg"');
+  });
+
+  test("escapes quotes in an exported asset's alt text", () => {
+    const out = toReact(
+      { id: "5:6", name: 'Say "hello" & <welcome>', type: "VECTOR" } as SerializedNode,
+      { assets: { "5:6": "assets/icon.svg" } }
+    );
+    expect(out).toContain('alt="Say &quot;hello&quot; &amp; &lt;welcome&gt;"');
+  });
+
+  test("keeps component names inside their hint comment", () => {
+    const out = toReact({
+      id: "5:7",
+      name: "Button",
+      type: "INSTANCE",
+      design: { mainComponent: { id: "9:1", key: "k", name: "Button */ -->\nPrimary" } },
+    } as unknown as SerializedNode);
+    expect(out).toContain(
+      "{/* Figma component: Button * / -- > Primary — map with Code Connect */}"
+    );
+  });
+
+  test("keeps text style names inside their hint comment", () => {
+    const out = toReact({
+      id: "5:8",
+      name: "Label",
+      type: "TEXT",
+      characters: "Hello",
+      design: { styles: { text: { id: "S:1", name: "Heading */ -->\nLarge" } } },
+    } as unknown as SerializedNode);
+    expect(out).toContain("{/* text style: Heading * / -- > Large */}");
+  });
+
+  test("keeps Code Connect source paths inside their hint comment", () => {
+    const out = toReact({ id: "5:9", name: "Button", type: "INSTANCE" } as SerializedNode, {
+      mappings: { "5:9": { component: "Button", source: "src/*/Button.figma.tsx" } },
+    });
+    expect(out).toContain("{/* Code Connect: Button — src/* /Button.figma.tsx */}");
+  });
+
   test("names the component set for a variant instance", () => {
     const out = toReact({
       id: "5:1",
