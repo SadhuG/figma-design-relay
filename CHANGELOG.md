@@ -18,6 +18,15 @@ with its tag.
 
 ## [Unreleased]
 
+## [0.7.7] - 2026-10-01
+
+### Changed
+
+- A Dev plugin's name now carries its port — **Figma Design Relay (Dev: _name_, port _port_)** —
+  so Figma's Development menu says which relay each one dials and it can't be mistaken for the
+  stable plugin on 1994. See the
+  [live verification report](docs/reference/2026-10-01-dev-name-port-live-check.md).
+
 ## [0.7.6] - 2026-09-30
 
 ### Added
@@ -353,7 +362,9 @@ Phase 1: `run_script`, the Plugin API escape hatch (R1–R10). The first version
 
 The upstream `@gethopp/figma-mcp-bridge` code this fork started from.
 
-[Unreleased]: https://github.com/SadhuG/figma-design-relay/compare/v0.7.5...HEAD
+[Unreleased]: https://github.com/SadhuG/figma-design-relay/compare/v0.7.7...HEAD
+[0.7.7]: https://github.com/SadhuG/figma-design-relay/compare/v0.7.6...v0.7.7
+[0.7.6]: https://github.com/SadhuG/figma-design-relay/compare/v0.7.5...v0.7.6
 [0.7.5]: https://github.com/SadhuG/figma-design-relay/compare/v0.7.4...v0.7.5
 [0.7.4]: https://github.com/SadhuG/figma-design-relay/compare/v0.7.3...v0.7.4
 [0.7.3]: https://github.com/SadhuG/figma-design-relay/compare/v0.7.2...v0.7.3
