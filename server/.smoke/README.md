@@ -100,11 +100,10 @@ nothing on it. No socket at all means the plugin is dialing some other port — 
 row.
 
 Figma's Development menu lists plugins by name. Keep exactly one **Figma Design Relay**, imported
-from the main checkout's `plugin/manifest.json`, and one **Figma Design Relay (Dev: <name>, port
-<port>)** per live worktree, imported from that worktree's `plugin/dist/manifest.json`. Two imports
-under one name
-means an old worktree was not torn down. A probe with a bogus `nodeId` tells an old build from a
-current one — old builds ignore it and describe the selection instead.
+from the main checkout's `plugin/manifest.json`, and one **Figma Design Relay (Dev: `<name>`,
+port `<port>`)** per live worktree, imported from that worktree's `plugin/dist/manifest.json`. Two
+imports under one name means an old worktree was not torn down. A probe with a bogus `nodeId` tells
+an old build from a current one — old builds ignore it and describe the selection instead.
 
 ## Scripts
 
