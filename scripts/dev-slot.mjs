@@ -82,7 +82,7 @@ const manifest = join(root, "plugin", "dist", "manifest.json");
 console.log(`Next:
   1. Build:   (cd server && bun install && bun run build) && (cd plugin && bun install && bun run build)
   2. Figma:   Plugins → Development → Import plugin from manifest… → ${manifest}
-              It appears as "Figma Design Relay (Dev: ${slot.name})".
+              It appears as "Figma Design Relay (Dev: ${slot.name}, port ${slot.port})".
   3. MCP:     add this entry beside the stable one, then restart the client:
               "figma-design-relay-dev-${slot.name}": { "command": "node", "args": ["${server}"] }
               The server reads the slot and listens on ${slot.port} by itself.

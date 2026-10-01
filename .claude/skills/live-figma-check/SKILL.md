@@ -38,7 +38,7 @@ node .smoke/call.mjs get_selection
   removing its entry. The old `@gethopp/figma-mcp-bridge` entry (bound to `[::]`, it swallowed
   every probe) is gone — do not bring it back.
 - Development-menu imports: exactly one **Figma Design Relay** (the main checkout's
-  `plugin/manifest.json`) and one **(Dev: <name>)** per live worktree (its `plugin/dist/manifest.json`).
+  `plugin/manifest.json`) and one **(Dev: <name>, port <port>)** per live worktree (its `plugin/dist/manifest.json`).
 
 ## Steps the Plugin API cannot take
 

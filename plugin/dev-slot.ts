@@ -83,7 +83,7 @@ type Manifest = {
 export function devManifest<M extends Manifest>(base: M, slot: DevSlot): M {
   return {
     ...base,
-    name: `${base.name} (Dev: ${slot.name})`,
+    name: `${base.name} (Dev: ${slot.name}, port ${slot.port})`,
     id: `${base.id}-dev-${slot.name}`,
     main: posix.relative("dist", base.main),
     ui: posix.relative("dist", base.ui),
