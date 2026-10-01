@@ -11,9 +11,10 @@ before the version bump.
 - Worktree `figma-design-relay-dev-name-port` on dev slot port 1996, both packages built, and
   `node .smoke/hold-leader.mjs` holding the leader on `127.0.0.1:1996`.
 - The user imported `plugin/dist/manifest.json` in the Figma desktop app and ran the Dev plugin in
-  a design file. The same change, cherry-picked onto `chore/project-cleanup` as `7a33134` (identical
-  content to `0096467`; slot port 1995), was imported and run too. The FigJam and Slides evidence
-  below comes from that build; the change is a manifest name only and does not vary by editor.
+  a design file. The same change, cherry-picked onto `chore/project-cleanup` as `7a33134` (the
+  same patch as `0096467`, on a base that also carries that branch's own routing and tool
+  changes; slot port 1995), was imported and run too. The FigJam and Slides evidence below comes
+  from that build; the change is a manifest name only and does not vary by editor.
 - Probes ran through `server/.smoke/` as followers, crossing the HTTP `/rpc` hop to the leader and
   the WebSocket to the plugin.
 
