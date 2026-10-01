@@ -131,9 +131,9 @@ the stable one, which dials 1994. Never drop the port from the name.
 - **Every code task is built in its own git worktree with its own dev slot** — run the
   `start-feature` skill before the first edit, unasked. The main checkout stays on `main` as the
   stable relay: **Figma Design Relay** on port 1994. Each worktree runs as **Figma Design Relay
-  (Dev: `<name>`, port `<port>`)** with its own plugin id and a port from 1995–2019, so the user can tell stable
-  from in-progress in Figma and several features can run at once. The main checkout never holds a
-  `.dev-slot.json`. Docs-only work may use a plain branch.
+  (Dev: `<name>`, port `<port>`)** with its own plugin id and a port from 1995–2019, so the user
+  can tell stable from in-progress in Figma and several features can run at once. The main
+  checkout never holds a `.dev-slot.json`. Docs-only work may use a plain branch.
 - Commit messages: `feat(scope): …`, `fix(scope): …`, `docs: …`, `test: …`, `chore: …`.
 - New behaviour is test-first: failing test, see it fail, implement, see it pass, commit.
 - **Any code change that might affect behaviour in Figma must pass live Figma checks before
