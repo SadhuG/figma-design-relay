@@ -12,7 +12,7 @@ paths:
   `toolInputSchemas` without its mapper here is a compile error.** That is deliberate; do not work
   around it.
 - `server/src/schema.ts:1257` — `validateRpc`, the follower → leader guard.
-- `server/src/tools.ts:280` — `registerTools`; `:1267` — `renderResponse`, the shared handler
+- `server/src/tools.ts:281` — `registerTools`; `:1268` — `renderResponse`, the shared handler
   wrapper that turns a `BridgeResponse.error` into an MCP error result.
 
 Adding a tool? Use the `add-mcp-tool` skill — it is a checklist across both packages.

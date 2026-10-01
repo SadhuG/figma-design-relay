@@ -437,6 +437,9 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
         if (!node || node.type === "DOCUMENT") {
           throw new Error(`Node not found: ${nodeId}`);
         }
+        if (node.type === "PAGE") {
+          await node.loadAsync();
+        }
         return {
           type: request.type,
           requestId: request.requestId,
@@ -2184,6 +2187,7 @@ figma.ui.onmessage = async (message) => {
 
   if (message.type === "request-ui-state") {
     postUiCollapseState();
+    sendStatus();
     return;
   }
 

@@ -18,6 +18,26 @@ with its tag.
 
 ## [Unreleased]
 
+## [0.7.7] - 2026-10-01
+
+### Fixed
+
+- Keep plugin responses scoped to the socket that received the request; ignore malformed responses.
+- Release bridge resources when a leader startup loses the port election.
+- Validate screenshot, local image and exported asset paths through existing links before filesystem access; allow workspace names beginning with two dots.
+- Block private IPv4 addresses encoded as IPv4-mapped IPv6 URLs, and retain image download deadlines through response body consumption.
+- Load noncurrent pages before `get_node` serialization, recover file status when the plugin panel mounts, and normalize imported image paints before assigning them.
+- Emit closing tags for nonvoid HTML elements and escape designer names in generated attributes and JSX comments.
+
+### Changed
+
+- Share workspace containment checks between asset exports and file tools.
+- Include both test suites and version validation in the root `bun run check` command; remove its duplicate plugin type-check.
+
+### Verification
+
+- Automated regression tests cover the reviewed fixes. Candidate live Figma checks are pending; see the [project review](docs/reference/2026-10-01-project-review.md).
+
 ## [0.7.6] - 2026-09-30
 
 ### Added

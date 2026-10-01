@@ -96,8 +96,17 @@ export class Bridge {
     ws.on("message", (data) => {
       try {
         const resp: BridgeResponse = JSON.parse(data.toString());
+        if (
+          !resp ||
+          typeof resp !== "object" ||
+          typeof resp.requestId !== "string" ||
+          typeof resp.type !== "string" ||
+          (resp.error !== undefined && typeof resp.error !== "string")
+        ) {
+          throw new Error("Malformed plugin response");
+        }
         const pending = this.pending.get(resp.requestId);
-        if (pending) {
+        if (pending && pending.ws === ws) {
           clearTimeout(pending.timeout);
           this.pending.delete(resp.requestId);
           pending.resolve(resp);

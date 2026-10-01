@@ -7,7 +7,7 @@ export async function processImages(layer: RectangleNode | TextNode) {
     Promise.all(
       images.map(async (image: any) => {
         if (image && image.intArr) {
-          image.imageHash = await figma.createImage(image.intArr).hash;
+          image.imageHash = figma.createImage(new Uint8Array(image.intArr)).hash;
           delete image.intArr;
         }
       })

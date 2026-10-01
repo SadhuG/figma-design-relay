@@ -1,4 +1,3 @@
-import { getImageFills } from "../utils";
 import { processImages } from "./images";
 import { getMatchingFont } from "./getFont";
 import { assign } from "./helpers";
@@ -65,17 +64,15 @@ export const processLayer = async (
     throw Error(`${layer.type} not implemented`);
   }
 
+  if (layer.type === "RECTANGLE") {
+    await processImages(layer as RectangleNode);
+  }
+
   if (SIMPLE_TYPES.includes(layer.type as string)) {
     parentFrame.appendChild(processDefaultElement(layer, node));
   }
   // @ts-expect-error
   layer.ref = node;
-
-  if (layer.type === "RECTANGLE") {
-    if (getImageFills(layer as RectangleNode)) {
-      await processImages(layer as RectangleNode);
-    }
-  }
 
   if (layer.type === "TEXT") {
     const text = node as TextNode;

@@ -20,7 +20,7 @@ paths:
   `data` as `unknown` and will happily ship an unresolved promise. The `figma` lookups it hands to
   `references.ts` live at `:412`; the helper modules never name the global.
   `docs/reference/serialized-nodes.md` documents the emitted shape — update it with the serializer.
-- `plugin/src/main/code.ts:2144` — the UI-collapse block that closes the file: window sizing, the
+- `plugin/src/main/code.ts:2143` — the UI-collapse block that closes the file: window sizing, the
   `ui-collapsed` `figma.clientStorage` key, and the `request-ui-state` / `set-ui-collapsed`
   messages. `figma.showUI` runs with `visible: false` and the panel is shown only once the stored
   state resolves, so anything that returns early before `figma.ui.show()` leaves the window
