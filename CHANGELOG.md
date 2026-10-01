@@ -36,7 +36,7 @@ with its tag.
 
 ### Verification
 
-- Automated regression tests cover the reviewed fixes. Candidate live Figma checks are pending; see the [project review](docs/reference/2026-10-01-project-review.md).
+- Automated regression tests and 13 live checks across Design, FigJam and Slides cover the reviewed fixes. File routing, off-page reads, image import, exports and connection recovery were checked against the candidate; see the [project review](docs/reference/2026-10-01-project-review.md) for results and limits.
 
 ## [0.7.6] - 2026-09-30
 

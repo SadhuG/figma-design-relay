@@ -61,20 +61,52 @@ cover existing and dangling leaf-file symlinks; directory-junction containment c
 The separate reviewer approved the fixes, with DNS rebinding and WebSocket authentication/origin
 policy retained as explicit follow-up findings.
 
-The worktree's dev slot is `cleanup` on port 1995. Its generated manifest is
-`plugin/dist/manifest.json`. `node server/.smoke/call.mjs list_files`, run from the worktree server
-directory, returned `[]`: no candidate Dev plugin was connected. Figma desktop is running, but
-the available computer-use interface cannot operate native apps to import/relaunch the candidate.
-The stable plugin is a different build and cannot supply candidate verification.
+## Live verification
 
-Before PR/merge, import and launch **Figma Design Relay (Dev: cleanup)** from this worktree,
-hold its relay using `node .smoke/hold-leader.mjs` in `server/`, and exercise:
+The user imported and launched the candidate Dev plugin in four test files: **Screen** and **DS**
+(Design), an **Untitled** FigJam board and an **Untitled** Slides deck. The candidate relay listens
+on port 1995; probes explicitly joined it as followers. No stable relay was used for these checks.
 
-- UI startup without changing selection, plus close/relaunch.
-- `get_node` for a noncurrent page through a follower; verify the current page stays unchanged.
-- An HTML rectangle import with an image byte array; inspect its actual rendered fill.
-- Screenshot and asset exports, local image creation, and representative design context output.
-- Connection replacement/reconnection and representative read calls in Design, FigJam and Slides.
+Tested runtime: cleanup commit `1f9186d`, version 0.7.7. At verification, the branch also contained
+`7a33134`, a concurrent change to dev-plugin display names and related documentation/tests;
+it did not change the plugin runtime source or server source. Runtime SHA-256 hashes:
 
-Live candidate checks are pending. No PR was opened, and nothing was merged or pushed.
-The repository's live-check gate requires these checks or an explicit user exception before integration.
+| Artifact                 | SHA-256                                                            |
+| ------------------------ | ------------------------------------------------------------------ |
+| `server/dist/tools.js`   | `243B2AD2BD6F33F4CCE2287B6D584768813122BBBDBDAEDD6398E170A59039FB` |
+| `plugin/dist/code.js`    | `B6A515B00E72A4880374123BD72F8B14A89C7AF54337960AA0A56FE334486D6C` |
+| `plugin/dist/index.html` | `034E9F11177619DB3D1AECE6978582FDF6D3B537B8F9FFFE854F11AFAE302FFA` |
+
+`node .smoke/cleanup-live.mjs` from `server/` passed **13 checks**:
+
+- File-specific metadata, selection and script reads in all four files; editor/name identity matched
+  each requested file, exercising multi-file response routing.
+- `get_node` for an off-current-page fixture through a follower, including its child frame. The
+  user's current page stayed unchanged. This fixture was newly created; cold unloaded-page
+  ordering is separately protected by the dispatcher unit test.
+- A frame layout-tree request through a follower.
+- Local PNG creation produced an actual Figma image hash.
+- HTML JSON image-byte import produced two layers, including an image rectangle with a valid hash.
+- Screenshot save produced a 446-byte PNG inside the workspace.
+- HTML design context returned exported assets, reference code and an image content block.
+- External directory links were refused by both image reads and screenshot writes; no external
+  directory was created. Screenshot failures use the documented per-item batch result.
+- An IPv4-mapped loopback URL was refused before Figma mutation.
+- Owned fixture cleanup succeeded. Temporary pages, nodes and local files were removed.
+
+The first harness run incorrectly expected batch screenshot failures to set MCP `isError`.
+The API correctly reported `hasErrors` and per-item failure; the harness was corrected to assert
+that contract. No production code changed as a result, and the complete rerun passed.
+
+Connection recovery was also observed: the original interactive holder had stopped, leaving
+Figma sockets trying port 1995. Starting the candidate holder with hidden `Start-Process` restored
+all four connections automatically, without a plugin rebuild or selection change. The background
+holder is left running for the user's open Dev plugins.
+
+An intentional stop/restart test was attempted but automatic approval review rejected the process
+operation with `blocked by policy`; no process was stopped by that attempt. This report records
+the observed recovery, not an intentional restart, and does not claim that UI close/relaunch was
+automated. The user manually launched the candidate after its last runtime build.
+
+No PR was opened, and nothing was merged or pushed. The DNS-rebinding and WebSocket pairing/origin
+findings above remain unresolved and should be addressed before treating this as security-complete.
