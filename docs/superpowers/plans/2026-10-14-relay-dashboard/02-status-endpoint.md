@@ -50,7 +50,7 @@ Phase 1: `Bridge.getActivity()`, `Bridge.describeConnections()`, `Leader.getFoll
   `refuseDashboardRequest(headers: http.IncomingHttpHeaders, port: number, isApi: boolean): string | null`
   (refusal text, or null to serve); `interface RelayStatus` (shape in the overview).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 import { describe, expect, test } from "bun:test";
@@ -89,12 +89,12 @@ describe("refuseDashboardRequest", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests and see them fail**
+- [x] **Step 2: Run the tests and see them fail**
 
 Run: `cd server && bun test src/dashboard-http.test.ts`
 Expected: FAIL — `Cannot find module './dashboard-http.js'`.
 
-- [ ] **Step 3: Implement `server/src/dashboard-http.ts`**
+- [x] **Step 3: Implement `server/src/dashboard-http.ts`**
 
 ```ts
 import type http from "node:http";
@@ -162,12 +162,12 @@ export function refuseDashboardRequest(
 }
 ```
 
-- [ ] **Step 4: Run the tests and see them pass**
+- [x] **Step 4: Run the tests and see them pass**
 
 Run: `cd server && bun test src/dashboard-http.test.ts`
 Expected: PASS, 4 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/dashboard-http.ts server/src/dashboard-http.test.ts
@@ -190,7 +190,7 @@ git commit -m "feat(server): dashboard request guard against other sites and DNS
   `/render.js`, `/api/status`; element ids `header`, `offline`, `files`, `activity`, `followers`,
   `errors-only` in `index.html` (Phase 3's script uses these).
 
-- [ ] **Step 1: Append the failing tests to `server/src/dashboard-http.test.ts`**
+- [x] **Step 1: Append the failing tests to `server/src/dashboard-http.test.ts`**
 
 Extend the imports:
 
@@ -286,14 +286,14 @@ describe("dashboard routes", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests and see them fail**
+- [x] **Step 2: Run the tests and see them fail**
 
 Run: `cd server && bun test src/dashboard-http.test.ts`
 Expected: the 4 guard tests PASS; 4 route tests FAIL with status 404 where 200/403 is expected.
 "answers 404 for anything outside the file table" already passes — it guards the change, not the
 feature.
 
-- [ ] **Step 3: Create `server/dashboard/index.html`**
+- [x] **Step 3: Create `server/dashboard/index.html`**
 
 ```html
 <!doctype html>
@@ -335,7 +335,7 @@ feature.
 </html>
 ```
 
-- [ ] **Step 4: Implement the routes in `server/src/leader.ts`**
+- [x] **Step 4: Implement the routes in `server/src/leader.ts`**
 
 Imports:
 
@@ -424,12 +424,12 @@ New methods, before `sendJSON`:
   }
 ```
 
-- [ ] **Step 5: Run the server suite and the type-check**
+- [x] **Step 5: Run the server suite and the type-check**
 
 Run: `cd server && bun test && bun run build`
 Expected: all tests PASS (9 in `dashboard-http.test.ts`); `tsc` exits 0.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 bun run format

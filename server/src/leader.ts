@@ -1,9 +1,19 @@
+import { readFile } from "node:fs/promises";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import type { Duplex } from "node:stream";
+import { fileURLToPath } from "node:url";
 import { FollowerRegistry, INSTANCE_HEADER, readInstance } from "./activity.js";
 import type { CallOrigin } from "./activity.js";
 import { Bridge } from "./bridge.js";
+import {
+  DASHBOARD_DIR,
+  DASHBOARD_FILES,
+  DASHBOARD_HEADERS,
+  STATUS_PATH,
+  refuseDashboardRequest,
+} from "./dashboard-http.js";
+import type { RelayStatus } from "./dashboard-http.js";
 import { validateRpc } from "./schema.js";
 import { executeSaveScreenshots } from "./tools.js";
 import type { ExportFormat } from "./tools.js";
@@ -17,11 +27,14 @@ import { VERSION } from "./version.js";
  *   /ws   — WebSocket upgrade for the Figma plugin
  *   /ping — Health check
  *   /rpc  — JSON RPC for follower tool calls
+ *   /            — read-only status page (server/dashboard/)
+ *   /api/status  — the JSON the page renders
  */
 export class Leader {
   private bridge: Bridge;
   private server: http.Server | null = null;
   private followers = new FollowerRegistry();
+  private startedAt = 0;
 
   constructor(private port: number) {
     this.bridge = new Bridge();
@@ -75,6 +88,14 @@ export class Leader {
           return;
         }
 
+        if (req.method === "GET") {
+          const pathname = new URL(req.url ?? "/", "http://localhost").pathname;
+          if (pathname === STATUS_PATH || Object.hasOwn(DASHBOARD_FILES, pathname)) {
+            void this.serveDashboard(pathname, req, res);
+            return;
+          }
+        }
+
         res.writeHead(404);
         res.end("Not found");
       });
@@ -100,7 +121,9 @@ export class Leader {
 
       server.listen(this.port, LOOPBACK_HOST, () => {
         this.server = server;
+        this.startedAt = Date.now();
         console.error(`Leader listening on ${LOOPBACK_HOST}:${this.port}`);
+        console.error(`Dashboard: http://${LOOPBACK_HOST}:${this.address()?.port ?? this.port}/`);
         resolve();
       });
     });
@@ -176,6 +199,51 @@ export class Leader {
         });
       }
     });
+  }
+
+  /** What the dashboard shows. Read-only: nothing here reaches the plugin. */
+  status(): RelayStatus {
+    return {
+      version: VERSION,
+      port: this.address()?.port ?? this.port,
+      pid: process.pid,
+      startedAt: this.startedAt,
+      now: Date.now(),
+      files: this.bridge.describeConnections(),
+      followers: this.followers.active(),
+      activity: this.bridge.getActivity().recent(),
+    };
+  }
+
+  private async serveDashboard(
+    pathname: string,
+    req: http.IncomingMessage,
+    res: http.ServerResponse
+  ): Promise<void> {
+    const port = this.address()?.port ?? this.port;
+    const isApi = pathname === STATUS_PATH;
+    const refusal = refuseDashboardRequest(req.headers, port, isApi);
+    if (refusal !== null) {
+      res.writeHead(403, { ...DASHBOARD_HEADERS, "Content-Type": "text/plain; charset=utf-8" });
+      res.end(refusal);
+      return;
+    }
+    if (isApi) {
+      res.writeHead(200, { ...DASHBOARD_HEADERS, "Content-Type": "application/json" });
+      res.end(JSON.stringify(this.status()));
+      return;
+    }
+    const { file, type } = DASHBOARD_FILES[pathname];
+    try {
+      const body = await readFile(new URL(file, DASHBOARD_DIR));
+      res.writeHead(200, { ...DASHBOARD_HEADERS, "Content-Type": type });
+      res.end(body);
+    } catch {
+      res.writeHead(500, { ...DASHBOARD_HEADERS, "Content-Type": "text/plain; charset=utf-8" });
+      res.end(
+        `The dashboard's files are missing from ${fileURLToPath(DASHBOARD_DIR)}. Rebuild the server, or re-download the release.`
+      );
+    }
   }
 
   private sendJSON(res: http.ServerResponse, status: number, body: RPCResponse): void {
