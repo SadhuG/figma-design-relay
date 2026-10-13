@@ -1,4 +1,5 @@
 import type { Node } from "./node.js";
+import { INSTANCE_HEADER, INSTANCE_ID } from "./activity.js";
 import { LOOPBACK_HOST, Role } from "./types.js";
 
 /**
@@ -80,6 +81,7 @@ export class Election {
   private async pingLeader(): Promise<boolean> {
     try {
       const response = await fetch(`${this.leaderUrl}/ping`, {
+        headers: { [INSTANCE_HEADER]: INSTANCE_ID },
         signal: AbortSignal.timeout(2_000),
       });
       return response.ok;

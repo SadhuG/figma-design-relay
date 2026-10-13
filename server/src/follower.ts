@@ -1,3 +1,4 @@
+import { INSTANCE_HEADER, INSTANCE_ID } from "./activity.js";
 import type { BridgeResponse, ConnectedFile, RPCRequest, RPCResponse } from "./types.js";
 
 /**
@@ -23,7 +24,7 @@ export class Follower {
 
     const response = await fetch(`${this.leaderUrl}/rpc`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", [INSTANCE_HEADER]: INSTANCE_ID },
       body: JSON.stringify(rpcReq),
       signal: AbortSignal.timeout(210_000),
     });
@@ -51,7 +52,7 @@ export class Follower {
   async listConnectedFiles(): Promise<ConnectedFile[]> {
     const response = await fetch(`${this.leaderUrl}/rpc`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", [INSTANCE_HEADER]: INSTANCE_ID },
       body: JSON.stringify({ tool: "list_files" } as RPCRequest),
       signal: AbortSignal.timeout(5_000),
     });
@@ -71,6 +72,7 @@ export class Follower {
   async ping(): Promise<boolean> {
     try {
       const response = await fetch(`${this.leaderUrl}/ping`, {
+        headers: { [INSTANCE_HEADER]: INSTANCE_ID },
         signal: AbortSignal.timeout(2_000),
       });
       return response.ok;

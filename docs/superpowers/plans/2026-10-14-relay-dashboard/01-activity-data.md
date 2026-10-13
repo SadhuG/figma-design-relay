@@ -48,7 +48,7 @@ None. Run `start-feature` first (slug `relay-dashboard`); all commands run from 
   `class ActivityLog { constructor(limit?: number, now?: () => number); start(tool: string, origin: CallOrigin, file: { fileKey: string; fileName: string } | null): (error?: string) => void; recent(): ActivityEntry[] }`;
   `class FollowerRegistry { constructor(now?: () => number); touch(instance: string | null, isCall: boolean): void; active(): FollowerSeen[] }`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 import { describe, expect, test } from "bun:test";
@@ -160,12 +160,12 @@ describe("readInstance", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests and see them fail**
+- [x] **Step 2: Run the tests and see them fail**
 
 Run: `cd server && bun test src/activity.test.ts`
 Expected: FAIL — `Cannot find module './activity.js'`.
 
-- [ ] **Step 3: Implement `server/src/activity.ts`**
+- [x] **Step 3: Implement `server/src/activity.ts`**
 
 ```ts
 /**
@@ -280,12 +280,12 @@ export class FollowerRegistry {
 }
 ```
 
-- [ ] **Step 4: Run the tests and see them pass**
+- [x] **Step 4: Run the tests and see them pass**
 
 Run: `cd server && bun test src/activity.test.ts`
 Expected: PASS, 7 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/activity.ts server/src/activity.test.ts
@@ -307,7 +307,7 @@ git commit -m "feat(server): in-memory activity log and follower registry"
   `Bridge.describeConnections(): Array<ConnectedFile & { connectedAt: number }>`;
   `Bridge.sendWithParams(requestType, nodeIds?, params?, fileKey?, origin: CallOrigin = { kind: "local" })`.
 
-- [ ] **Step 1: Append the failing tests to `server/src/bridge.test.ts`**
+- [x] **Step 1: Append the failing tests to `server/src/bridge.test.ts`**
 
 ```ts
 test("records each call's tool, file, origin and outcome", async () => {
@@ -372,13 +372,13 @@ test("describes each connection with when it connected, list_files unchanged", a
 });
 ```
 
-- [ ] **Step 2: Run the tests and see them fail**
+- [x] **Step 2: Run the tests and see them fail**
 
 Run: `cd server && bun test src/bridge.test.ts`
 Expected: FAIL — `bridge.getActivity is not a function` (and `describeConnections`). The two
 existing tests still pass.
 
-- [ ] **Step 3: Implement in `server/src/bridge.ts`**
+- [x] **Step 3: Implement in `server/src/bridge.ts`**
 
 Imports:
 
@@ -460,12 +460,12 @@ Replace the top of `sendWithParams`, up to and including the `readyState` check,
 
 The rest of the method is unchanged; it already calls `resolve`/`reject` by those names.
 
-- [ ] **Step 4: Run the server suite and the type-check**
+- [x] **Step 4: Run the server suite and the type-check**
 
 Run: `cd server && bun test && bun run build`
 Expected: all tests PASS (the four new ones included); `tsc` exits 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/bridge.ts server/src/bridge.test.ts
@@ -485,7 +485,7 @@ git commit -m "feat(server): the bridge logs every tool call and when each file 
 - Consumes: `FollowerRegistry`, `readInstance`, `INSTANCE_HEADER`, `INSTANCE_ID`, `CallOrigin`.
 - Produces: `Leader.getFollowers(): FollowerRegistry`.
 
-- [ ] **Step 1: Append the failing tests to `server/src/leader.test.ts`**
+- [x] **Step 1: Append the failing tests to `server/src/leader.test.ts`**
 
 Add `import { INSTANCE_HEADER, INSTANCE_ID } from "./activity.js";` and
 `import { Follower } from "./follower.js";` to the imports, then:
@@ -545,12 +545,12 @@ describe("follower tracking", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests and see them fail**
+- [x] **Step 2: Run the tests and see them fail**
 
 Run: `cd server && bun test src/leader.test.ts`
 Expected: FAIL — `leader.getFollowers is not a function`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `server/src/follower.ts` — import `{ INSTANCE_HEADER, INSTANCE_ID }` from `./activity.js`, add
 `[INSTANCE_HEADER]: INSTANCE_ID` to the `headers` of the `sendWithParams` and `listConnectedFiles`
@@ -591,12 +591,12 @@ const origin: CallOrigin = { kind: "follower", instance };
 Pass `origin` as the fifth argument to both `this.bridge.sendWithParams(…)` calls in `handleRPC`
 (the `save_screenshots` sender and the general forward).
 
-- [ ] **Step 4: Run the server suite and the type-check**
+- [x] **Step 4: Run the server suite and the type-check**
 
 Run: `cd server && bun test && bun run build`
 Expected: all tests PASS; `tsc` exits 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/follower.ts server/src/election.ts server/src/leader.ts server/src/leader.test.ts

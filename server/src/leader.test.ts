@@ -1,4 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { INSTANCE_HEADER, INSTANCE_ID } from "./activity.js";
+import { Follower } from "./follower.js";
 import { Leader } from "./leader.js";
 
 /**
@@ -129,5 +131,58 @@ describe("list_files reports the editor", () => {
     } finally {
       socket.close();
     }
+  });
+});
+
+describe("follower tracking", () => {
+  let leader: Leader;
+  let base: string;
+
+  beforeAll(async () => {
+    leader = new Leader(0);
+    await leader.start();
+    base = `http://127.0.0.1:${leader.address()!.port}`;
+  });
+
+  afterAll(() => {
+    leader.stop();
+  });
+
+  test("remembers a follower by its instance header on /ping and /rpc", async () => {
+    await fetch(`${base}/ping`, { headers: { [INSTANCE_HEADER]: "4242" } });
+    await fetch(`${base}/rpc`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", [INSTANCE_HEADER]: "4242" },
+      body: JSON.stringify({ tool: "list_files" }),
+    });
+    await fetch(`${base}/ping`);
+    expect(leader.getFollowers().active()).toContainEqual({
+      instance: "4242",
+      lastSeen: expect.any(Number),
+      calls: 1,
+    });
+  });
+
+  test("logs a follower's tool call under that follower", async () => {
+    await fetch(`${base}/rpc`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", [INSTANCE_HEADER]: "5151" },
+      body: JSON.stringify({ tool: "get_node", nodeIds: ["1:1"], fileKey: "missing" }),
+    });
+    expect(leader.getBridge().getActivity().recent()[0]).toMatchObject({
+      tool: "get_node",
+      origin: { kind: "follower", instance: "5151" },
+      ok: false,
+    });
+  });
+
+  test("a Follower sends this process's id", async () => {
+    expect(await new Follower(base).ping()).toBe(true);
+    expect(
+      leader
+        .getFollowers()
+        .active()
+        .map((f) => f.instance)
+    ).toContain(INSTANCE_ID);
   });
 });

@@ -1,6 +1,8 @@
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import type { Duplex } from "node:stream";
+import { FollowerRegistry, INSTANCE_HEADER, readInstance } from "./activity.js";
+import type { CallOrigin } from "./activity.js";
 import { Bridge } from "./bridge.js";
 import { validateRpc } from "./schema.js";
 import { executeSaveScreenshots } from "./tools.js";
@@ -19,6 +21,7 @@ import { VERSION } from "./version.js";
 export class Leader {
   private bridge: Bridge;
   private server: http.Server | null = null;
+  private followers = new FollowerRegistry();
 
   constructor(private port: number) {
     this.bridge = new Bridge();
@@ -26,6 +29,10 @@ export class Leader {
 
   getBridge(): Bridge {
     return this.bridge;
+  }
+
+  getFollowers(): FollowerRegistry {
+    return this.followers;
   }
 
   /** The bound address, or null before `start()` resolves. */
@@ -38,6 +45,7 @@ export class Leader {
     return new Promise((resolve, reject) => {
       const server = http.createServer((req, res) => {
         if (req.url === "/ping" && req.method === "GET") {
+          this.followers.touch(readInstance(req.headers[INSTANCE_HEADER]), false);
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ status: "ok", version: VERSION }));
           return;
@@ -99,6 +107,9 @@ export class Leader {
   }
 
   private handleRPC(req: http.IncomingMessage, res: http.ServerResponse): void {
+    const instance = readInstance(req.headers[INSTANCE_HEADER]);
+    this.followers.touch(instance, true);
+    const origin: CallOrigin = { kind: "follower", instance };
     let body = "";
     req.on("data", (chunk: Buffer) => {
       body += chunk.toString();
@@ -137,7 +148,7 @@ export class Leader {
               requestType: string,
               nodeIds?: string[],
               sendParams?: Record<string, unknown>
-            ) => this.bridge.sendWithParams(requestType, nodeIds, sendParams, fileKey),
+            ) => this.bridge.sendWithParams(requestType, nodeIds, sendParams, fileKey, origin),
           };
           const result = await executeSaveScreenshots(
             sender,
@@ -154,7 +165,8 @@ export class Leader {
           rpcReq.tool,
           rpcReq.nodeIds,
           validatedParams,
-          fileKey
+          fileKey,
+          origin
         );
 
         this.sendJSON(res, 200, resp.error ? { error: resp.error } : { data: resp.data });
