@@ -82,6 +82,10 @@ The panel collapses to a slim title bar via the chevron in its top-right corner,
 
 If you want to know more about how it works, read the [How it works](#how-it-works) section.
 
+### 5. Watch it work (optional)
+
+While your AI tool is running, open <http://localhost:1994/> in a browser. The relay's dashboard shows which Figma files the plugin is open in (and whether each is a design file, FigJam board or Slides deck), every request your AI tool sends to Figma with how long it took and any error, and the other relay processes sharing the connection. It is read-only, and it answers only on this machine. A dev plugin's relay shows its own on its dev port.
+
 ## Available Tools
 
 | Tool                           | Description                                                                                                                                                                                      |

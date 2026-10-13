@@ -55,8 +55,10 @@ server/src/
   index.ts      entry
   port.ts       startup port: FIGMA_DESIGN_RELAY_PORT, else the worktree's dev slot, else 1994
   node.ts       leader/follower router — every tool call goes through node.send / sendWithParams
-  leader.ts     HTTP + WebSocket host     follower.ts  proxies to leader over /rpc
-  bridge.ts     socket registry keyed by fileKey; 180 s per-request timeout
+  leader.ts     HTTP + WebSocket host, and the dashboard     follower.ts  proxies to leader over /rpc
+  bridge.ts     socket registry keyed by fileKey; 180 s per-request timeout; logs every call
+  activity.ts   call log + follower registry the dashboard reads
+  dashboard-http.ts guard, headers and file table for the status page
   election.ts   leader election
   schema.ts     Zod input schemas + the RPC validation layer
   tools.ts      all 54 MCP tool registrations
@@ -68,6 +70,7 @@ server/src/
   mermaid/      parse.ts (the strict Mermaid subset) + layout.ts (positions) for generate_diagram
   search/       search_design_system across open files: select-files.ts, merge.ts, index.ts (fan-out)
   types.ts      shared types; LOOPBACK_HOST lives here
+server/dashboard/ the leader's status page: index.html, render.js (tested), dashboard.js/.css
 server/.smoke/  live harness: probe.mjs (run_script), call.mjs (any tool) — see its README
 plugin/dev-slot.ts        dev slot rules + the dev manifest both Vite configs emit into dist/
 plugin/src/
