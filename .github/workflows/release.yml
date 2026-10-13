@@ -94,6 +94,12 @@ jobs:
           cp server/package.json release/server/
           cp server/bun.lock release/server/
 
+          # The leader serves its status page from dist/../dashboard.
+          mkdir -p release/server/dashboard
+          cp server/dashboard/*.html server/dashboard/*.css server/dashboard/*.js release/server/dashboard/
+          test -f release/server/dashboard/index.html \
+            || { echo "ERROR: dashboard files missing from the release"; exit 1; }
+
           cp README.md release/
           cp CHANGELOG.md release/
           cp LICENSE.md release/
