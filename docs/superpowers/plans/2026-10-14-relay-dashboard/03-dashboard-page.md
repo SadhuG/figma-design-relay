@@ -48,7 +48,7 @@ Phase 2: the routes, `index.html` element ids (`header`, `offline`, `files`, `ac
   `renderFiles(status)`, `renderFollowers(status)`,
   `renderActivity(status, { errorsOnly }?)`. Each returns a string.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 import { describe, expect, test } from "bun:test";
@@ -206,12 +206,12 @@ describe("renderFollowers", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests and see them fail**
+- [x] **Step 2: Run the tests and see them fail**
 
 Run: `cd server && bun test dashboard/render.test.ts`
 Expected: FAIL — `Cannot find module './render.js'`.
 
-- [ ] **Step 3: Implement `server/dashboard/render.js`**
+- [x] **Step 3: Implement `server/dashboard/render.js`**
 
 ```js
 // Pure rendering for the relay dashboard: a /api/status snapshot in, HTML
@@ -318,12 +318,12 @@ export function renderActivity(status, { errorsOnly = false } = {}) {
 }
 ```
 
-- [ ] **Step 4: Run the tests and see them pass**
+- [x] **Step 4: Run the tests and see them pass**
 
 Run: `cd server && bun test dashboard/render.test.ts`
 Expected: PASS, 10 tests. Then `cd server && bun test`: the whole suite passes.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 bun run format
@@ -344,7 +344,7 @@ git commit -m "feat(server): dashboard render functions with escaping"
 
 This task is DOM glue with no logic worth a unit test. It is verified in a real browser in Step 3.
 
-- [ ] **Step 1: Create `server/dashboard/dashboard.js`**
+- [x] **Step 1: Create `server/dashboard/dashboard.js`**
 
 ```js
 import { renderActivity, renderFiles, renderFollowers, renderHeader } from "./render.js";
@@ -383,7 +383,7 @@ byId("errors-only").addEventListener("change", () => {
 poll();
 ```
 
-- [ ] **Step 2: Create `server/dashboard/dashboard.css`**
+- [x] **Step 2: Create `server/dashboard/dashboard.css`**
 
 ```css
 :root {
@@ -547,7 +547,7 @@ tr.ok td:last-child {
 }
 ```
 
-- [ ] **Step 3: See the page in a browser**
+- [x] **Step 3: See the page in a browser**
 
 Start a throwaway leader on a free port from `server/`:
 
@@ -565,12 +565,12 @@ Open that URL (the `t3-code` preview tools, Playwright, or a browser). Check:
 
 Take a screenshot for the PR.
 
-- [ ] **Step 4: Run the full checks**
+- [x] **Step 4: Run the full checks**
 
 Run: `bun run check` from the root.
 Expected: tests, version guard, both builds and formatting all pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 bun run format
