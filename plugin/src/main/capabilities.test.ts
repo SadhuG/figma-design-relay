@@ -138,3 +138,33 @@ describe("slides scope", () => {
     expect(() => assertEditorSupports("create_section", "slides")).toThrow(/Slides/);
   });
 });
+
+describe("prototype reads", () => {
+  const READS = ["get_prototype_connections", "trace_prototype_flow", "get_node_prototype"];
+
+  test("run in the design editor and read-only Dev Mode", () => {
+    for (const tool of READS) {
+      expect(() => assertEditorSupports(tool, "figma")).not.toThrow();
+      expect(() => assertEditorSupports(tool, "dev")).not.toThrow();
+    }
+  });
+
+  test("are refused in FigJam and Slides, which have no prototypes", () => {
+    for (const tool of READS) {
+      expect(() => assertEditorSupports(tool, "figjam")).toThrow(/design editor/);
+      expect(() => assertEditorSupports(tool, "slides")).toThrow(/design editor/);
+    }
+  });
+
+  test("the get_node flag is named as the agent wrote it", () => {
+    expect(() => assertEditorSupports("get_node_prototype", "figjam")).toThrow(
+      /^get_node includePrototype requires/
+    );
+  });
+
+  test("ordinary get_node still works everywhere", () => {
+    for (const editor of ["figma", "figjam", "slides", "dev"] as const) {
+      expect(() => assertEditorSupports("get_node", editor)).not.toThrow();
+    }
+  });
+});

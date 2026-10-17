@@ -342,3 +342,39 @@ describe("validateRpc generate_diagram", () => {
     expect(validateRpc("generate_diagram", undefined, { mermaid: "" }).error).not.toBeNull();
   });
 });
+
+describe("upstream relay contracts", () => {
+  test("get_node keeps includePrototype across the follower hop", () => {
+    expect(validateRpc("get_node", ["1:2"], { includePrototype: true }).params).toEqual({
+      includePrototype: true,
+    });
+  });
+
+  test("a set_node_properties batch forwards only the property patch", () => {
+    expect(validateRpc("set_node_properties", ["1:2", "1:3"], { visible: false }).params).toEqual({
+      visible: false,
+    });
+  });
+
+  test("a connector may run between two free coordinates", () => {
+    expect(
+      validateRpc("create_connector", undefined, {
+        startX: 0,
+        startY: 0,
+        endX: 10,
+        endY: 20,
+        text: "go",
+      }).error
+    ).toBeNull();
+  });
+
+  test("a shape with text keeps its name and fill across the follower hop", () => {
+    expect(
+      validateRpc("create_shape_with_text", undefined, {
+        text: "DB",
+        name: "Database",
+        fillHex: "#123456",
+      }).params
+    ).toMatchObject({ text: "DB", name: "Database", fillHex: "#123456" });
+  });
+});
