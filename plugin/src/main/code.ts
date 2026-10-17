@@ -40,7 +40,12 @@ import {
   preflightNodeProperties,
   readNodePropertyPatch,
 } from "./node-properties";
-import { executeLayoutAction, keepBesideOriginal, type LayoutParams } from "./layout-actions";
+import {
+  assertDuplicableInPlace,
+  executeLayoutAction,
+  keepBesideOriginal,
+  type LayoutParams,
+} from "./layout-actions";
 import { assertTextPropertiesSupported, getTextTargetById, type TextTarget } from "./text-target";
 
 export type RequestType =
@@ -1710,22 +1715,32 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
           throw new Error("nodeIds is required for duplicate_nodes");
         }
 
-        const duplicates = [];
+        // Check every node before the first clone, so a refusal copies nothing.
+        const originals: SceneNode[] = [];
         for (const nodeId of request.nodeIds) {
           const node = await getSceneNodeById(nodeId);
           if (!("clone" in node) || typeof node.clone !== "function") {
             throw new Error(`Node does not support duplication: ${node.id}`);
           }
-          const clone = node.clone();
-          // Figma puts the clone of an off-page node on the current page.
-          keepBesideOriginal(node, clone);
-          duplicates.push({
-            sourceNodeId: node.id,
-            nodeId: clone.id,
-            nodeName: clone.name,
-            parentId: clone.parent?.id,
-          });
+          assertDuplicableInPlace("duplicate_nodes", node);
+          originals.push(node);
         }
+
+        const created: SceneNode[] = [];
+        const duplicates = await removeOnFailure(created, async () =>
+          originals.map((node) => {
+            const clone = node.clone();
+            created.push(clone);
+            // Figma puts the clone of an off-page node on the current page.
+            keepBesideOriginal(node, clone);
+            return {
+              sourceNodeId: node.id,
+              nodeId: clone.id,
+              nodeName: clone.name,
+              parentId: clone.parent?.id,
+            };
+          })
+        );
 
         return {
           type: request.type,

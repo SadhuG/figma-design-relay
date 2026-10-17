@@ -931,3 +931,103 @@ test("duplicate_nodes keeps a copy of an off-page node beside its original", asy
   expect(response.data.duplicates[0]).toMatchObject({ nodeId: "10:3", parentId: "10:1" });
   expect(parent.children.map((c: any) => c.id)).toEqual(["10:2", "10:3"]);
 });
+
+/** A frame whose clones Figma parents under the current page, as its docs say. */
+const duplicable = (id: string, parent: any, landing: any, made: any[]) => {
+  const node: any = { id, name: id, type: "FRAME", parent, x: 30, y: 40, children: [] };
+  parent.children.push(node);
+  node.clone = () => {
+    const copy: any = {
+      id: `${id}-copy`,
+      name: id,
+      type: "FRAME",
+      parent: landing,
+      x: node.x,
+      y: node.y,
+      removed: false,
+      remove() {
+        copy.removed = true;
+        copy.parent?.children?.splice(copy.parent.children.indexOf(copy), 1);
+      },
+    };
+    landing.children.push(copy);
+    made.push(copy);
+    return copy;
+  };
+  nodes.set(id, node);
+  return node;
+};
+const insertable = (id: string, type = "FRAME", parent: any = null): any => {
+  const node: any = { id, name: id, type, parent, children: [] as any[] };
+  node.insertChild = (index: number, child: any) => {
+    child.parent?.children?.splice(child.parent.children.indexOf(child), 1);
+    node.children.splice(index, 0, child);
+    child.parent = node;
+  };
+  return node;
+};
+
+test("duplicate_nodes refuses a layer inside an instance, nested or direct, before cloning", async () => {
+  const landing = insertable("11:0", "PAGE");
+  const instance = insertable("11:1", "INSTANCE", landing);
+  instance.insertChild = () => {
+    throw new Error("Cannot move node. New parent is an instance or is inside of an instance");
+  };
+  const inner = insertable("I11:1;2", "FRAME", instance);
+  const free = insertable("11:3", "FRAME", landing);
+  const made: any[] = [];
+  duplicable("11:4", free, landing, made);
+  duplicable("I11:1;3", instance, landing, made);
+  duplicable("I11:1;4", inner, landing, made);
+  for (const ids of [
+    ["11:4", "I11:1;3"],
+    ["11:4", "I11:1;4"],
+  ]) {
+    const response = await dispatch("duplicate_nodes", ids);
+    expect(response.error).toMatch(/inside the instance 11:1/);
+    expect(response.error).toMatch(/Duplicate the instance/);
+  }
+  expect(made).toEqual([]);
+});
+
+test("duplicate_nodes removes every copy it made when a later one cannot be placed", async () => {
+  const current = insertable("12:0", "PAGE");
+  const stray = insertable("12:9", "PAGE");
+  const ok = insertable("12:1", "FRAME", stray);
+  const locked = insertable("12:2", "FRAME", stray);
+  locked.insertChild = () => {
+    throw new Error("insertion refused");
+  };
+  const made: any[] = [];
+  duplicable("12:3", ok, current, made);
+  duplicable("12:4", locked, current, made);
+  const response = await dispatch("duplicate_nodes", ["12:3", "12:4"]);
+  expect(response.error).toMatch(/insertion refused/);
+  expect(made.map((copy) => copy.removed)).toEqual([true, true]);
+  expect([...ok.children, ...current.children].map((c: any) => c.id)).toEqual(["12:3"]);
+});
+
+test("duplicate_nodes checks every node before its first clone", async () => {
+  const current = insertable("13:0", "PAGE");
+  const made: any[] = [];
+  duplicable("13:1", current, current, made);
+  nodes.set("13:2", { id: "13:2", name: "Plain", type: "FRAME", parent: current });
+  const response = await dispatch("duplicate_nodes", ["13:1", "13:2"]);
+  expect(response.error).toMatch(/does not support duplication: 13:2/);
+  expect(made).toEqual([]);
+});
+
+test("an off-page duplicate lands beside its original at the original's position", async () => {
+  const current = insertable("14:0", "PAGE");
+  const stray = insertable("14:9", "PAGE");
+  const parent = insertable("14:1", "FRAME", stray);
+  const made: any[] = [];
+  const original = duplicable("14:2", parent, current, made);
+  const response = await dispatch("duplicate_nodes", ["14:2"]);
+  expect(response.error).toBeUndefined();
+  expect(response.data.duplicates).toEqual([
+    { sourceNodeId: "14:2", nodeId: "14:2-copy", nodeName: "14:2", parentId: "14:1" },
+  ]);
+  expect([made[0].x, made[0].y]).toEqual([original.x, original.y]);
+  expect(current.children).toEqual([]);
+});

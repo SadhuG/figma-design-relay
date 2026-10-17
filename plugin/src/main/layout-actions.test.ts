@@ -376,4 +376,22 @@ describe("duplicate_with_offset", () => {
     await expect(run(["a", "plain"])).rejects.toThrow(/duplicat/);
     expect(p.children.map((c: Fake) => c.id)).toEqual(["a", "plain"]);
   });
+
+  test("refuses a layer inside an instance, nested or direct, before cloning anything", async () => {
+    const instance = frame("inst");
+    instance.type = "INSTANCE";
+    const inner = child(instance, "inner", 0, 0, 20, 20);
+    inner.children = [];
+    const p = frame("p");
+    const a = clonable(p, "a", 0, 0);
+    const direct = clonable(instance, "direct", 0, 0);
+    const nested = clonable(inner, "nested", 0, 0);
+    const api = apiFor(a, direct, nested);
+    for (const id of ["direct", "nested"]) {
+      await expect(
+        executeLayoutAction("duplicate_with_offset", ["a", id], { offsetX: 1, offsetY: 1 }, api)
+      ).rejects.toThrow(/inside the instance inst/);
+    }
+    expect(p.children.map((c: Fake) => c.id)).toEqual(["a"]);
+  });
 });

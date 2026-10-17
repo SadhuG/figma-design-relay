@@ -263,6 +263,20 @@ type Container = BaseNode & {
 };
 
 /**
+ * Refuses a layer inside an instance. Figma accepts no new children anywhere
+ * in an instance, so its copy could never sit beside the original.
+ */
+export function assertDuplicableInPlace(type: string, node: BaseNode): void {
+  for (let parent = node.parent; parent; parent = parent.parent) {
+    if (parent.type === "INSTANCE") {
+      refuse(
+        `${type}: ${node.id} sits inside the instance ${parent.id}, and Figma cannot add a copy there. Duplicate the instance instead, or detach it first.`
+      );
+    }
+  }
+}
+
+/**
  * Moves a copy next to its original. Figma parents the clone of a node on
  * another page under the current page — seen live — which would put the copy,
  * and its offset, in the wrong place entirely.
@@ -287,6 +301,7 @@ async function duplicateWithOffset(ids: readonly string[], params: LayoutParams,
       refuse(`duplicate_with_offset: ${node.id} (${node.type}) does not support duplication.`);
     }
     assertFreelyPositioned("duplicate_with_offset", node);
+    assertDuplicableInPlace("duplicate_with_offset", node);
   }
 
   const created: Positioned[] = [];

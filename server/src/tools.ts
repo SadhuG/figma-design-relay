@@ -755,7 +755,7 @@ export function registerTools(server: McpServer, node: Node, port: number): void
 
   server.tool(
     "duplicate_nodes",
-    "Duplicate one or more nodes in place. The duplicates remain under the same parent as the originals. When multiple files are connected, specify fileKey.",
+    "Duplicate one or more nodes in place, each copy beside its original under the same parent; layers inside an instance are refused, since Figma cannot add a copy there. Every node is checked before the first copy, and if any copy fails, every copy made by the call is removed. When multiple files are connected, specify fileKey.",
     toolInputSchemas.duplicate_nodes.shape,
     async ({ nodeIds, fileKey }): Promise<ToolResult> => {
       return renderResponse(() =>
@@ -766,7 +766,7 @@ export function registerTools(server: McpServer, node: Node, port: number): void
 
   server.tool(
     "duplicate_with_offset",
-    "Duplicate nodes and move each copy by offsetX/offsetY from its original, in that original's parent. Works in design files, FigJam and Slides; refused in Dev Mode and for nodes placed by an auto-layout parent. If any copy fails, every copy made by the call is removed. Returns each source id with its copy's id and position. When multiple files are connected, specify fileKey.",
+    "Duplicate nodes and move each copy by offsetX/offsetY from its original, in that original's parent. Works in design files, FigJam and Slides; refused in Dev Mode, for nodes placed by an auto-layout parent and for layers inside an instance. If any copy fails, every copy made by the call is removed. Returns each source id with its copy's id and position. When multiple files are connected, specify fileKey.",
     duplicateWithOffsetInput.shape,
     async ({ nodeIds, offsetX, offsetY, fileKey }): Promise<ToolResult> => {
       return renderResponse(() =>

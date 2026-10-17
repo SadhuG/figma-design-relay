@@ -43,6 +43,8 @@ editor gates, follower validation and file safety. Ten new tools: 64 in all.
 ### Fixed
 
 - `duplicate_nodes` and `duplicate_with_offset` keep a copy beside its original. Figma parents the clone of a node on another page under the current page, so copies of off-page nodes used to land on whatever page the user had open (found by the live check).
+- `duplicate_nodes` checks every node before its first copy, refuses layers inside an instance (Figma cannot add a copy there) and removes every copy it made if a later one fails, instead of leaving an unreported copy behind. `duplicate_with_offset` refuses instance layers up front too (found by review).
+- `create_connector` gives Figma free endpoints on the canvas. They are taken relative to the parent, but were passed through unchanged, so a free end inside a moved, nested or rotated section or frame was drawn in the wrong place (found by review).
 
 ### Kept from the relay
 

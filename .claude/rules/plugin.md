@@ -78,6 +78,11 @@ paths:
   change — permissions, `editorType` — reaches both builds.
 - **`clone()` of a node on another page lands on the current page,** not beside the original —
   seen live on 2026-10-18. Put copies back with `keepBesideOriginal` (`layout-actions.ts`), as
-  `duplicate_nodes` and `duplicate_with_offset` do.
+  `duplicate_nodes` and `duplicate_with_offset` do. Figma refuses new children anywhere inside an
+  instance, so both refuse instance layers first (`assertDuplicableInPlace`) and remove their
+  copies if a later one fails.
+- **An unattached `ConnectorEndpoint.position` is a canvas location,** whatever the connector's
+  parent. `create_connector` takes free ends relative to the parent and maps them through its
+  `absoluteTransform` (`toCanvasPoint`).
 - **Relaunch the plugin after every plugin rebuild** before trusting a live check — see the
   `live-figma-check` skill.
