@@ -203,7 +203,8 @@ function memoize<T>(load: (id: string) => Promise<T | null>): (id: string) => Pr
   return (id) => {
     let result = cache.get(id);
     if (!result) {
-      result = load(id).then(
+      // The executor also catches a lookup that throws instead of rejecting.
+      result = new Promise<T | null>((resolve) => resolve(load(id))).then(
         (value) => ({ value: value ?? null }),
         (err: unknown) => ({ value: null, error: err instanceof Error ? err.message : String(err) })
       );
@@ -247,23 +248,31 @@ class PrototypeReader {
   ): Promise<ScanResult> {
     await this.loadPageOf(root);
     const connections: Array<Promise<NodeConnections>> = [];
-    const stack = [root];
+    // Depth-first in layer order, one cursor per open container. Figma's
+    // `children` getter copies the whole array on every read, so each
+    // container's is read once, and siblings past the budget are never touched.
+    const stack: Array<{ nodes: readonly BaseNode[]; next: number }> = [{ nodes: [root], next: 0 }];
     let nodesScanned = 0;
     while (stack.length > 0 && nodesScanned < maxNodes) {
-      const node = stack.pop()!;
+      const cursor = stack[stack.length - 1];
+      if (cursor.next >= cursor.nodes.length) {
+        stack.pop();
+        continue;
+      }
+      const node = cursor.nodes[cursor.next++];
       nodesScanned++;
       if ("reactions" in node && (includeEmpty || node.reactions.length > 0)) {
         connections.push(this.describeNode(node));
       }
       if ("children" in node) {
-        // Pushed in reverse so nodes are visited in layer order.
-        for (let i = node.children.length - 1; i >= 0; i--) stack.push(node.children[i]);
+        const children = node.children;
+        if (children.length > 0) stack.push({ nodes: children, next: 0 });
       }
     }
     return {
       root: toRef(root),
       nodesScanned,
-      truncated: stack.length > 0,
+      truncated: stack.some(({ nodes, next }) => next < nodes.length),
       connections: await Promise.all(connections),
     };
   }
@@ -484,6 +493,13 @@ export async function tracePrototypeFlow(
   if (type === "PAGE" || type === "DOCUMENT") {
     throw new Error(
       `trace_prototype_flow starts from a screen or a node inside one, not a ${type === "PAGE" ? "page" : "document"}. Use get_prototype_connections to scan a whole page.`
+    );
+  }
+  // A section holds screens but is not one; tracing it would credit its
+  // screens' edges to the section.
+  if (type === "SECTION") {
+    throw new Error(
+      `trace_prototype_flow starts from a screen or a node inside one, not a section. Pass one of its screens (see get_metadata), or use get_prototype_connections to scan the whole section.`
     );
   }
   const trace = await new PrototypeReader(context).trace(start, options);

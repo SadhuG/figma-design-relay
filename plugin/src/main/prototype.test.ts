@@ -233,7 +233,52 @@ describe("tracePrototypeFlow", () => {
       /screen/
     );
   });
+
+  test("a section is not a valid start; a screen inside one is", async () => {
+    const f = buildLoop();
+    f.c.reactions = [onClick(navigate("1:1"))];
+    const ctx = contextFor([f.a, f.c]);
+    await expect(tracePrototypeFlow(f.section as any, undefined, ctx)).rejects.toThrow(
+      /not a section\. Pass one of its screens/
+    );
+    const trace = await tracePrototypeFlow(f.c as any, { maxScreens: 1 }, ctx);
+    expect(trace.start.name).toBe("C");
+    expect(trace.edges[0].fromScreen.name).toBe("C");
+  });
+
+  test("a wide screen reads its children once, and maxNodesPerScreen stops the scan", async () => {
+    const page = makePage("1:0", "Page 1", true);
+    const { node: wide, reads } = wideNode("1:1", "FRAME", page, 2000);
+    page.kids.push(wide);
+    const trace = await tracePrototypeFlow(wide, { maxNodesPerScreen: 1 }, contextFor([]));
+    expect(reads()).toBe(1);
+    expect(trace.truncated).toBe(true);
+    expect(trace.screens.map((s) => s.name)).toEqual(["Wide"]);
+  });
 });
+
+/**
+ * A container whose `children` getter returns a fresh array on every read,
+ * as Figma's does, counting the reads.
+ */
+const wideNode = (id: string, type: string, parent: any, count: number) => {
+  let reads = 0;
+  const node: any = { id, name: "Wide", type, parent, reactions: [] };
+  const kids = Array.from({ length: count }, (_, i) => ({
+    id: `${id}-${i}`,
+    name: `Child ${i}`,
+    type: "RECTANGLE",
+    parent: node,
+    reactions: i === count - 1 ? [onClick({ type: "URL", url: "https://example.com" })] : [],
+  }));
+  Object.defineProperty(node, "children", {
+    get() {
+      reads += 1;
+      return kids.slice();
+    },
+  });
+  return { node, reads: () => reads };
+};
 
 describe("scanPrototype and getPrototypeConnections", () => {
   test("overlay settings, variables, modes, flow starts and deprecated single actions survive", async () => {
@@ -325,6 +370,71 @@ describe("scanPrototype and getPrototypeConnections", () => {
         modeName: null,
       },
     ]);
+  });
+
+  for (const failure of ["synchronously", "asynchronously"]) {
+    test(`a lookup that throws ${failure} marks only its reference; a URL action survives`, async () => {
+      const page = makePage("1:0", "Page 1", true);
+      const screen = add(page, { id: "1:1", name: "Home", type: "FRAME", children: [] });
+      const btn = add(screen, {
+        id: "1:2",
+        name: "Btn",
+        type: "FRAME",
+        reactions: [
+          onClick(
+            navigate("9:9"),
+            { type: "SET_VARIABLE", variableId: "V:1", variableValue: null },
+            { type: "SET_VARIABLE_MODE", variableCollectionId: "C:1", variableModeId: "m2" },
+            { type: "URL", url: "https://example.com" }
+          ),
+        ],
+      });
+      const fail = (what: string): any =>
+        failure === "synchronously"
+          ? () => {
+              throw new Error(`${what} broke`);
+            }
+          : async () => {
+              throw new Error(`${what} broke`);
+            };
+      const ctx = contextFor([screen, btn], {
+        getNodeByIdAsync: fail("node"),
+        getVariableByIdAsync: fail("variable"),
+        getVariableCollectionByIdAsync: fail("collection"),
+      });
+      const result = await scanPrototype(screen as any, undefined, ctx);
+      const [nav, variable, mode, url] = result.connections[0].reactions[0].actions as any[];
+      expect(nav.destination).toEqual({ status: "error", id: "9:9", error: "node broke" });
+      expect(variable.variable).toBeNull();
+      expect([mode.collectionName, mode.modeName]).toEqual([null, null]);
+      expect(url).toEqual({ type: "URL", url: "https://example.com" });
+    });
+  }
+
+  test("a wide page reads its children once, however small maxNodes is", async () => {
+    const { node: wide, reads } = wideNode("1:1", "PAGE", null, 2000);
+    wide.loadAsync = async () => {};
+    const tiny = await scanPrototype(wide, { maxNodes: 1 }, contextFor([]));
+    expect([tiny.nodesScanned, tiny.truncated, reads()]).toEqual([1, true, 1]);
+    const all = await scanPrototype(wide, undefined, contextFor([]));
+    expect([all.nodesScanned, all.truncated, reads()]).toEqual([2001, false, 2]);
+    expect(all.connections.map((c) => c.name)).toEqual(["Child 1999"]);
+  });
+
+  test("a budget that ends inside a subtree keeps layer order and reports truncation", async () => {
+    const page = makePage("1:0", "Page 1", true);
+    const s = add(page, { id: "1:1", name: "S", type: "FRAME", reactions: [], children: [] });
+    const a = add(s, { id: "1:2", name: "A", type: "FRAME", reactions: [], children: [] });
+    add(a, { id: "1:3", name: "A1", type: "FRAME", reactions: [] });
+    add(a, { id: "1:4", name: "A2", type: "FRAME", reactions: [] });
+    add(s, { id: "1:5", name: "B", type: "FRAME", reactions: [] });
+    const names = async (maxNodes: number) => {
+      const r = await scanPrototype(s as any, { maxNodes, includeEmpty: true }, contextFor([]));
+      return [r.connections.map((c) => c.name).join(","), r.truncated];
+    };
+    expect(await names(3)).toEqual(["S,A,A1", true]);
+    expect(await names(4)).toEqual(["S,A,A1,A2", true]);
+    expect(await names(5)).toEqual(["S,A,A1,A2,B", false]);
   });
 
   test("a destination referenced twice is looked up once per request", async () => {

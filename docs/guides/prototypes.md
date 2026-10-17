@@ -42,7 +42,7 @@ truncation. `includeEmpty: true` also lists nodes that could hold reactions but 
 
 `{ nodeId, maxScreens?, maxNodesPerScreen?, fileKey? }`. Starts from the screen containing `nodeId`
 (a screen is a direct child of a page or section) and follows screen navigations — navigate, swap,
-overlay — breadth-first. A page is not a valid start.
+overlay — breadth-first. A page or a section is not a valid start; pass one of its screens.
 
 - `screens` lists each screen reached, in order, with its `depth` and `reachedVia` (the node whose
   interaction reached it).
