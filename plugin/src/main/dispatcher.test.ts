@@ -839,3 +839,20 @@ test("a connector that fails to attach is removed again", async () => {
   expect(created.at(-1).type).toBe("CONNECTOR");
   expect(created.at(-1).removed).toBe(true);
 });
+
+test("duplicate_nodes keeps a copy of an off-page node beside its original", async () => {
+  const parent: any = { id: "10:1", type: "FRAME", children: [] as any[] };
+  parent.insertChild = (index: number, node: any) => {
+    node.parent = parent;
+    parent.children.splice(index, 0, node);
+  };
+  const strayPage: any = { id: "10:0", type: "PAGE" };
+  const original: any = { id: "10:2", name: "Card", type: "FRAME", parent };
+  parent.children.push(original);
+  original.clone = () => ({ id: "10:3", name: "Card", type: "FRAME", parent: strayPage });
+  nodes.set("10:2", original);
+  const response = await dispatch("duplicate_nodes", ["10:2"]);
+  expect(response.error).toBeUndefined();
+  expect(response.data.duplicates[0]).toMatchObject({ nodeId: "10:3", parentId: "10:1" });
+  expect(parent.children.map((c: any) => c.id)).toEqual(["10:2", "10:3"]);
+});

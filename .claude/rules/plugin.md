@@ -76,5 +76,8 @@ paths:
   worktree the build derives the Dev manifest from it (`dev-slot.ts`: name, id, `main`/`ui` paths,
   and `allowedDomains` narrowed to the slot's port) and writes it to `dist/`. Any other manifest
   change — permissions, `editorType` — reaches both builds.
+- **`clone()` of a node on another page lands on the current page,** not beside the original —
+  seen live on 2026-10-18. Put copies back with `keepBesideOriginal` (`layout-actions.ts`), as
+  `duplicate_nodes` and `duplicate_with_offset` do.
 - **Relaunch the plugin after every plugin rebuild** before trusting a live check — see the
   `live-figma-check` skill.

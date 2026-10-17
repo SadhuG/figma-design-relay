@@ -257,6 +257,23 @@ async function fitToContent(ids: readonly string[], params: LayoutParams, api: L
 
 type Clonable = Positioned & { clone(): Positioned };
 
+type Container = BaseNode & {
+  readonly children: readonly BaseNode[];
+  insertChild(index: number, child: SceneNode): void;
+};
+
+/**
+ * Moves a copy next to its original. Figma parents the clone of a node on
+ * another page under the current page — seen live — which would put the copy,
+ * and its offset, in the wrong place entirely.
+ */
+export function keepBesideOriginal(original: SceneNode, copy: SceneNode): void {
+  const parent = original.parent as Container | null;
+  if (!parent || copy.parent?.id === parent.id) return;
+  const index = parent.children.findIndex((child) => child.id === original.id);
+  parent.insertChild(index + 1, copy);
+}
+
 async function duplicateWithOffset(ids: readonly string[], params: LayoutParams, api: LayoutApi) {
   const { offsetX, offsetY } = params;
   if (!isFiniteNumber(offsetX) || !isFiniteNumber(offsetY)) {
@@ -275,9 +292,10 @@ async function duplicateWithOffset(ids: readonly string[], params: LayoutParams,
   const created: Positioned[] = [];
   try {
     const duplicates = nodes.map((node) => {
-      // clone() lands beside the original, so the offset is in that parent's space.
+      // The copy is moved beside its original, so the offset is in that parent's space.
       const copy = node.clone();
       created.push(copy);
+      keepBesideOriginal(node, copy);
       copy.x = node.x + (offsetX as number);
       copy.y = node.y + (offsetY as number);
       return {

@@ -40,7 +40,7 @@ import {
   preflightNodeProperties,
   readNodePropertyPatch,
 } from "./node-properties";
-import { executeLayoutAction, type LayoutParams } from "./layout-actions";
+import { executeLayoutAction, keepBesideOriginal, type LayoutParams } from "./layout-actions";
 import { assertTextPropertiesSupported, getTextTargetById, type TextTarget } from "./text-target";
 
 export type RequestType =
@@ -1706,6 +1706,8 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
             throw new Error(`Node does not support duplication: ${node.id}`);
           }
           const clone = node.clone();
+          // Figma puts the clone of an off-page node on the current page.
+          keepBesideOriginal(node, clone);
           duplicates.push({
             sourceNodeId: node.id,
             nodeId: clone.id,

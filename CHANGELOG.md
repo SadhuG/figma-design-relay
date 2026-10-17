@@ -40,6 +40,10 @@ editor gates, follower validation and file safety. Ten new tools: 64 in all.
 - `validateRpc` strips `nodeIds` as well as `nodeId` from forwarded params; ids still travel on the transport.
 - `@figma/plugin-typings` `^1.140.0` in the plugin, and as a server dev dependency for the exhaustive FigJam shape list.
 
+### Fixed
+
+- `duplicate_nodes` and `duplicate_with_offset` keep a copy beside its original. Figma parents the clone of a node on another page under the current page, so copies of off-page nodes used to land on whatever page the user had open (found by the live check).
+
 ### Kept from the relay
 
 - Loopback-only leader, private packages and the relay's release workflow; the stable manifest's `[figma, figjam, slides]` editors; the async, reference-resolving serializer; the central capability table in place of upstream's inline FigJam guards.

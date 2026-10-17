@@ -303,6 +303,32 @@ describe("duplicate_with_offset", () => {
     return node;
   };
 
+  // Seen live: Figma parents the clone of a node on another page under the
+  // current page, so the copy must be moved back beside its original.
+  test("a clone Figma puts on the current page goes back beside its original", async () => {
+    const current = frame("current");
+    const p = frame("p");
+    p.insertChild = (index: number, node: Fake) => {
+      node.parent.children = node.parent.children.filter((c: Fake) => c !== node);
+      p.children.splice(index, 0, node);
+      node.parent = p;
+    };
+    const a = child(p, "a", 0, 0, 10, 10);
+    child(p, "z", 50, 0, 10, 10);
+    a.clone = () => child(current, "a-copy", 0, 0, 10, 10);
+    const result = await executeLayoutAction(
+      "duplicate_with_offset",
+      ["a"],
+      { offsetX: 5, offsetY: 5 },
+      apiFor(a)
+    );
+    expect(result.duplicates).toEqual([
+      { sourceNodeId: "a", nodeId: "a-copy", nodeName: "a-copy", parentId: "p", x: 5, y: 5 },
+    ]);
+    expect(p.children.map((c: Fake) => c.id)).toEqual(["a", "a-copy", "z"]);
+    expect(current.children).toEqual([]);
+  });
+
   test("offsets each clone within its own parent and maps sources to copies", async () => {
     const p = frame("p");
     const q = frame("q");
