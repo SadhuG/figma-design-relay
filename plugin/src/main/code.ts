@@ -458,6 +458,17 @@ const pageOf = (node: BaseNode): PageNode | null => {
   return null;
 };
 
+/**
+ * Figma reads an unattached connector end as a canvas location, while
+ * create_connector takes it relative to the parent: map it through the
+ * parent's transform. A page's space is the canvas.
+ */
+const toCanvasPoint = (parent: BaseNode | undefined, { x, y }: Vector): Vector => {
+  if (!parent || parent.type === "PAGE" || !("absoluteTransform" in parent)) return { x, y };
+  const [[a, b, tx], [c, d, ty]] = (parent as SceneNode).absoluteTransform;
+  return { x: a * x + b * y + tx, y: c * x + d * y + ty };
+};
+
 /** Caps, stroke and label shared by node-to-node edges and free segments. */
 const styleConnector = async (
   connector: ConnectorNode,
@@ -2200,7 +2211,7 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
           const connector = figma.createConnector();
           created.push(connector);
           if (typeof params.name === "string") connector.name = params.name;
-          // Join the parent first: free endpoints are in the parent's space.
+          // Join the parent first, so node ends attach in their final parent.
           parent?.appendChild(connector);
           if (start.kind === "node" && end.kind === "node") {
             attachConnector(connector, start.nodeId, end.nodeId, {
@@ -2214,11 +2225,11 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
             connector.connectorStart =
               start.kind === "node"
                 ? { endpointNodeId: start.nodeId, magnet: magnetFor(start.anchor) }
-                : { position: start.position };
+                : { position: toCanvasPoint(parent, start.position) };
             connector.connectorEnd =
               end.kind === "node"
                 ? { endpointNodeId: end.nodeId, magnet: magnetFor(end.anchor) }
-                : { position: end.position };
+                : { position: toCanvasPoint(parent, end.position) };
           }
           if (typeof params.strokeHex === "string") {
             setSolidFill(connector, params.strokeHex, undefined, "stroke");
