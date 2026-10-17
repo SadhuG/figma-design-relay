@@ -18,6 +18,36 @@ with its tag.
 
 ## [Unreleased]
 
+## [0.7.9] - 2026-10-18
+
+Merges upstream `gethopp/figma-mcp-bridge` through v0.0.24 (`2c37e6d`), adapted to the relay's
+editor gates, follower validation and file safety. Ten new tools: 64 in all.
+
+### Added
+
+- `get_prototype_connections`, `trace_prototype_flow` and `get_node`'s `includePrototype`: read-only prototype inspection with resolved destinations, variables and modes, bounded scans and breadth-first screen traces. Design files and Dev Mode only ([guide](docs/guides/prototypes.md)).
+- `create_svg`: SVG markup or a workspace `.svg` file, up to 2 MiB, as editable vector layers in design files ([guide](docs/guides/svg.md)).
+- `distribute_horizontally`, `distribute_vertically`, `align_to_grid`, `place_below`, `place_right_of`, `duplicate_with_offset` and `fit_to_content` for arranging existing nodes ([guide](docs/guides/layout.md)).
+- `set_node_properties` takes `nodeIds` to patch several nodes, checking every node and property before writing any.
+- FigJam: `set_text_content` and `set_text_properties` edit sticky and shape-with-text labels; `create_sticky` gains name, parent and wide width; `create_shape_with_text` gains name, parent, rotation, fill, stroke and label font and color; `create_connector` gains free endpoints, chosen sides, name, parent and stroke styling; `create_section` gains parent, background and hidden contents. `characters` is accepted as an alias for `text` on stickies and shapes.
+
+### Changed
+
+- `set_text_properties` now runs in FigJam as well as design files; Slides still refuses it.
+- `create_sticky` and `create_shape_with_text` create an empty label when no text is given, instead of refusing.
+- FigJam `get_styles` returns the style categories it can read with `notes` naming the rest, and `get_variable_defs` returns an empty list with a `note` when variables are unavailable. Design files still report these failures as errors.
+- `set_auto_layout` refuses sections with a reason.
+- `validateRpc` strips `nodeIds` as well as `nodeId` from forwarded params; ids still travel on the transport.
+- `@figma/plugin-typings` `^1.140.0` in the plugin, and as a server dev dependency for the exhaustive FigJam shape list.
+
+### Kept from the relay
+
+- Loopback-only leader, private packages and the relay's release workflow; the stable manifest's `[figma, figjam, slides]` editors; the async, reference-resolving serializer; the central capability table in place of upstream's inline FigJam guards.
+
+### Verification
+
+- See [the integration record](docs/reference/2026-10-18-upstream-relay-live-check.md) for the tested build, automated results and live Figma checks.
+
 ## [0.7.8] - 2026-10-01
 
 ### Fixed

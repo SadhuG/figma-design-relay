@@ -89,12 +89,14 @@ If you want to know more about how it works, read the [How it works](#how-it-wor
 | `list_files`                   | List all connected Figma files (supports multi-file workflows)                                                                                                                                   |
 | `get_document`                 | Get the current Figma page document tree                                                                                                                                                         |
 | `get_selection`                | Get the currently selected nodes in Figma                                                                                                                                                        |
-| `get_node`                     | Get a specific Figma node by ID (colon format, e.g. `4029:12345`)                                                                                                                                |
+| `get_node`                     | Get a specific Figma node by ID (colon format, e.g. `4029:12345`); `includePrototype: true` adds its prototype scan (design files and Dev Mode)                                                  |
+| `get_prototype_connections`    | Read-only: every prototype interaction under a node or page, with destinations, variables and modes resolved — design files only ([guide](docs/guides/prototypes.md))                            |
+| `trace_prototype_flow`         | Read-only: follow screen-to-screen navigation breadth-first from a screen, with revisits, unresolved and pending screens — design files only                                                     |
 | `get_layout_tree`              | Absolute transforms and layout bounds for a scene root; bounded to 2,000 nodes by default (maximum 10,000). Separate screenshots are non-atomic; masks and painted visibility are not evaluated. |
-| `get_styles`                   | Get all local paint, text, effect, and grid styles                                                                                                                                               |
+| `get_styles`                   | Get all local paint, text, effect, and grid styles; in FigJam, unavailable categories come back empty with a note                                                                                |
 | `get_metadata`                 | Get file name, pages, and current page info                                                                                                                                                      |
 | `get_design_context`           | Reference code, design tokens, exported assets and a screenshot for a node — one call ([guide](docs/guides/design-context.md))                                                                   |
-| `get_variable_defs`            | Get all variable collections, modes, and values (design tokens)                                                                                                                                  |
+| `get_variable_defs`            | Get all variable collections, modes, and values (design tokens); in FigJam, unavailable variables come back empty with a note                                                                    |
 | `get_screenshot`               | Export nodes as PNG/SVG/JPG/PDF (base64-encoded)                                                                                                                                                 |
 | `save_screenshots`             | Export and save screenshots directly to the local filesystem                                                                                                                                     |
 | `get_motion_styles`            | List all available animation presets (beta)                                                                                                                                                      |
@@ -105,9 +107,9 @@ If you want to know more about how it works, read the [How it works](#how-it-wor
 | `remove_manual_keyframe_track` | Remove a manual keyframe track from a node property (beta)                                                                                                                                       |
 | `set_timeline_duration`        | Set the duration of a timeline in seconds (beta)                                                                                                                                                 |
 | `set_node_visibility`          | Show or hide specific nodes                                                                                                                                                                      |
-| `set_text_content`             | Replace the contents of a text node                                                                                                                                                              |
-| `set_text_properties`          | Patch font, size, alignment, auto-resize, color, and bounds on a text node                                                                                                                       |
-| `set_node_properties`          | Patch common node properties: name, position, size, visibility, opacity, corner radius                                                                                                           |
+| `set_text_content`             | Replace the contents of a text node, or the label of a FigJam sticky or shape-with-text                                                                                                          |
+| `set_text_properties`          | Patch font, size, alignment, auto-resize, color, and bounds on a text node; font, size and color on FigJam sticky and shape labels                                                               |
+| `set_node_properties`          | Patch common node properties — name, position, size, visibility, opacity, corner radius — on one node or a batch (`nodeIds`), checked before any write                                           |
 | `set_solid_fill`               | Replace a node's fill or stroke with a single solid paint                                                                                                                                        |
 | `set_gradient_fill`            | Replace a node's fill or stroke with a linear/radial/angular/diamond gradient                                                                                                                    |
 | `set_effects`                  | Replace a node's effects list (drop/inner shadows, layer/background blurs)                                                                                                                       |
@@ -118,8 +120,16 @@ If you want to know more about how it works, read the [How it works](#how-it-wor
 | `create_text`                  | Create a new text node                                                                                                                                                                           |
 | `create_shape`                 | Create a rectangle, ellipse, or line                                                                                                                                                             |
 | `create_image`                 | Create an image-backed rectangle from a local path, URL, or data URI                                                                                                                             |
+| `create_svg`                   | Insert SVG markup or a workspace `.svg` file (up to 2 MiB) as editable vector layers — design files only ([guide](docs/guides/svg.md))                                                           |
 | `import_html_layers`           | Bulk-import an html-figma layer tree (JSON) as frames, text, rectangles, and vectors                                                                                                             |
 | `duplicate_nodes`              | Duplicate nodes in place                                                                                                                                                                         |
+| `duplicate_with_offset`        | Duplicate nodes and move each copy by a fixed offset in its parent ([guide](docs/guides/layout.md))                                                                                              |
+| `distribute_horizontally`      | Space three or more sibling nodes with equal horizontal gaps                                                                                                                                     |
+| `distribute_vertically`        | Space three or more sibling nodes with equal vertical gaps                                                                                                                                       |
+| `align_to_grid`                | Snap nodes' positions to a grid                                                                                                                                                                  |
+| `place_below`                  | Move a node below a sibling, with a gap and start/center alignment                                                                                                                               |
+| `place_right_of`               | Move a node right of a sibling, with a gap and start/center alignment                                                                                                                            |
+| `fit_to_content`               | Resize a section to wrap its children with padding (design files and FigJam)                                                                                                                     |
 | `reparent_nodes`               | Move nodes into another parent                                                                                                                                                                   |
 | `group_nodes`                  | Wrap a list of nodes (sharing a parent) in a new group                                                                                                                                           |
 | `ungroup_node`                 | Ungroup a group or frame — children move up to its parent                                                                                                                                        |
@@ -135,10 +145,10 @@ If you want to know more about how it works, read the [How it works](#how-it-wor
 | `get_libraries`                | List enabled team libraries by their published variable collections, and a collection's variable keys ([guide](docs/guides/libraries.md))                                                        |
 | `import_library_asset`         | Import a published component, component set, style or variable by key                                                                                                                            |
 | `search_design_system`         | Search components and instances in every open design file (or the ones named in `files`) and published variable collections — scoped, see the guide                                              |
-| `create_sticky`                | Create a FigJam sticky note ([guide](docs/guides/figjam.md))                                                                                                                                     |
-| `create_shape_with_text`       | Create a FigJam shape with text inside it                                                                                                                                                        |
-| `create_connector`             | Connect two FigJam nodes, optionally with a label                                                                                                                                                |
-| `create_section`               | Create a section in a FigJam board or design file                                                                                                                                                |
+| `create_sticky`                | Create a FigJam sticky note, optionally wide, named and inside a section ([guide](docs/guides/figjam.md))                                                                                        |
+| `create_shape_with_text`       | Create a FigJam shape with text inside it, with fill, stroke, rotation and label font/color                                                                                                      |
+| `create_connector`             | Connect FigJam nodes or free points, with chosen sides, a label and stroke styling                                                                                                               |
+| `create_section`               | Create a section in a FigJam board or design file, with a parent, background and hidden contents                                                                                                 |
 | `generate_diagram`             | Render Mermaid source as a FigJam diagram — flowchart, sequence, ER, state, within a documented subset                                                                                           |
 
 All tools accept an optional `fileKey` parameter when multiple Figma files are connected. Use `list_files` to discover connected files and their keys.
@@ -152,6 +162,10 @@ All tools accept an optional `fileKey` parameter when multiple Figma files are c
 - Text edits automatically load the fonts currently used by the target text node before applying the new content.
 - New text nodes default to `Inter Regular` unless a font is provided.
 - `create_image` reads local paths relative to the MCP server working directory unless you pass an absolute path.
+- `create_svg` takes SVG markup or a `.svg` file inside the MCP server working directory — never a URL — up to 2,097,152 UTF-8 bytes, and lets Figma's own importer parse it. It runs in design files only. See [docs/guides/svg.md](docs/guides/svg.md).
+- `set_node_properties` with `nodeIds` checks every node and property before writing any, but the Plugin API has no rollback: if Figma itself rejects a value part-way, earlier nodes keep their change.
+- The layout helpers (`distribute_*`, `align_to_grid`, `place_*`, `duplicate_with_offset`, `fit_to_content`) work in node-local coordinates, so they need siblings under one parent that is not auto-layout, and refuse rotated nodes where their width and height would mislead. `fit_to_content` moves a section's children to wrap them — it is not a crop. See [docs/guides/layout.md](docs/guides/layout.md).
+- `get_prototype_connections`, `trace_prototype_flow` and `get_node`'s `includePrototype` read prototypes exactly as Figma stores them: conditions are returned, never evaluated, and only screen navigations are followed. They are refused in FigJam and Slides. See [docs/guides/prototypes.md](docs/guides/prototypes.md).
 - `import_html_layers` takes a JSON file produced by [html-figma](https://github.com/sergcen/html-to-figma)'s browser `htmlToFigma()`. The path resolves relative to the MCP server working directory and must stay inside it, even when absolute. Everything lands inside one wrapper frame, and the response reports `layerCount` against `expectedLayerCount` so partial imports are visible.
 - `create_page` returns the new page's ID — pass it as `parentId` to `create_frame` / `create_text` / `create_shape` / `create_image` to author content on that page without switching the editor.
 - `run_script` executes agent-authored JavaScript with the full Plugin API in scope. It is the escape hatch for components, variables, styles, boolean operations, prototyping, and any other API the dedicated tools do not cover. Unlike the dedicated tools it is **not atomic** — a script that throws part-way leaves its earlier mutations in the file, because the Plugin API has no rollback. See [docs/guides/run-script.md](docs/guides/run-script.md) for the full contract, limits, and gotchas.
@@ -259,12 +273,15 @@ packages (including type-checking), and checks formatting. `bun run test` runs o
 cd server && bun test       # schemas, /rpc guards, codegen, content blocks, asset export, Code Connect,
                             # the Mermaid parser and diagram layout, the startup port and dev slots,
                             # cross-file search: file selection, result merging and fan-out,
-                            # bridge response ownership, leader cleanup and filesystem/URL safety
+                            # bridge response ownership, leader cleanup and filesystem/URL safety,
+                            # the SVG loader, and every new tool's follower round trip
 cd plugin && bun test       # run_script, serializer and its helpers (FigJam nodes too), Code Connect context,
                             # the editor capability table and its regression guard, diagram payloads,
                             # library tools and search against stubbed figma.teamLibrary / currentUser,
                             # bounded absolute layout geometry, dev slot rules and the dev manifest,
-                            # page-loading dispatch, UI startup status and HTML image imports
+                            # page-loading dispatch, UI startup status and HTML image imports,
+                            # prototype scans and traces, SVG placement, property batches,
+                            # layout helpers, FigJam text targets and creators
 cd plugin && bun run typecheck   # tsc --noEmit; also runs as part of `bun run build`
 ```
 
@@ -284,6 +301,8 @@ Figma-Design-Relay/
 ├── scripts/      # check-version.mjs: one version across server, plugin and changelog;
 │                 # dev-slot.mjs: claims a feature worktree's dev plugin name and port
 ├── plugin/       # Figma plugin (TypeScript/React); src/main/layout-tree.ts: bounded geometry;
+│                 # prototype.ts, svg.ts, node-properties.ts, layout-actions.ts and
+│                 # text-target.ts: the upstream-synced tools' Figma-free logic;
 │                 # dev-slot.ts: the slot rules the build uses
 └── server/       # MCP server (TypeScript/Node.js)
     └── src/
@@ -296,6 +315,7 @@ Figma-Design-Relay/
         ├── election.ts   # Leader election & health monitoring
         ├── schema.ts     # Tool input schemas & /rpc validation
         ├── tools.ts      # MCP tool definitions
+        ├── svg.ts        # create_svg's bounded, workspace-contained source loader
         ├── workspace-path.ts # Shared filesystem containment checks
         ├── content.ts    # Text and image blocks for tool results
         ├── assets.ts     # Exports design assets into the workspace

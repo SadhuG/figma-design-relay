@@ -36,7 +36,7 @@ const api: any = {
     },
   },
   async getNodeByIdAsync(id: string) {
-    return nodes.get(id) ?? page;
+    return nodes.has(id) ? nodes.get(id) : page;
   },
 };
 /** Per-test node lookups; anything not listed resolves to `page`. */
@@ -137,7 +137,7 @@ test("FigJam get_styles keeps working categories when one style API is unavailab
   expect(response.data.effects).toEqual([]);
   expect(response.data.grids).toEqual([]);
   expect(gridCalled).toBe(false);
-  expect(response.data.notes.join(" ")).toMatch(/text/);
+  expect(response.data.notes.join(" ")).toMatch(/\btext styles\b/i);
 });
 
 test("FigJam get_variable_defs reports unavailable variables with a note", async () => {
@@ -151,4 +151,691 @@ test("FigJam get_variable_defs reports unavailable variables with a note", async
   expect(response.error).toBeUndefined();
   expect(response.data.collections).toEqual([]);
   expect(typeof response.data.note).toBe("string");
+});
+
+/** A screen on the loaded current page with one navigating button. */
+const prototypeFixture = () => {
+  const current: any = { id: "1:0", name: "Page 1", type: "PAGE", flowStartingPoints: [] };
+  current.loadAsync = async () => {};
+  const screen: any = { id: "1:1", name: "Home", type: "FRAME", parent: current, reactions: [] };
+  const button: any = {
+    id: "1:2",
+    name: "Go",
+    type: "FRAME",
+    parent: screen,
+    reactions: [
+      {
+        trigger: { type: "ON_CLICK" },
+        actions: [{ type: "NODE", destinationId: "1:3", navigation: "NAVIGATE" }],
+      },
+    ],
+  };
+  const next: any = { id: "1:3", name: "Next", type: "FRAME", parent: current, reactions: [] };
+  screen.children = [button];
+  current.children = [screen, next];
+  for (const node of [current, screen, button, next]) nodes.set(node.id, node);
+  stub("variables", {
+    getVariableByIdAsync: async () => null,
+    getVariableCollectionByIdAsync: async () => null,
+  });
+  return { current, screen, button, next };
+};
+
+test("get_node with includePrototype adds the awaited serialization plus a scan", async () => {
+  const { screen } = prototypeFixture();
+  const response = await dispatch("get_node", ["1:1"], { includePrototype: true });
+  expect(response.error).toBeUndefined();
+  expect(response.data).toMatchObject({ id: "1:1", name: "Home" });
+  expect(response.data.prototype).toMatchObject({ root: { id: "1:1" }, nodesScanned: 2 });
+  expect(response.data.prototype.connections[0]).toMatchObject({ id: "1:2", name: "Go" });
+  expect(typeof response.data.then).toBe("undefined");
+  expect(screen.id).toBe("1:1");
+});
+
+test("get_node includePrototype is refused in FigJam while plain get_node still works", async () => {
+  prototypeFixture();
+  api.editorType = "figjam";
+  const refused = await dispatch("get_node", ["1:1"], { includePrototype: true });
+  expect(refused.error).toMatch(/^get_node includePrototype requires design editor or Dev Mode/);
+  const plain = await dispatch("get_node", ["1:1"]);
+  expect(plain.error).toBeUndefined();
+  expect(plain.data).toMatchObject({ id: "1:1" });
+});
+
+test("get_prototype_connections scans the given root and reports file details", async () => {
+  prototypeFixture();
+  const response = await dispatch("get_prototype_connections", ["1:1"], { maxNodes: 1 });
+  expect(response.error).toBeUndefined();
+  expect(response.data).toMatchObject({
+    schemaVersion: 1,
+    fileName: "Test",
+    root: { id: "1:1" },
+    nodesScanned: 1,
+    truncated: true,
+  });
+});
+
+test("get_prototype_connections without a root scans the current page", async () => {
+  const { current } = prototypeFixture();
+  const previous = api.currentPage;
+  api.currentPage = current;
+  try {
+    const response = await dispatch("get_prototype_connections");
+    expect(response.error).toBeUndefined();
+    expect(response.data.root).toEqual({ id: "1:0", name: "Page 1", type: "PAGE" });
+  } finally {
+    api.currentPage = previous;
+  }
+});
+
+test("trace_prototype_flow follows navigation from the given screen", async () => {
+  prototypeFixture();
+  const response = await dispatch("trace_prototype_flow", ["1:2"], { maxScreens: 5 });
+  expect(response.error).toBeUndefined();
+  expect(response.data.screens.map((s: any) => s.name)).toEqual(["Home", "Next"]);
+});
+
+test("prototype reads say what to do when the node does not exist", async () => {
+  prototypeFixture();
+  nodes.set("9:9", null);
+  const response = await dispatch("trace_prototype_flow", ["9:9"]);
+  expect(response.error).toMatch(/9:9 not found/);
+});
+
+test("prototype tools are refused in Slides before any lookup", async () => {
+  prototypeFixture();
+  api.editorType = "slides";
+  const response = await dispatch("get_prototype_connections", ["1:1"]);
+  expect(response.error).toMatch(/no prototypes/);
+});
+
+test("set_auto_layout refuses a section with a reason, leaving it unchanged", async () => {
+  const section: any = { id: "3:1", name: "Area", type: "SECTION", layoutMode: undefined };
+  nodes.set("3:1", section);
+  const response = await dispatch("set_auto_layout", ["3:1"], { layoutMode: "VERTICAL" });
+  expect(response.error).toMatch(/section/i);
+  expect(section.layoutMode).toBeUndefined();
+});
+
+test("create_svg builds editable layers through the helper in a design file", async () => {
+  const frame: any = {
+    id: "9:1",
+    name: "Svg",
+    type: "FRAME",
+    x: 0,
+    y: 0,
+    width: 10,
+    height: 10,
+    parent: { id: "0:1" },
+    children: [{}],
+    removed: false,
+    remove() {},
+    resize(w: number, h: number) {
+      frame.width = w;
+      frame.height = h;
+    },
+  };
+  stub("createNodeFromSvg", (svg: string) => {
+    expect(svg).toBe("<svg/>");
+    return frame;
+  });
+  const response = await dispatch("create_svg", undefined, { svgText: "<svg/>", width: 30 });
+  expect(response.error).toBeUndefined();
+  expect(response.data).toMatchObject({ nodeId: "9:1", nodeType: "FRAME", width: 30, height: 10 });
+});
+
+test("create_svg is refused in FigJam before anything is created", async () => {
+  api.editorType = "figjam";
+  let created = false;
+  stub("createNodeFromSvg", () => {
+    created = true;
+  });
+  const response = await dispatch("create_svg", undefined, { svgText: "<svg/>" });
+  expect(response.error).toMatch(/^create_svg requires design editor/);
+  expect(created).toBe(false);
+});
+
+/** A free-positioned node for property and layout batches. */
+const box = (id: string, overrides: Record<string, unknown> = {}): any => {
+  const node: any = {
+    id,
+    name: `Box ${id}`,
+    type: "RECTANGLE",
+    x: 0,
+    y: 0,
+    width: 10,
+    height: 10,
+    rotation: 0,
+    opacity: 1,
+    visible: true,
+    cornerRadius: 0,
+    resize(width: number, height: number) {
+      node.width = width;
+      node.height = height;
+    },
+    ...overrides,
+  };
+  nodes.set(id, node);
+  return node;
+};
+
+test("set_node_properties keeps the singleton result for one node", async () => {
+  box("4:1");
+  const response = await dispatch("set_node_properties", ["4:1"], { visible: false });
+  expect(response.error).toBeUndefined();
+  expect(response.data).toEqual({
+    nodeId: "4:1",
+    nodeName: "Box 4:1",
+    applied: { visible: false },
+  });
+});
+
+test("set_node_properties updates every node in a batch", async () => {
+  const a = box("4:1");
+  const b = box("4:2");
+  const response = await dispatch("set_node_properties", ["4:1", "4:2"], { opacity: 0.5 });
+  expect(response.error).toBeUndefined();
+  expect(response.data.updatedCount).toBe(2);
+  expect(response.data.results.map((r: any) => r.nodeId)).toEqual(["4:1", "4:2"]);
+  expect([a.opacity, b.opacity]).toEqual([0.5, 0.5]);
+});
+
+test("set_node_properties applies a repeated id once, in first-seen order", async () => {
+  box("4:1");
+  box("4:2");
+  const response = await dispatch("set_node_properties", ["4:2", "4:1", "4:2"], { x: 3 });
+  expect(response.data.updatedCount).toBe(2);
+  expect(response.data.results.map((r: any) => r.nodeId)).toEqual(["4:2", "4:1"]);
+});
+
+test("a missing second node leaves the first unchanged", async () => {
+  const a = box("4:1");
+  nodes.set("4:9", null);
+  const response = await dispatch("set_node_properties", ["4:1", "4:9"], { x: 50 });
+  expect(response.error).toMatch(/4:9/);
+  expect(a.x).toBe(0);
+});
+
+test("a read-only cornerRadius on a later node leaves the earlier one unchanged", async () => {
+  const a = box("4:1");
+  box("4:3", { type: "SHAPE_WITH_TEXT" });
+  const response = await dispatch("set_node_properties", ["4:1", "4:3"], { cornerRadius: 6 });
+  expect(response.error).toMatch(/cornerRadius/);
+  expect(a.cornerRadius).toBe(0);
+});
+
+test("layout helpers reach the plugin by request type with transport ids", async () => {
+  const parent: any = { id: "6:0", layoutMode: "NONE" };
+  const a = box("6:1", { parent, x: 0 });
+  const b = box("6:2", { parent, x: 50 });
+  const response = await dispatch("place_right_of", ["6:1"], { relativeToId: "6:2", gap: 4 });
+  expect(response.error).toBeUndefined();
+  expect(response.data).toEqual({ nodeId: "6:1", nodeName: "Box 6:1", x: 64, y: 0 });
+  expect([a.x, b.x]).toEqual([64, 50]);
+});
+
+test("layout helpers are refused in Dev Mode before any lookup", async () => {
+  api.editorType = "dev";
+  const a = box("6:1");
+  const response = await dispatch("align_to_grid", ["6:1"], { gridSize: 7 });
+  expect(response.error).toMatch(/Dev Mode is read-only/);
+  expect(a.x).toBe(0);
+});
+
+/** A TEXT node whose writes are logged, with two fonts across its characters. */
+const textNode = (id: string, log: string[]) => {
+  const node: any = {
+    id,
+    name: `Text ${id}`,
+    type: "TEXT",
+    _characters: "ab",
+    fontName: Symbol("mixed"),
+    fontSize: 12,
+    getRangeAllFontNames: () => [
+      { family: "Inter", style: "Regular" },
+      { family: "Inter", style: "Bold" },
+    ],
+    get characters() {
+      return node._characters;
+    },
+    set characters(value: string) {
+      log.push("characters");
+      node._characters = value;
+    },
+  };
+  nodes.set(id, node);
+  return node;
+};
+
+test("set_text_content loads every font in mixed text before writing", async () => {
+  const log: string[] = [];
+  const node = textNode("7:1", log);
+  stub("loadFontAsync", async (font: FontName) => {
+    log.push(`load ${font.style}`);
+  });
+  const response = await dispatch("set_text_content", ["7:1"], { text: "new" });
+  expect(response.error).toBeUndefined();
+  expect(log).toEqual(["load Regular", "load Bold", "characters"]);
+  expect(node.characters).toBe("new");
+});
+
+test("a font that fails to load leaves the text unchanged", async () => {
+  const log: string[] = [];
+  const node = textNode("7:1", log);
+  stub("loadFontAsync", async () => {
+    throw new Error("font missing");
+  });
+  const response = await dispatch("set_text_content", ["7:1"], { text: "new" });
+  expect(response.error).toMatch(/font missing/);
+  expect(node.characters).toBe("ab");
+});
+
+test("an unsupported sublayer property fails before any other property changes", async () => {
+  api.editorType = "figjam";
+  const text: any = {
+    characters: "x",
+    fontName: { family: "Inter", style: "Medium" },
+    fontSize: 12,
+    getRangeAllFontNames: () => [{ family: "Inter", style: "Medium" }],
+  };
+  nodes.set("7:2", { id: "7:2", name: "Note", type: "STICKY", text });
+  stub("loadFontAsync", async () => {});
+  const response = await dispatch("set_text_properties", ["7:2"], {
+    fontSize: 30,
+    textAlignHorizontal: "CENTER",
+  });
+  expect(response.error).toMatch(/textAlignHorizontal/);
+  expect(text.fontSize).toBe(12);
+});
+
+test("set_text_properties styles a FigJam sticky's text and reports the sticky", async () => {
+  api.editorType = "figjam";
+  const text: any = {
+    characters: "x",
+    fontName: { family: "Inter", style: "Medium" },
+    fontSize: 12,
+    getRangeAllFontNames: () => [{ family: "Inter", style: "Medium" }],
+  };
+  nodes.set("7:2", { id: "7:2", name: "Note", type: "STICKY", text });
+  stub("loadFontAsync", async () => {});
+  const response = await dispatch("set_text_properties", ["7:2"], {
+    fontSize: 30,
+    fillHex: "#ff0000",
+  });
+  expect(response.error).toBeUndefined();
+  expect(response.data).toMatchObject({ nodeId: "7:2", nodeName: "Note" });
+  expect(text.fontSize).toBe(30);
+  expect(text.fills[0].color).toEqual({ r: 1, g: 0, b: 0 });
+});
+
+test("Slides text content still edits while text styling stays refused", async () => {
+  api.editorType = "slides";
+  const node = textNode("7:1", []);
+  stub("loadFontAsync", async () => {});
+  const edited = await dispatch("set_text_content", ["7:1"], { text: "slide" });
+  expect(edited.error).toBeUndefined();
+  expect(node.characters).toBe("slide");
+  const styled = await dispatch("set_text_properties", ["7:1"], { fontSize: 20 });
+  expect(styled.error).toMatch(/Slides/);
+});
+
+test("Dev Mode refuses both text writes", async () => {
+  api.editorType = "dev";
+  textNode("7:1", []);
+  for (const type of ["set_text_content", "set_text_properties"]) {
+    const response = await dispatch(type, ["7:1"], { text: "x", fontSize: 3 });
+    expect(response.error).toMatch(/Dev Mode is read-only/);
+  }
+});
+
+test("FigJam get_variable_defs keeps serialized values when variables work", async () => {
+  api.editorType = "figjam";
+  stub("variables", {
+    getLocalVariableCollectionsAsync: async () => [
+      { id: "C:1", name: "Board", modes: [{ modeId: "m", name: "Default" }], variableIds: ["V:1"] },
+    ],
+    getVariableByIdAsync: async () => ({
+      id: "V:1",
+      name: "accent",
+      resolvedType: "COLOR",
+      valuesByMode: { m: { r: 1, g: 0, b: 0 } },
+    }),
+  });
+  const response = await dispatch("get_variable_defs");
+  expect(response.error).toBeUndefined();
+  expect(response.data.note).toBeUndefined();
+  expect(response.data.collections[0].variables[0].valuesByMode.m).toEqual({
+    type: "COLOR",
+    r: 1,
+    g: 0,
+    b: 0,
+    a: 1,
+  });
+});
+
+test("in a design file a failing style or variable API is still an error", async () => {
+  stub("getLocalPaintStylesAsync", async () => []);
+  stub("getLocalTextStylesAsync", async () => {
+    throw new Error("text styles broke");
+  });
+  stub("getLocalEffectStylesAsync", async () => []);
+  stub("getLocalGridStylesAsync", async () => []);
+  expect((await dispatch("get_styles")).error).toMatch(/text styles broke/);
+  stub("variables", {
+    async getLocalVariableCollectionsAsync() {
+      throw new Error("variables broke");
+    },
+  });
+  expect((await dispatch("get_variable_defs")).error).toMatch(/variables broke/);
+});
+
+/** A FigJam board: a current page, a section on it, and fake creators that log. */
+const board = () => {
+  api.editorType = "figjam";
+  const created: any[] = [];
+  const page: any = { id: "8:0", name: "Board", type: "PAGE", children: [] as any[] };
+  const container = (node: any) => {
+    node.children = [];
+    node.appendChild = (child: any) => {
+      child.parent?.children?.splice(child.parent.children.indexOf(child), 1);
+      node.children.push(child);
+      child.parent = node;
+    };
+    return node;
+  };
+  container(page);
+  page.loadAsync = async () => {};
+  const section = container({ id: "8:1", name: "Area", type: "SECTION", x: 100, y: 100 });
+  page.appendChild(section);
+  for (const node of [page, section]) nodes.set(node.id, node);
+  const previousPage = api.currentPage;
+  api.currentPage = page;
+  restoreCurrentPage = () => {
+    api.currentPage = previousPage;
+  };
+  const textSublayer = () => ({
+    characters: "",
+    fontName: { family: "Inter", style: "Medium" },
+    fontSize: 16,
+    fills: [] as any[],
+  });
+  const base = (type: string, extra: Record<string, unknown> = {}) => {
+    const node: any = {
+      id: `n${created.length + 1}`,
+      name: type,
+      type,
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 200,
+      rotation: 0,
+      removed: false,
+      fills: [],
+      strokes: [],
+      remove() {
+        node.removed = true;
+        node.parent?.children?.splice(node.parent.children.indexOf(node), 1);
+      },
+      resize(w: number, h: number) {
+        node.width = w;
+        node.height = h;
+      },
+      ...extra,
+    };
+    created.push(node);
+    page.appendChild(node);
+    nodes.set(node.id, node);
+    return node;
+  };
+  const fonts: string[] = [];
+  stub("loadFontAsync", async (font: FontName) => {
+    if (font.family === "") throw new Error("Cannot load an empty font");
+    if (font.family === "Missing") throw new Error("font not found");
+    fonts.push(`${font.family} ${font.style}`);
+  });
+  stub("createSticky", () => base("STICKY", { text: textSublayer(), isWideWidth: false }));
+  stub("createShapeWithText", () =>
+    base("SHAPE_WITH_TEXT", { text: textSublayer(), shapeType: "SQUARE" })
+  );
+  stub("createSection", () => {
+    const node = base("SECTION", { sectionContentsHidden: false });
+    node.resizeWithoutConstraints = (w: number, h: number) => {
+      node.width = w;
+      node.height = h;
+    };
+    return node;
+  });
+  stub("createConnector", () => {
+    // A connector as FigJam makes it: the line type last used, and no label font.
+    const connector = base("CONNECTOR", {
+      connectorLineType: "STRAIGHT",
+      text: { characters: "", fontName: { family: "", style: "" } },
+      ends: [] as any[],
+    });
+    const assign = (end: any) => {
+      if (
+        "magnet" in end &&
+        connector.connectorLineType === "STRAIGHT" &&
+        !["CENTER", "NONE"].includes(end.magnet)
+      ) {
+        throw new Error("Straight connector endpoints may only use the CENTER or NONE magnets.");
+      }
+      connector.ends.push({ ...end, parentAtAssignment: connector.parent?.id });
+    };
+    Object.defineProperty(connector, "connectorStart", { set: assign });
+    Object.defineProperty(connector, "connectorEnd", { set: assign });
+    return connector;
+  });
+  return { page, section, created, fonts, base };
+};
+let restoreCurrentPage = () => {};
+afterEach(() => {
+  restoreCurrentPage();
+  restoreCurrentPage = () => {};
+});
+
+test("create_sticky honours name, parent, wide width and text, positioned in its parent", async () => {
+  const { section, fonts } = board();
+  const response = await dispatch("create_sticky", undefined, {
+    text: "Idea",
+    name: "Note",
+    parentId: "8:1",
+    isWideWidth: true,
+    x: 5,
+    y: 6,
+  });
+  expect(response.error).toBeUndefined();
+  expect(response.data).toMatchObject({
+    type: "STICKY",
+    nodeName: "Note",
+    parentId: "8:1",
+    x: 5,
+    y: 6,
+  });
+  const sticky = section.children[0];
+  expect([sticky.text.characters, sticky.isWideWidth]).toEqual(["Idea", true]);
+  expect(fonts).toEqual(["Inter Medium"]);
+});
+
+test("a bad parent creates no sticky, shape, section or connector", async () => {
+  const { created } = board();
+  nodes.set("9:9", null);
+  for (const [type, params] of [
+    ["create_sticky", { text: "x", parentId: "9:9" }],
+    ["create_shape_with_text", { text: "x", parentId: "9:9" }],
+    ["create_section", { parentId: "9:9" }],
+    ["create_connector", { startX: 0, startY: 0, endX: 1, endY: 1, parentId: "9:9" }],
+  ] as const) {
+    const response = await dispatch(type, undefined, params);
+    expect(response.error, type).toMatch(/9:9/);
+  }
+  expect(created).toEqual([]);
+});
+
+test("create_shape_with_text keeps the SQUARE default and applies every style", async () => {
+  const { fonts } = board();
+  const plain = await dispatch("create_shape_with_text", undefined, { text: "DB" });
+  expect(plain.error).toBeUndefined();
+  expect(plain.data).toMatchObject({ type: "SHAPE_WITH_TEXT", nodeName: "SHAPE_WITH_TEXT" });
+  expect(nodes.get(plain.data.nodeId).shapeType).toBe("SQUARE");
+
+  const styled = await dispatch("create_shape_with_text", undefined, {
+    text: "Store",
+    shapeType: "ENG_DATABASE",
+    name: "DB",
+    fontFamily: "Inter",
+    fontStyle: "Bold",
+    fontSize: 20,
+    rotation: 45,
+    fillHex: "#ff0000",
+    strokeHex: "#0000ff",
+    strokeWeight: 3,
+    textFillHex: "#00ff00",
+    width: 120,
+    height: 80,
+  });
+  expect(styled.error).toBeUndefined();
+  const shape = nodes.get(styled.data.nodeId);
+  expect(shape.shapeType).toBe("ENG_DATABASE");
+  expect(shape.text.fontName).toEqual({ family: "Inter", style: "Bold" });
+  expect([shape.text.characters, shape.text.fontSize, shape.rotation]).toEqual(["Store", 20, 45]);
+  expect(shape.fills[0].color).toEqual({ r: 1, g: 0, b: 0 });
+  expect(shape.strokes[0].color).toEqual({ r: 0, g: 0, b: 1 });
+  expect(shape.text.fills[0].color).toEqual({ r: 0, g: 1, b: 0 });
+  expect([shape.strokeWeight, shape.width, shape.height]).toEqual([3, 120, 80]);
+  expect(fonts).toContain("Inter Bold");
+});
+
+test("a shape whose font cannot load is removed again", async () => {
+  const { created } = board();
+  const response = await dispatch("create_shape_with_text", undefined, {
+    text: "x",
+    fontFamily: "Missing",
+    fontStyle: "Regular",
+  });
+  expect(response.error).toMatch(/font not found/);
+  expect(created.map((n) => n.removed)).toEqual([true]);
+});
+
+test("create_section takes a parent, a fill and hidden contents", async () => {
+  const { section } = board();
+  const response = await dispatch("create_section", undefined, {
+    name: "Inner",
+    parentId: "8:1",
+    width: 300,
+    height: 200,
+    fillHex: "#eeeeee",
+    fillOpacity: 0.5,
+    sectionContentsHidden: true,
+    x: 10,
+  });
+  expect(response.error).toBeUndefined();
+  expect(response.data).toMatchObject({ type: "SECTION", parentId: "8:1", width: 300, x: 10 });
+  const inner = section.children[0];
+  expect(inner.sectionContentsHidden).toBe(true);
+  expect(inner.fills[0]).toMatchObject({ opacity: 0.5 });
+});
+
+test("a labelled connector attaches despite a straight toolbar and an empty label font", async () => {
+  const { base, fonts } = board();
+  const a = base("SHAPE_WITH_TEXT");
+  const b = base("SHAPE_WITH_TEXT");
+  const response = await dispatch("create_connector", undefined, {
+    startNodeId: a.id,
+    endNodeId: b.id,
+    text: "yes",
+  });
+  expect(response.error).toBeUndefined();
+  expect(response.data).toMatchObject({
+    type: "CONNECTOR",
+    startNodeId: a.id,
+    endNodeId: b.id,
+    parentId: "8:0",
+  });
+  const connector = nodes.get(response.data.nodeId);
+  expect(connector.connectorLineType).toBe("ELBOWED");
+  expect(connector.ends.map((e: any) => e.magnet)).toEqual(["AUTO", "AUTO"]);
+  expect(connector.text.characters).toBe("yes");
+  expect(fonts).toEqual(["Inter Medium"]);
+});
+
+test("a self-loop keeps its two distinct sides; chosen anchors override them", async () => {
+  const { base } = board();
+  const a = base("SHAPE_WITH_TEXT");
+  const loop = await dispatch("create_connector", undefined, {
+    startNodeId: a.id,
+    endNodeId: a.id,
+  });
+  expect(nodes.get(loop.data.nodeId).ends.map((e: any) => e.magnet)).toEqual(["RIGHT", "TOP"]);
+  const b = base("SHAPE_WITH_TEXT");
+  const sides = await dispatch("create_connector", undefined, {
+    startNodeId: a.id,
+    endNodeId: b.id,
+    startAnchor: "top",
+    endAnchor: "bottom",
+  });
+  expect(nodes.get(sides.data.nodeId).ends.map((e: any) => e.magnet)).toEqual(["TOP", "BOTTOM"]);
+});
+
+test("a floating start meets a node end, assigned after the connector joins its parent", async () => {
+  const { section, base } = board();
+  const target = base("STICKY");
+  section.appendChild(target);
+  const response = await dispatch("create_connector", undefined, {
+    startX: 3,
+    startY: 4,
+    endNodeId: target.id,
+    endAnchor: "left",
+    parentId: "8:1",
+    strokeHex: "#123456",
+    strokeWeight: 4,
+    name: "Flow",
+  });
+  expect(response.error).toBeUndefined();
+  expect(response.data).toMatchObject({ parentId: "8:1", endNodeId: target.id, nodeName: "Flow" });
+  expect(response.data.startNodeId).toBeUndefined();
+  const connector = nodes.get(response.data.nodeId);
+  expect(connector.ends).toEqual([
+    { position: { x: 3, y: 4 }, parentAtAssignment: "8:1" },
+    { endpointNodeId: target.id, magnet: "LEFT", parentAtAssignment: "8:1" },
+  ]);
+  expect(connector.strokeWeight).toBe(4);
+  expect(connector.strokes[0].color.r).toBeCloseTo(0x12 / 255);
+});
+
+test("a missing or off-page endpoint creates nothing", async () => {
+  const { created } = board();
+  nodes.set("9:8", null);
+  const missing = await dispatch("create_connector", undefined, {
+    startNodeId: "9:8",
+    endX: 1,
+    endY: 1,
+  });
+  expect(missing.error).toMatch(/9:8/);
+  const otherPage: any = { id: "9:0", type: "PAGE" };
+  nodes.set("9:7", { id: "9:7", name: "Far", type: "STICKY", parent: otherPage });
+  const away = await dispatch("create_connector", undefined, {
+    startNodeId: "9:7",
+    endX: 1,
+    endY: 1,
+  });
+  expect(away.error).toMatch(/page/);
+  expect(created).toEqual([]);
+});
+
+test("a connector that fails to attach is removed again", async () => {
+  const { base, created } = board();
+  const a = base("SHAPE_WITH_TEXT");
+  stub("loadFontAsync", async () => {
+    throw new Error("label font failed");
+  });
+  const response = await dispatch("create_connector", undefined, {
+    startNodeId: a.id,
+    endX: 1,
+    endY: 2,
+    text: "x",
+  });
+  expect(response.error).toMatch(/label font failed/);
+  expect(created.at(-1).type).toBe("CONNECTOR");
+  expect(created.at(-1).removed).toBe(true);
 });

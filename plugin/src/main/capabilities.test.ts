@@ -168,3 +168,39 @@ describe("prototype reads", () => {
     }
   });
 });
+
+describe("create_svg", () => {
+  test("is a design-file write like create_image", () => {
+    expect(() => assertEditorSupports("create_svg", "figma")).not.toThrow();
+    for (const editor of ["figjam", "slides", "dev"] as const) {
+      expect(() => assertEditorSupports("create_svg", editor)).toThrow(/design editor/);
+    }
+  });
+});
+
+describe("layout helpers", () => {
+  const GENERIC = [
+    "distribute_horizontally",
+    "distribute_vertically",
+    "align_to_grid",
+    "place_below",
+    "place_right_of",
+    "duplicate_with_offset",
+  ];
+
+  test("move existing nodes in design files, FigJam and Slides, never Dev Mode", () => {
+    for (const tool of GENERIC) {
+      for (const editor of ["figma", "figjam", "slides"] as const) {
+        expect(() => assertEditorSupports(tool, editor)).not.toThrow();
+      }
+      expect(() => assertEditorSupports(tool, "dev")).toThrow(/Dev Mode is read-only/);
+    }
+  });
+
+  test("fit_to_content works where sections exist", () => {
+    expect(() => assertEditorSupports("fit_to_content", "figma")).not.toThrow();
+    expect(() => assertEditorSupports("fit_to_content", "figjam")).not.toThrow();
+    expect(() => assertEditorSupports("fit_to_content", "slides")).toThrow(/Slides/);
+    expect(() => assertEditorSupports("fit_to_content", "dev")).toThrow();
+  });
+});

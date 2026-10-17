@@ -7,20 +7,28 @@ paths:
 
 ## Landmarks
 
-- `plugin/src/main/code.ts:404` — the dispatcher calls `assertEditorSupports` before any tool runs.
-- `plugin/src/main/capabilities.ts:58` — `CAPABILITIES`; `:113` — `assertEditorSupports`, which
+- `plugin/src/main/code.ts:483` — the dispatcher calls `assertEditorSupports` before any tool runs.
+- `plugin/src/main/capabilities.ts:62` — `CAPABILITIES`; `:137` — `assertEditorSupports`, which
   takes the editor as a parameter rather than reading `figma.editorType`, so the gate is
   unit-testable. **The table is keyed by the request type the plugin receives, not the MCP tool
   name** — `generate_diagram` arrives as `render_diagram`, and an entry under the tool name never
   matches; `tool` on an entry sets the name the refusal shows. Tools absent from the table run
   everywhere. `capabilities.regression.test.ts` fails if a tool turns design-only without being
-  listed.
+  listed, or if anything but the three prototype reads (`get_prototype_connections`,
+  `trace_prototype_flow`, `get_node_prototype`) allows Dev Mode. `get_node_prototype` is not a
+  request type: `get_node` checks it only when `includePrototype` is set, so plain `get_node` runs
+  everywhere.
+- The upstream-synced tools keep their Figma-free logic in modules that take lookups as
+  parameters: `prototype.ts` (`PrototypeContext`), `svg.ts`, `node-properties.ts` (preflight, then
+  apply), `layout-actions.ts` and `text-target.ts`. Batches and layout helpers check every input
+  before the first write; the creators resolve `parentId` before creating and `removeOnFailure`
+  after.
 - `plugin/src/main/serializer.ts:484` — `serializeNode`, `async` and awaited at four call sites in
   `code.ts`. Only `get_design_context` type-errors if you forget an `await` — the other three type
   `data` as `unknown` and will happily ship an unresolved promise. The `figma` lookups it hands to
   `references.ts` live at `:412`; the helper modules never name the global.
   `docs/reference/serialized-nodes.md` documents the emitted shape — update it with the serializer.
-- `plugin/src/main/code.ts:2143` — the UI-collapse block that closes the file: window sizing, the
+- `plugin/src/main/code.ts:2408` — the UI-collapse block that closes the file: window sizing, the
   `ui-collapsed` `figma.clientStorage` key, and the `request-ui-state` / `set-ui-collapsed`
   messages. `figma.showUI` runs with `visible: false` and the panel is shown only once the stored
   state resolves, so anything that returns early before `figma.ui.show()` leaves the window

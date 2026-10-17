@@ -80,7 +80,7 @@ in a docs-only commit. Do not push the intermediate red test commit by itself.
   harness, changing stub editor/node lookups per case and restoring them after each test. Keep
   one import of `code.ts`; a second test file importing it would hit the module cache.
 
-- [ ] **Step 1: Establish prerequisites and the unchanged baseline.**
+- [x] **Step 1: Establish prerequisites and the unchanged baseline.**
 
 Read the five repository skills named in the spec. Confirm branch/HEAD/status, reuse this
 worktree and claim its slot with `bun scripts/dev-slot.mjs upstream-relay-oct18` if none exists.
@@ -91,7 +91,7 @@ Run: `bun run check` from root. Expected: version 0.7.8, both suites/builds/form
 plugin type-check has zero errors. Record the actual counts; do not copy the research task's
 incomplete server count. Stop to diagnose any failure that persists after dependencies exist.
 
-- [ ] **Step 2: Write initial failing contracts for every new behavior before merging.**
+- [x] **Step 2: Write initial failing contracts for every new behavior before merging.**
 
 Add tests with these names and concrete assertions (the existing tool-map tests can capture
 handlers without changing production code):
@@ -128,14 +128,14 @@ In the dispatcher fixture, assert `set_text_content` changes a STICKY's `.text.c
 FigJam `get_styles` returns a working paint category despite an unavailable text-style API,
 and a rejected FigJam variable API returns empty collections **with a note**.
 
-- [ ] **Step 3: Run the new contracts and verify behavioral failures.**
+- [x] **Step 3: Run the new contracts and verify behavioral failures.**
 
 Run in server: `bun test src/schema.test.ts src/upstream-tools.test.ts`.
 Run in plugin: `bun test src/main/dispatcher.test.ts`.
 Expected: missing registrations, stripped fields, batch target loss, sticky target refusal and
 read fallback failures. Module-resolution failures are not valid red behavior evidence here.
 
-- [ ] **Step 4: Commit only the new regression contracts locally.**
+- [x] **Step 4: Commit only the new regression contracts locally.**
 
 Use explicit paths with `git add`, then `git commit -m 'test(upstream): pin missing relay contracts'`.
 Keep baseline dependency changes out unless deliberate; keep these audit/plan documents if the
@@ -167,7 +167,7 @@ parent has already committed them. Record the new premerge test commit for compa
   `tracePrototypeFlow(start: SceneNode, options: TraceOptions|undefined, context: PrototypeContext)`
   returns `Promise<FlowTrace & PrototypeFileInfo>`. Keep output keys and schemaVersion 1.
 
-- [ ] **Step 1: Start the pinned local integration merge without committing.**
+- [x] **Step 1: Start the pinned local integration merge without committing.**
 
 Run: `git merge --no-commit --no-ff 2c37e6d`.
 Expected: conflicts forecast by the spec; HEAD remains the red-test commit, MERGE_HEAD is the
@@ -177,7 +177,7 @@ registrations even where Git reports a clean merge. Keep versions at 0.7.8 until
 Retain upstream's exhaustive shape guard; upgrade plugin typings to `^1.140.0` and place the
 server's matching type-only package in devDependencies. Install with Bun and inspect lock diffs.
 
-- [ ] **Step 2: Add detailed failing prototype tests before adapting upstream logic.**
+- [x] **Step 2: Add detailed failing prototype tests before adapting upstream logic.**
 
 Fixtures: screen A/button, screen B/instance sublayer, screen C inside a SECTION, and a second
 page whose children throw until `loadAsync`. Assert:
@@ -197,7 +197,7 @@ page whose children throw until `loadAsync`. Assert:
 Run in plugin: `bun test src/main/prototype.test.ts`.
 Expected: FAIL against the upstream global API/context/page/error behavior, before its adaptation.
 
-- [ ] **Step 3: Implement D1 with injected context and complete all three entry points.**
+- [x] **Step 3: Implement D1 with injected context and complete all three entry points.**
 
 Keep bounded DFS scans, BFS screen expansion, section screen boundaries, unresolved tracking
 and request-scoped memoization. Await `serializeNode` before adding `prototype` in `get_node`;
@@ -207,7 +207,7 @@ Allow prototype reads in figma/dev, refuse FigJam/Slides. Amend the capability r
 blanket dev prohibition to permit only the three explicit prototype read keys; all writes
 remain prohibited. Add SECTION auto-layout refusal without weakening the existing editor gate.
 
-- [ ] **Step 4: Verify and stage the prototype slice.**
+- [x] **Step 4: Verify and stage the prototype slice.**
 
 Run in plugin: `bun test src/main/prototype.test.ts src/main/dispatcher.test.ts src/main/capabilities.test.ts src/main/capabilities.regression.test.ts`.
 Run in server: `bun test src/schema.test.ts src/upstream-tools.test.ts`.
@@ -235,7 +235,7 @@ feature red tests may remain until their task. Stage only intended files; do not
   `createSvg(svgText: string, placement: SvgPlacement, api: { createNodeFromSvg(svg: string): FrameNode; getParentNodeById(id: string): Promise<BaseNode & ChildrenMixin> }): Promise<SvgResult>`.
 - Wire schema is createSvgInput minus source/fileKey plus bounded nonempty `svgText`.
 
-- [ ] **Step 1: Write loader, wire and cleanup tests with concrete boundaries.**
+- [x] **Step 1: Write loader, wire and cleanup tests with concrete boundaries.**
 
 Assert raw SVG, BOM/XML/comments/DOCTYPE, workspace paths and `..icons/a.svg` succeed.
 Assert empty/HTML/malformed-prolog input, missing path, directory, `../outside.svg`, external
@@ -250,20 +250,20 @@ Plugin helper assertions: invalid parent causes zero creates; resizing/append/po
 removes the new SVG exactly once; x/y are relative to final parent; width-only and height-only
 preserve the other dimension; successful result includes nodeType and childCount.
 
-- [ ] **Step 2: Run tests to see the missing helper/safety behavior fail.**
+- [x] **Step 2: Run tests to see the missing helper/safety behavior fail.**
 
 Run in server: `bun test src/svg.test.ts src/file-tools.test.ts src/schema.test.ts`.
 Run in plugin: `bun test src/main/svg.test.ts`.
 Expected: missing extracted exports or assertions fail against the unadapted upstream loader.
 
-- [ ] **Step 3: Implement D2 and connect the tool.**
+- [x] **Step 3: Implement D2 and connect the tool.**
 
 Move upstream's loader into its module, use workspace component-boundary helpers, retain
 descriptor identity checks and bounded byte reads. Source resolution occurs before transport;
 only markup crosses the follower. Wire the injected plugin helper, design-only capability and
 actionable errors. Do not add URL fetch, XML entities processing or an SVG sanitization claim.
 
-- [ ] **Step 4: Verify and stage SVG.**
+- [x] **Step 4: Verify and stage SVG.**
 
 Repeat Step 2 plus `bun test src/upstream-tools.test.ts` in server and capability tests in plugin.
 Expected: safety/helper tests pass; one create_svg registration; fileKey `k` and svgText survive
@@ -288,7 +288,7 @@ the simulated follower; source is absent from wire params. Stage, keeping the me
 - Dispatcher deduplicates/resolves all transport IDs, preflights all, then applies; singleton
   result unchanged, multiple results `{ updatedCount, results }`.
 
-- [ ] **Step 1: Write failing batch/preflight tests.**
+- [x] **Step 1: Write failing batch/preflight tests.**
 
 Assert old `{ nodeId: '1:2', visible: false }` is accepted; a two-node batch updates both;
 nodeIds wins if both ID forms are supplied; repeated IDs are applied once in input order.
@@ -297,20 +297,20 @@ SHAPE_WITH_TEXT cornerRadius leave the first node unchanged. Include a singleton
 snapshot and a two-result updatedCount 2 assertion. A follower's sanitized params must be
 exactly `{ visible: false }`, with neither ID field nor fileKey reintroduced.
 
-- [ ] **Step 2: Run tests and confirm failure before preflight implementation.**
+- [x] **Step 2: Run tests and confirm failure before preflight implementation.**
 
 Run in plugin: `bun test src/main/node-properties.test.ts src/main/dispatcher.test.ts`.
 Run in server: `bun test src/schema.test.ts src/upstream-tools.test.ts`.
 Expected: preflight/deduplication/readonly assertions fail against upstream's sequential setters.
 
-- [ ] **Step 3: Implement D3 without dropping existing property semantics.**
+- [x] **Step 3: Implement D3 without dropping existing property semantics.**
 
 Extract the relay's existing property application, add whole-batch validation and preserve
 partial width/height support. Update mapper/handler and strip both nodeId and nodeIds only
 after schema validation. Check other node-list tools still receive transport IDs. State the
 nontransactional setter limitation in the tool description and guide.
 
-- [ ] **Step 4: Re-run Step 2; stage only after all batch assertions pass.**
+- [x] **Step 4: Re-run Step 2; stage only after all batch assertions pass.**
 
 Also run existing selection/reparent/delete schema tests to catch ID stripping regressions.
 
@@ -334,7 +334,7 @@ Also run existing selection/reparent/delete schema tests to catch ID stripping r
 - Return upstream result keys except distribution's corrected interior-only movedCount/results
   specified in D3. `fit_to_content` uses `resizeWithoutConstraints` for sections.
 
-- [ ] **Step 1: Write geometry, validation and cleanup tests before extracting code.**
+- [x] **Step 1: Write geometry, validation and cleanup tests before extracting code.**
 
 Use three siblings at x `[0, 20, 100]`, widths `[10, 20, 30]`: distribution gap is 35,
 middle x becomes 45, endpoints remain exactly 0 and 100, movedCount is 1. Repeat vertically,
@@ -351,20 +351,20 @@ self-reference, rotated bounds, mixed parents and auto-layout parents fail befor
 Schema assertions: distribute needs 3 IDs; grid >0; padding/gap >=0; finite numeric values;
 valid instance-child IDs; each handler's fileKey and IDs survive simulated follower validation.
 
-- [ ] **Step 2: Run the tests and verify red extraction/restriction behavior.**
+- [x] **Step 2: Run the tests and verify red extraction/restriction behavior.**
 
 Run in plugin: `bun test src/main/layout-actions.test.ts`.
 Run in server: `bun test src/schema.test.ts src/upstream-tools.test.ts`.
 Expected: missing helper or upstream coordinate/preflight/endpoint behavior fails.
 
-- [ ] **Step 3: Implement D3 and all seven tool routes.**
+- [x] **Step 3: Implement D3 and all seven tool routes.**
 
 Resolve and preflight all nodes before mutation. Keep helper math local to the shared parent,
 enforce documented bounds and return actionable next steps for unsupported arrangements.
 Register/gate seven writes; sections refuse Slides, all seven refuse dev. Generic writes
 allow existing free-positioned Slides nodes; do not claim slide structure creation support.
 
-- [ ] **Step 4: Verify and stage layout.**
+- [x] **Step 4: Verify and stage layout.**
 
 Repeat Step 2 and plugin capability/dispatcher tests. Expected: exact geometry above, ten new
 tools total registered once, all request-name capability entries present. Stage the slice.
@@ -387,7 +387,7 @@ tools total registered once, all request-name capability entries present. Stage 
 - Read result additions are `notes?: string[]` for styles and `note?: string` for variables;
   existing paints/text/effects/grids and collections keys remain unchanged.
 
-- [ ] **Step 1: Extend red text/read regressions.**
+- [x] **Step 1: Extend red text/read regressions.**
 
 Assert TEXT returns its original outer ID; STICKY/SHAPE_WITH_TEXT edit `.text` and report the
 outer ID/name; RECTANGLE is refused. Mixed fonts load before character writes; font load
@@ -400,19 +400,19 @@ grid API would throw if accessed. Assert paint survives, text/effects/grids are 
 was not called, and notes names text. Variable failure returns empty collections with note;
 successful variables retain serialized values. Same errors in figma must remain errors.
 
-- [ ] **Step 2: Run the targeted tests and verify meaningful red failures.**
+- [x] **Step 2: Run the targeted tests and verify meaningful red failures.**
 
 Run in plugin: `bun test src/main/text-target.test.ts src/main/dispatcher.test.ts src/main/capabilities.test.ts src/main/capabilities.regression.test.ts`.
 Expected: unsupported-subfield preflight or read-note assertions fail before the adaptation.
 
-- [ ] **Step 3: Implement D4 text and read contracts.**
+- [x] **Step 3: Implement D4 text and read contracts.**
 
 Use injected text resolution, preflight TEXT-only properties, retain canonical text aliases
 and existing response shapes. Broaden only set_text_properties to figma/FigJam. In the existing
 read cases, catch per-category failures only for FigJam and include useful notes; retain the
 design path's failure behavior. Avoid new global-dependent modules.
 
-- [ ] **Step 4: Repeat Step 2 and stage when all text/read assertions pass.**
+- [x] **Step 4: Repeat Step 2 and stage when all text/read assertions pass.**
 
 Also run plugin serializer/figjam-serializer tests to prove default serialized `text` output
 and async reference enrichment were not replaced by upstream's simpler serializer.
@@ -438,7 +438,7 @@ and async reference enrichment were not replaced by upstream's simpler serialize
   are handled in the creator after appending to the validated final parent.
 - No existing creator result key is removed; `describeCreated` remains the shared base shape.
 
-- [ ] **Step 1: Add compatibility, endpoint and failure tests.**
+- [x] **Step 1: Add compatibility, endpoint and failure tests.**
 
 Assert text wins over characters; characters-only and omitted labels normalize to text and
 empty text; old `{ text: 'DB' }` still creates SQUARE; width-only shape/section still fails.
@@ -452,20 +452,20 @@ then assert labelled attached connector succeeds via ELBOWED plus `labelFont`; o
 uses CENTER. Test explicit top/bottom magnets, floating-to-node mixed endpoints, local section
 coordinates after append and preservation of text/type/startNodeId/endNodeId in old results.
 
-- [ ] **Step 2: Run tests before implementing compatibility fixes.**
+- [x] **Step 2: Run tests before implementing compatibility fixes.**
 
 Run in server: `bun test src/schema.test.ts src/upstream-tools.test.ts`.
 Run in plugin: `bun test src/main/dispatcher.test.ts src/main/diagram.test.ts`.
 Expected: upstream spelling/defaults, pair sizing or connector-state assertions fail.
 
-- [ ] **Step 3: Implement additive creator normalization and cleanup.**
+- [x] **Step 3: Implement additive creator normalization and cleanup.**
 
 Apply only missing parameters. Preserve existing omitted-size behavior, paired dimensions,
 text/type fields and creator gates. Resolve/load parent and endpoint nodes before creation;
 use `removeOnFailure`, `attachConnector` and `labelFont` rather than upstream's raw connector
 assignment. Check existing diagram rendering still uses its old helper contract.
 
-- [ ] **Step 4: Re-run Step 2 and all plugin tests; stage the completed integration.**
+- [x] **Step 4: Re-run Step 2 and all plugin tests; stage the completed integration.**
 
 Expected: every old and new creator assertion passes and no serializer/diagram regression.
 
@@ -488,7 +488,7 @@ Expected: every old and new creator assertion passes and no serializer/diagram r
   plugin/dist/code.js and plugin/dist/manifest.json, plus slot name/port, files/editors, commands,
   returned IDs and assertions. Keep user document content out of the report beyond needed IDs.
 
-- [ ] **Step 1: Document contracts and finish the patch release metadata.**
+- [x] **Step 1: Document contracts and finish the patch release metadata.**
 
 Add the ten README tool rows and update existing rows/descriptions. Explain prototype limits,
 raw conditions/no simulation, SVG size/workspace/editor limits, batching setter limitations,
@@ -504,7 +504,7 @@ is needed to ship relay functionality. If adding rendered twins, first extend it
 the correct date/spec rather than hand-editing a generated file; keep that optional docs work
 separate from the product integration and verify checkbox counts.
 
-- [ ] **Step 2: Run full automated and policy verification on the resolved candidate.**
+- [x] **Step 2: Run full automated and policy verification on the resolved candidate.**
 
 Run from root: `bun run format`, then `bun run check`.
 Run in plugin: `bun run typecheck` (explicit zero-error evidence).
@@ -516,7 +516,7 @@ case/schema/tool names, both package identities, stable manifest and `LOOPBACK_H
 Read `.claude/skills/finish-task/SKILL.md` before the last product commit; apply verification,
 fact refresh and bump steps, leaving dev/main merging and reviewer orchestration to the parent.
 
-- [ ] **Step 3: Close the validated local upstream merge.**
+- [x] **Step 3: Close the validated local upstream merge.**
 
 Inspect `git diff --cached` against the intended whole integration and stage remaining intended
 files explicitly. Commit the pending real merge as
