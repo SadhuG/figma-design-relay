@@ -36,6 +36,9 @@ Baseline before any change (`55bd5ea`): server 327 pass / 2 skip, plugin 218 pas
 
 ## Live Figma checks
 
+The review fixes after this run were rechecked live on their own build; see
+[Review-fix rerun](#review-fix-rerun-6881bc0) at the end.
+
 **Status: design editor passed (28/28); FigJam and Slides not run — blocked, see below.** The live
 gate is therefore not satisfied for FigJam and Slides.
 
@@ -136,3 +139,89 @@ this run did not do without the user's say-so. So these required checks have **n
 To finish: open one FigJam board and one Slides deck in Figma desktop, run the Dev plugin in each,
 hold the candidate leader (`node .smoke/hold-leader.mjs` in `server/`) and repeat the cases above
 for those editors through a follower. A PR needs these results or an explicit user exception.
+
+## Review-fix rerun (6881bc0)
+
+The [independent review](2026-10-18-upstream-relay-review.md) of `6574482` found three P2 defects
+and two smaller issues. They were fixed test-first in `100adcb` (free connector ends on the
+canvas), `fdb1c9b` (duplicate_nodes cleanup and instance refusal) and `6881bc0` (prototype scan
+children, throwing lookups, SECTION trace start). This rerun covers the design-editor paths those
+commits touch. The commits after `6881bc0` change only docs.
+
+### Automated, on 6881bc0
+
+| Check                                        | Result                                                                                  |
+| -------------------------------------------- | --------------------------------------------------------------------------------------- |
+| server `bun test`                            | 384 pass, 2 skipped on Windows, 0 fail (640 expect)                                     |
+| plugin `bun test`                            | 337 pass, 0 fail (849 expect); 13 new regression tests                                  |
+| plugin `bun run typecheck`, both builds      | pass                                                                                    |
+| `bun run format:check`, `check-version.mjs`  | pass, `0.7.9`                                                                           |
+| `git diff --check`                           | clean                                                                                   |
+| reviewer's `reproduce.ts`, inverted to fixed | exit 0: one children read, sync error kept, refusals, canvas ends (103, 204) (113, 214) |
+
+The reviewer's original `reproduce.ts` now fails at its first old-behaviour assertion
+(`childReads` 1, expected 2001), as it should. The inverted copy is
+`%TEMP%/relay-fix-verify-6881bc0/verify.ts`, outside the repository.
+
+### Tested build
+
+| Item                        | Value                                                                                                 |
+| --------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Source                      | `6881bc0`                                                                                             |
+| `server/dist/index.js`      | sha256 `61b5361b440e3bc4ee33b1a436543e00f3728d9b669f08336e35d3d92687bcc5`                             |
+| `server/dist/**/*.js`       | sha256 of the sorted concatenation `4df6bd8ff4fdabdac64a9434903b5f89a60f0b0a43e7a2fa44b101b19c6e69eb` |
+| `plugin/dist/code.js`       | sha256 `696200a90ebe7aba0bf790324713ecac9441a3f7adcd94135543ca02696e7970`                             |
+| `plugin/dist/manifest.json` | sha256 `1a061ff39e49a7d135152ad98d93e158ace969210832eed629b96afd28a8b9f3`                             |
+
+`server/dist/tools.js` changed (tool descriptions), so the aggregate server hash differs from the
+first run; `index.js` and the manifest did not.
+
+### Setup
+
+- Figma desktop, Windows 11, Free plan, design file "Figma Design Relay". The Dev plugin "Figma
+  Design Relay (Dev: upstream-relay-oct18, port 1998)" was launched fresh from Quick Actions after
+  the rebuild (not hot-reloaded); its panel read **Relay: localhost:1998**. It replaced the stable
+  plugin in that file for the run; the stable plugin was relaunched there afterwards and showed
+  **WebSocket Connected** on 1994. The stable relay process was not touched.
+- Candidate leader: `server/.smoke/hold-leader.mjs` on `127.0.0.1:1998`, stopped afterwards. Every
+  call came from a second candidate server; one started the same way printed
+  `Starting MCP server (role: FOLLOWER)`, so every call crossed the follower → leader `/rpc` hop.
+- Fixtures: one scratch page `zz relay fix check 2026-10-18` with a frame and rectangle, a
+  component and its instance (direct child, nested frame, nested leaf), a frame with 3,000
+  rectangles, and a section holding two screens with a navigate reaction and a URL reaction. The
+  first fixture script stopped part-way (Free plan: "You cannot create multiple actions on
+  Reactions"); the second run removed that partial page and used one action per reaction. Cleanup
+  removed the page; a scan of every page found no `zz ` node, and the user's current page kept its
+  4 children.
+
+### Results (all through the follower)
+
+| Case                                                                                                                                                                                                                   | Result    |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| Premise of finding 3: `wide.children !== wide.children` in real Figma                                                                                                                                                  | true      |
+| Premise of finding 2: an instance layer's clone lands on the current page, then `insertChild` into the instance throws "Cannot move node. New parent is an instance or is inside of an instance" (probe clone removed) | confirmed |
+| `duplicate_nodes` of an off-page rectangle → copy in its frame at the original's (30, 40)                                                                                                                              | pass      |
+| `duplicate_nodes` of an instance's direct child, and of a leaf in a frame nested in it → refused, naming the instance and "Duplicate the instance"                                                                     | pass      |
+| `duplicate_nodes` batch [valid rectangle, frame inside an instance] → refused before any clone; no copy in the frame, on the scratch page or the current page                                                          | pass      |
+| `duplicate_with_offset` of an instance child → refused up front                                                                                                                                                        | pass      |
+| Regression: `duplicate_with_offset` (5, −3) of the off-page rectangle → copy in its frame at (35, 37)                                                                                                                  | pass      |
+| `get_prototype_connections` on the 3,000-child frame, `maxNodes 1` → `nodesScanned 1`, `truncated true`; ~0.5 s wall including server start                                                                            | pass      |
+| Same frame, default budget → `nodesScanned 3001`, `truncated false`                                                                                                                                                    | pass      |
+| `trace_prototype_flow` from the wide frame, `maxNodesPerScreen 1` → one screen, `truncated true`                                                                                                                       | pass      |
+| `trace_prototype_flow` from the SECTION → refused: "not a section. Pass one of its screens"                                                                                                                            | pass      |
+| `trace_prototype_flow` from a button in a screen inside the section → S1 (0) → S2 (1); edges `screen` to S2 and `url`; nothing unresolved                                                                              | pass      |
+| `get_prototype_connections` on the section, `maxNodes 3` → S1, then its button, in layer order; `truncated true`                                                                                                       | pass      |
+| Regression: `get_node` `includePrototype` → `prototype` with `root`, `nodesScanned`, `truncated`, `connections`                                                                                                        | pass      |
+| `create_connector` in a design file → refused, naming FigJam                                                                                                                                                           | pass      |
+
+### Still not run live
+
+- **The connector fix (finding 1)** changes FigJam only, and no FigJam board is open: every Figma
+  tab on this machine is a design file. Its live check (free and mixed ends inside a moved, nested
+  section, then moving the section and inspecting the ends) joins the FigJam blocker above. Unit
+  tests cover translated, nested and rotated parents and mixed ends.
+- **A throwing lookup (P3)** cannot be provoked in a valid document; it is unit-tested for node,
+  variable and collection lookups, synchronous and asynchronous.
+- **An insertion failure after a successful clone** cannot be produced live now that instance
+  layers are refused first; the cleanup path is unit-tested.
+- FigJam and Slides remain blocked exactly as recorded above.

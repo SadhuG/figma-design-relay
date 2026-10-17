@@ -25,6 +25,7 @@
 - [`2026-10-01-dev-name-port-live-check.md`](reference/2026-10-01-dev-name-port-live-check.md) — 0.7.7's live Figma evidence that Dev plugin names carry their port.
 - [`2026-10-01-project-review.md`](reference/2026-10-01-project-review.md) — 0.7.8's cleanup review, automated and live verification, and remaining findings.
 - [`2026-10-18-upstream-relay-live-check.md`](reference/2026-10-18-upstream-relay-live-check.md) — 0.7.9's upstream integration: tested build, automated results and live Figma evidence.
+- [`2026-10-18-upstream-relay-review.md`](reference/2026-10-18-upstream-relay-review.md) — the independent review of that integration, and how each finding was resolved.
 
 Contributor workflow — building, testing, releasing, verifying against a live file — is in
 [`.claude/CLAUDE.md`](../.claude/CLAUDE.md) and the rules and skills beside it.
