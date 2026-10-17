@@ -178,3 +178,106 @@ exception.
 0 fail (13 new); typecheck, both builds, `format:check`, `check-version.mjs` (`0.7.9`) and
 `git diff --check` pass. The reviewer's `reproduce.ts` now fails on its first old-behaviour
 assertion; an inverted copy that asserts the fixed behaviour with the same doubles exits 0.
+
+## Independent review round 2 - 779300e
+
+**Code verdict: approved. No verified code findings remain. PR readiness: blocked by the
+outstanding live checks or a specific explicit user exception. This review grants no exception.**
+
+Fresh independent GPT-6.1-Sol review of `6574482..779300e`, including fixes `100adcb`, `fdb1c9b`
+and `6881bc0`, against the full integration from
+`55bd5eaf93696049fc1550d1893b38a5d81dfa0b`. Candidate HEAD was
+`779300e6c47f25f014d85732c826394743742b41`; the worktree was clean before this appendix.
+The original review and implementer responses above were read as evidence to verify, rather than
+accepted as the verdict for this round.
+
+### Disposition of every original finding
+
+| Original finding                                         | Independent disposition and current location                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P2: free connector coordinates                           | **Resolved in code.** `code.ts:471`, used at `:2243` and `:2247`, applies the final parent's complete affine transform to free points. Page and omitted parents preserve canvas coordinates. Attached node IDs and magnets stay unchanged in both mixed directions. Fresh dispatcher checks covered translation, rotation, scale/shear, negative coordinates and page/default placement. This agrees with the [canvas endpoint contract](https://developers.figma.com/docs/plugins/api/ConnectorEndpoint/). **FigJam live verification remains outstanding.**                                                                                                           |
+| P2: unreported duplicate after failed reparenting        | **Resolved.** `code.ts:1719` preflights the complete input, and `:1730` protects all created copies with cleanup. `layout-actions.ts:269` checks every ancestor, starting at the parent, so an instance itself remains duplicable while its direct and nested sublayers are refused before cloning. The [instance insertion restriction](https://developers.figma.com/docs/plugins/api/properties/nodes-insertchild/) supports that decision; restoring the previous current-page stray would violate the same-parent contract. Fresh checks confirmed off-page coordinates and cleanup after either a later clone throw or insertion throw for both duplication tools. |
+| P2: repeated children getter and eager sibling expansion | **Resolved.** `prototype.ts:254` uses traversal cursors; `:268` reads each expanded container's children once; `:275` distinguishes exhausted cursors from pending work. This removes repeated copies documented by [Figma's children API](https://developers.figma.com/docs/plugins/api/properties/nodes-children/). Fresh checks confirmed layer order, empty containers, exact-budget completion, partial-subtree truncation, and zero pending-child index reads when only the root fits. The shared trace path preserves its scan and screen budgets.                                                                                                               |
+| P3: synchronous lookup throw escapes isolation           | **Resolved.** `prototype.ts:207` invokes the loader inside a promise executor. Fresh checks for node, variable and collection loaders covered synchronous non-Error throws and asynchronous Error rejections, preserved an unrelated URL action, and confirmed repeated failed IDs are looked up once per request. The committed regressions also cover synchronous Error throws.                                                                                                                                                                                                                                                                                       |
+| Invalid SECTION trace start                              | **Resolved.** `prototype.ts:500` rejects the section with guidance. Scanning a section still works, and tracing a button inside one attributes edges to its screen. Exact scan/screen budget exhaustion and pending targets still behave correctly. Tool description and prototype guide match the refusal. This was invalid-input hardening, not a previously valid-input release blocker.                                                                                                                                                                                                                                                                             |
+
+### Interaction and compatibility review
+
+The fixes use the existing dispatcher gate, parent lookup, cleanup and injected prototype
+context. No schema, transport mapper, tool registration or capability entry changed in the fix
+range; only the duplicate and trace descriptions changed on the server. The full suites include
+the new-tool follower/RPC tests, enriched serializer, capability, SVG safety and diagram
+regressions. Inspection found no new wiring or security regression.
+
+Additional independent dispatcher checks allowed ordinary component children and an instance
+itself for both duplication tools under all three editable-editor doubles. Instance sublayers,
+a missing later ID, and mixed valid/invalid inputs made no copies. Later clone or insertion
+failures left no surviving copies. The original node coordinates and successful duplicate
+response fields remained intact. These are API-double checks, not FigJam/Slides live evidence.
+
+Prototype checks compared 30 generated trees against an independent expected preorder for
+every budget from 1 through the tree size plus 2: **525 tree/budget combinations**, all passing.
+Every visited container was read once, unvisited containers were unread, and exact exhaustion
+was never marked truncated. Separate checks covered a childless leaf, empty container,
+lazy sibling indexing, a 601-node chain, SECTION scans/refusals, trace from a contained button,
+URL edges, pending screens and both trace budget limits. No additional code defect was reproduced.
+
+The real upstream merge remains `6636f5e`, with parents `e23100b` and `2c37e6d`; the pinned
+upstream is still an ancestor of HEAD. The protected manifest, enriched serializer, bounded
+layout tree, transport/loopback/filesystem helpers and release workflow remain unchanged from
+the integration base. `6881bc0..779300e` changes documentation only. Historical 322/324 plugin
+counts describe earlier candidates; the current 337 count is consistent with the 13 added tests.
+
+### Fresh command evidence
+
+Commands ran from the candidate root unless a package is named. Bun version: `1.4.0`.
+
+| Command                                                                                  | Result                                                                  |
+| ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Server `bun test`                                                                        | 384 pass, 2 Windows skips, 0 fail; 640 assertions, 26 files             |
+| Plugin `bun test`                                                                        | 337 pass, 0 fail; 849 assertions, 22 files                              |
+| Server `bunx --no-install tsc --noEmit -p tsconfig.json`                                 | Exit 0 using the package's installed compiler                           |
+| Plugin `bun run typecheck`                                                               | Exit 0, zero errors                                                     |
+| `bun C:/Users/sadhu/AppData/Local/Temp/relay-fix-verify-6881bc0/verify.ts`               | Exit 0; all five original behaviours now satisfy fixed assertions       |
+| `bun C:/Users/sadhu/AppData/Local/Temp/relay-review2-779300e/verify.ts`                  | Exit 0; independent boundary/interaction checks described above         |
+| `bun run format:check`                                                                   | Exit 0 before this appendix; final docs formatting rechecked afterwards |
+| `bun scripts/check-version.mjs`                                                          | Exit 0, `0.7.9`                                                         |
+| `git diff --check` and `git diff --check 55bd5eaf93696049fc1550d1893b38a5d81dfa0b..HEAD` | Clean                                                                   |
+| `git merge-base --is-ancestor 2c37e6d HEAD`                                              | Exit 0                                                                  |
+
+The two scratch scripts import the real candidate modules/dispatcher with doubles and do not
+access Figma. Full-suite logs are in `%TEMP%/relay-review2-server-test.log` and
+`%TEMP%/relay-review2-plugin-test.log`.
+
+Read-only hashes of the existing artifacts match the `6881bc0` live-rerun record:
+
+- `server/dist/index.js`: `61b5361b440e3bc4ee33b1a436543e00f3728d9b669f08336e35d3d92687bcc5`.
+- Sorted concatenation of the 31 `server/dist/**/*.js` files:
+  `4df6bd8ff4fdabdac64a9434903b5f89a60f0b0a43e7a2fa44b101b19c6e69eb`.
+- `plugin/dist/code.js`: `696200a90ebe7aba0bf790324713ecac9441a3f7adcd94135543ca02696e7970`.
+- `plugin/dist/manifest.json`: `1a061ff39e49a7d135152ad98d93e158ace969210832eed629b96afd28a8b9f3`.
+
+These corroborate the recorded artifact identity. They do not independently replay live results.
+Neither package was rebuilt in this review.
+
+### Remaining PR gates and limits
+
+The [live record](2026-10-18-upstream-relay-live-check.md#review-fix-rerun-6881bc0) reports the
+15 design-editor rerun cases after the original 28 design checks. No live Figma call was made
+in this review. The pending gates remain:
+
+- **FigJam:** all listed creator/label/read/layout/batch and refusal cases, the diagram regression,
+  and especially the connector fix with free/mixed ends in moved/nested sections followed by
+  parent/endpoint movement.
+- **Slides:** the listed layout/batch/text and editor-refusal matrix.
+- **Planned regressions:** close the original review's evidence gap for UI reconnect/collapse
+  against the live matrix. Do not read the numbered design cases as proof of every plan item.
+
+The parent must obtain these live results on the candidate or the repository-required specific
+explicit user exception before PR. The pending request for files or an exception is not approval.
+Existing documented Free-plan/API/manifest limits still apply; throwing loaders and post-clone
+insertion failure have unit/double coverage only. This round neither expands nor waives those
+limits. Any further runtime change needs affected verification and another independent review.
+
+Only this review appendix was changed in the repository. No product edit, commit, merge, push,
+PR, Figma mutation, rebuild, subdelegation or change to unrelated local main/dev work was made.
