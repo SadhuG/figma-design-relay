@@ -186,3 +186,6 @@ server/dist/
 
 # Dev slot of a feature worktree (bun scripts/dev-slot.mjs); never committed
 .dev-slot.json
+
+# Playwright MCP session output (console logs, snapshots, screenshots)
+.playwright-mcp/
