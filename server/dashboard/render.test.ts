@@ -91,9 +91,15 @@ describe("renderFiles", () => {
     const html = renderFiles(
       status({
         files: [
-          { fileKey: "k1", fileName: "Screen", editorType: "figjam", connectedAt: NOW - 120_000 },
+          {
+            fileKey: "k1",
+            fileName: "Screen",
+            editorType: "figjam",
+            connectedAt: NOW - 120_000,
+            lastCallAt: NOW - 30_000,
+          },
         ],
-        activity: [call({ startedAt: NOW - 30_000 }), call({ startedAt: NOW - 90_000 })],
+        activity: [call({ startedAt: NOW - 90_000 })],
       })
     );
     expect(html).toContain("FigJam");

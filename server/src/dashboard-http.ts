@@ -9,7 +9,7 @@ export interface RelayStatus {
   pid: number;
   startedAt: number;
   now: number;
-  files: Array<ConnectedFile & { connectedAt: number }>;
+  files: Array<ConnectedFile & { connectedAt: number; lastCallAt?: number }>;
   followers: FollowerSeen[];
   activity: ActivityEntry[];
 }

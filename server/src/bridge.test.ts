@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { Leader } from "./leader.js";
 import { Node } from "./node.js";
 import { WebSocket } from "ws";
+import type { BridgeRequest } from "./types.js";
 
 let leader: Leader;
 let sockets: WebSocket[];
@@ -119,6 +120,59 @@ test("describes each connection with when it connected, list_files unchanged", a
   expect(file.fileKey).toBe("target");
   expect(file.connectedAt).toBeGreaterThanOrEqual(before);
   expect(bridge.listConnectedFiles()).toEqual([{ fileKey: "target", fileName: "Unknown" }]);
+});
+
+test("lastCallAt reflects receipt while calls run and cannot regress on completion", async () => {
+  const target = await connect("target");
+  const bridge = leader.getBridge();
+  const firstReceived = new Promise<BridgeRequest>((resolve) =>
+    target.once("message", (data) => resolve(JSON.parse(data.toString())))
+  );
+  const first = bridge.send("get_selection", undefined, "target");
+  const a = await firstReceived;
+  const firstTime = bridge.describeConnections()[0].lastCallAt;
+  await Bun.sleep(2);
+  const secondReceived = new Promise<BridgeRequest>((resolve) =>
+    target.once("message", (data) => resolve(JSON.parse(data.toString())))
+  );
+  const second = bridge.send("get_selection", undefined, "target");
+  const b = await secondReceived;
+  const whileRunning = bridge.describeConnections()[0].lastCallAt;
+  target.send(JSON.stringify({ ...b, data: "second" }));
+  await second;
+  target.send(JSON.stringify({ ...a, data: "first" }));
+  await first;
+  expect(firstTime).toBeNumber();
+  expect(whileRunning).toBeGreaterThan(firstTime!);
+  expect(bridge.describeConnections()[0].lastCallAt).toBe(whileRunning);
+  expect(bridge.listConnectedFiles()).toEqual([{ fileKey: "target", fileName: "Unknown" }]);
+});
+
+test("a file's lastCallAt survives other files evicting its activity entry", async () => {
+  const target = await connect("target");
+  const other = await connect("other");
+  const bridge = leader.getBridge();
+  const received = nextRequest(target);
+  await bridge.send("get_selection", undefined, "target");
+  await received;
+  const lastCallAt = bridge
+    .describeConnections()
+    .find((file) => file.fileKey === "target")!.lastCallAt;
+  other.on("message", (data) => {
+    const request = JSON.parse(data.toString());
+    other.send(JSON.stringify({ ...request, data: "ok" }));
+  });
+  for (let i = 0; i < 201; i++) await bridge.send("get_selection", undefined, "other");
+  expect(
+    bridge
+      .getActivity()
+      .recent()
+      .some((entry) => entry.fileKey === "target")
+  ).toBe(false);
+  expect(lastCallAt).toBeNumber();
+  expect(bridge.describeConnections().find((file) => file.fileKey === "target")!.lastCallAt).toBe(
+    lastCallAt
+  );
 });
 /** Resolves with the next request the fake plugin socket receives, and answers it. */
 function nextRequest(socket: WebSocket): Promise<Record<string, unknown>> {

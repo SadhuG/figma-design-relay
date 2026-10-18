@@ -44,3 +44,19 @@ After recovery, refresh the feature branch from landed `origin/dev` and `origin/
 repeat affected checks and replace this blocked record with commit-specific passing evidence and
 a dashboard screenshot. The untracked `server/.smoke/dashboard-live.mjs` harness is preserved for
 that session; verify it actually owns the dev leader before treating its calls as local.
+
+## Independent review findings addressed
+
+- P1: `new URL` in the GET routing listener could throw on `//` and terminate the Node leader.
+  Commit `4d14be7` catches malformed GET targets with 400 and closes malformed upgrade sockets.
+  Its regression test first reproduced the uncaught `ERR_INVALID_URL`. After the fix, both the
+  test and `node server/.smoke/dashboard-routing.mjs` (Node 24.20.0, after building) confirm that
+  malformed requests are rejected, `/ping` and `/api/status` remain healthy, and foreign Host
+  requests still receive 403. The smoke harness uses an ephemeral port and never touches Figma.
+- P2 (D2): file-card last-call time was derived from the bounded, completed activity history.
+  The bridge now retains optional `lastCallAt` on each connection at dispatch; the status API and
+  renderer use it while `list_files` keeps its prior shape. Regression tests first failed for
+  in-flight calls, reversed completion order, eviction by another file's 201 calls, and rendering
+  a timestamp independently of activity history; all pass after the fix.
+
+These fixes still require independent review of their final commits and the affected live checks.

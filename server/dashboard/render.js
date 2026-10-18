@@ -49,15 +49,8 @@ export function renderFiles(status) {
   if (status.files.length === 0) {
     return `<p class="empty">No Figma files connected. In Figma, open a file and run <strong>Plugins → Development → Figma Design Relay</strong>. The plugin must dial port ${escapeHtml(status.port)}.</p>`;
   }
-  // activity is newest first, so the first hit per file is its latest call.
-  const lastCall = new Map();
-  for (const entry of status.activity) {
-    if (entry.fileKey !== null && !lastCall.has(entry.fileKey)) {
-      lastCall.set(entry.fileKey, entry.startedAt);
-    }
-  }
   const cards = status.files.map((file) => {
-    const last = lastCall.get(file.fileKey);
+    const last = file.lastCallAt;
     const lastText =
       last === undefined ? "no calls yet" : `last call ${relativeTime(last, status.now)}`;
     return `<li class="card">

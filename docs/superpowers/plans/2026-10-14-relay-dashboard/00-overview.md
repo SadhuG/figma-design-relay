@@ -76,7 +76,7 @@ interface RelayStatus {
   pid: number;
   startedAt: number;
   now: number; // the leader's clock, so the page computes "x ago" without clock skew
-  files: Array<ConnectedFile & { connectedAt: number }>;
+  files: Array<ConnectedFile & { connectedAt: number; lastCallAt?: number }>;
   followers: FollowerSeen[]; // seen in the last 60 s, most recent first
   activity: ActivityEntry[]; // newest first
 }

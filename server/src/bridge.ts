@@ -20,6 +20,7 @@ interface ConnectionEntry {
   editorType?: EditorType;
   isAlive: boolean;
   connectedAt: number;
+  lastCallAt?: number;
 }
 
 export class Bridge {
@@ -189,12 +190,13 @@ export class Bridge {
   }
 
   /** list_files plus when each file connected — for the dashboard, not the tool. */
-  describeConnections(): Array<ConnectedFile & { connectedAt: number }> {
+  describeConnections(): Array<ConnectedFile & { connectedAt: number; lastCallAt?: number }> {
     return [...this.connections.values()].map((entry) => ({
       fileKey: entry.fileKey,
       fileName: entry.fileName,
       ...(entry.editorType ? { editorType: entry.editorType } : {}),
       connectedAt: entry.connectedAt,
+      ...(entry.lastCallAt === undefined ? {} : { lastCallAt: entry.lastCallAt }),
     }));
   }
 
@@ -248,6 +250,10 @@ export class Bridge {
         reject(new Error("Plugin not connected"));
         return;
       }
+
+      // Connection state outlives the bounded completed-call log, and updates
+      // when a request leaves rather than when concurrent calls finish.
+      entry.lastCallAt = Date.now();
 
       const requestId = this.nextId();
       const request: BridgeRequest = {

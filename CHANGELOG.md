@@ -26,6 +26,11 @@ with its tag.
   and follower processes. The status page follows the relay's dev slot, polls every two seconds,
   and ships with release archives.
 
+### Fixed
+
+- Malformed dashboard request targets cannot terminate the relay. Each file's last-call time
+  updates as a request is dispatched and survives concurrent completions and activity-log eviction.
+
 ## [0.8.0] - 2026-10-18
 
 ### Changed
