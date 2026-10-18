@@ -2141,9 +2141,12 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
         const shape = await removeOnFailure(created, async () => {
           const shape = figma.createShapeWithText();
           created.push(shape);
-          if (typeof params.shapeType === "string") {
-            shape.shapeType = params.shapeType as ShapeWithTextNode["shapeType"];
-          }
+          // A new shape takes the one last picked in the toolbar; the tool
+          // promises SQUARE when none is asked for.
+          shape.shapeType =
+            typeof params.shapeType === "string"
+              ? (params.shapeType as ShapeWithTextNode["shapeType"])
+              : "SQUARE";
           if (typeof params.name === "string") shape.name = params.name;
           // The label's current font must be loaded before its text changes,
           // and a new font before it is assigned.

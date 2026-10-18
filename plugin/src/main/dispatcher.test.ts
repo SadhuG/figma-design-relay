@@ -604,8 +604,9 @@ const board = () => {
     fonts.push(`${font.family} ${font.style}`);
   });
   stub("createSticky", () => base("STICKY", { text: textSublayer(), isWideWidth: false }));
+  // FigJam gives a new shape the one last picked in the toolbar, not SQUARE.
   stub("createShapeWithText", () =>
-    base("SHAPE_WITH_TEXT", { text: textSublayer(), shapeType: "SQUARE" })
+    base("SHAPE_WITH_TEXT", { text: textSublayer(), shapeType: "ELLIPSE" })
   );
   stub("createSection", () => {
     const node = base("SECTION", { sectionContentsHidden: false });
