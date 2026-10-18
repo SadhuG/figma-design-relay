@@ -168,6 +168,19 @@ describe("serializeNode depth limit", () => {
     const out = await serializeNode(root);
     expect(out.children?.[0].children?.[0].id).toBe("3:3");
   });
+
+  // The panel's read progress counts these calls against countNodes.
+  test("onNode fires once per visible node it serializes", async () => {
+    let calls = 0;
+    await serializeNode(root, { onNode: () => calls++ });
+    expect(calls).toBe(3);
+  });
+
+  test("onNode stops at the depth limit too", async () => {
+    let calls = 0;
+    await serializeNode(root, { maxDepth: 1, onNode: () => calls++ });
+    expect(calls).toBe(2);
+  });
 });
 
 type SerializedNodeWithCount = Awaited<ReturnType<typeof serializeNode>> & { childCount?: number };

@@ -479,6 +479,8 @@ export interface SerializeOptions {
    * walk is bounded without a second pass. Omit to walk the whole tree.
    */
   maxDepth?: number;
+  /** Called once per node serialized; the panel's read progress counts these. */
+  onNode?: () => void;
 }
 
 export const serializeNode = async (
@@ -497,6 +499,7 @@ export const serializeNode = async (
 
   const design = await serializeDesign(node);
   if (design) base.design = design;
+  options.onNode?.();
 
   const layout = serializeLayoutIntent(raw);
   if (layout) base.layout = layout;

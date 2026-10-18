@@ -57,7 +57,7 @@ All text and timing rules live in pure functions in `plugin/src/ui/panel-state.t
 | #   | Phase                                   | Summary                                                                                                         | Status      |
 | --- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ----------- |
 | 1   | [Panel logic](01-panel-logic.md)        | Pure rules: chip precedence and new tones, the notice board for Sent and Diagram, syncing visibility, row text. | done        |
-| 2   | [Main thread events](02-main-events.md) | Read progress through the serializer, the selection-sent and diagram-drawn events, `show-nodes`, selection ids. | not started |
+| 2   | [Main thread events](02-main-events.md) | Read progress through the serializer, the selection-sent and diagram-drawn events, `show-nodes`, selection ids. | done        |
 | 3   | [Follower count](03-follower-count.md)  | Instance header on follower calls, the leader's registry, the `relay-status` push to opted-in plugins.          | not started |
 | 4   | [Panel UI](04-panel-ui.md)              | Icons from Board 10, chip tones and buttons in CSS, App wiring for every new message.                           | not started |
 | 5   | [Ship](05-ship.md)                      | Live check in Figma (design + FigJam), Board 10 update, repo rule, docs, GPT-6.1-Sol review, PRs.               | not started |

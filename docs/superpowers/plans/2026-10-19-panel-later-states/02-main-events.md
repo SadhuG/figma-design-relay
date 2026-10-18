@@ -11,7 +11,7 @@ Overview rows 04 trigger, 05 trigger, 06 trigger and "Panel ↔ main messages".
 
 ## Tasks
 
-- [ ] **1. Progress counter.** New `plugin/src/main/read-progress.ts`, test-first in
+- [x] **1. Progress counter.** New `plugin/src/main/read-progress.ts`, test-first in
       `read-progress.test.ts`:
   ```ts
   type Countable = { visible?: boolean; children?: readonly Countable[] };
@@ -29,24 +29,24 @@ Overview rows 04 trigger, 05 trigger, 06 trigger and "Panel ↔ main messages".
   last), only when the percent changed and at least 200 ms passed since the last post (the first
   post waits 200 ms too). `total` 0 never posts. Tests cover depth, hidden children, throttling,
   no-change suppression.
-- [ ] **2. Serializer hook.** Add `onNode?: () => void` to `SerializeOptions` in `serializer.ts`;
+- [x] **2. Serializer hook.** Add `onNode?: () => void` to `SerializeOptions` in `serializer.ts`;
       call it once per node serialized. Test in `serializer.test.ts` that a two-child frame calls
       it three times and that hidden children don't count.
-- [ ] **3. Wire progress** in `code.ts` for `get_document`, `get_selection`, `get_node`,
+- [x] **3. Wire progress** in `code.ts` for `get_document`, `get_selection`, `get_node`,
       `get_design_context`: compute `total` with `countNodes` over the roots it will serialize (with
       the same `maxDepth`), make the reporter with
       `post = (percent) => figma.ui.postMessage({ type: "read-progress", requestId, percent })`,
       pass it as `onNode`.
-- [ ] **4. Panel events** in `code.ts`, posted before the response:
+- [x] **4. Panel events** in `code.ts`, posted before the response:
   - `selection-sent {requestId, nodeIds}` from `get_selection` (non-empty selection),
     `get_design_context` (no node id, non-empty selection) and `get_screenshot` (no node ids).
   - `diagram-drawn {requestId, nodeIds: createdNodeIds}` after a successful `render_diagram`.
-- [ ] **5. `show-nodes`.** In `figma.ui.onmessage`: `{type: "show-nodes", nodeIds, select}` →
+- [x] **5. `show-nodes`.** In `figma.ui.onmessage`: `{type: "show-nodes", nodeIds, select}` →
       resolve ids with `getNodeByIdAsync`, keep scene nodes, switch to their page with
       `setCurrentPageAsync` if it isn't current, set `selection` when `select`, then
       `figma.viewport.scrollAndZoomIntoView(nodes)`. Missing nodes are skipped; none left → `figma.notify("Those layers are gone.")`.
-- [ ] **6. Selection ids.** `sendStatus` adds `selectionIds: figma.currentPage.selection.map((n) => n.id)`.
-- [ ] **7.** `bun test`, `bun run build` in `plugin/`; commit `feat(plugin): report reads, sent selections and drawn diagrams to the panel`.
+- [x] **6. Selection ids.** `sendStatus` adds `selectionIds: figma.currentPage.selection.map((n) => n.id)`.
+- [x] **7.** `bun test`, `bun run build` in `plugin/`; commit `feat(plugin): report reads, sent selections and drawn diagrams to the panel`.
 
 ## Notes
 
