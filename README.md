@@ -263,7 +263,8 @@ packages (including type-checking), and checks formatting. `bun run test` runs o
 cd server && bun test       # schemas, /rpc guards, codegen, content blocks, asset export, Code Connect,
                             # the Mermaid parser and diagram layout, the startup port and dev slots,
                             # cross-file search: file selection, result merging and fan-out,
-                            # bridge response ownership, leader cleanup, filesystem/URL safety and DNS pinning
+                            # bridge response ownership, leader cleanup, filesystem/URL safety and DNS pinning,
+                            # dashboard rendering, status guards, activity and follower tracking
 cd plugin && bun test       # run_script, serializer and its helpers (FigJam nodes too), Code Connect context,
                             # the editor capability table and its regression guard, diagram payloads,
                             # library tools and search against stubbed figma.teamLibrary / currentUser,
@@ -290,11 +291,14 @@ Figma-Design-Relay/
 ├── plugin/       # Figma plugin (TypeScript/React); src/main/layout-tree.ts: bounded geometry;
 │                 # dev-slot.ts: the slot rules the build uses
 └── server/       # MCP server (TypeScript/Node.js)
+    ├── dashboard/ # Read-only status page: HTML, CSS, polling and tested render functions
     └── src/
         ├── index.ts      # Entry point
         ├── port.ts       # Startup port: env, else the worktree's dev slot, else 1994
         ├── bridge.ts     # WebSocket bridge to Figma plugin
-        ├── leader.ts     # Leader: HTTP server + bridge
+        ├── leader.ts     # Leader: HTTP server + bridge + dashboard
+        ├── activity.ts   # Bounded call history and follower registry
+        ├── dashboard-http.ts # Dashboard Host/Origin guard, response headers and file table
         ├── follower.ts   # Follower: proxies to leader via HTTP
         ├── node.ts       # Dynamic leader/follower role switching
         ├── election.ts   # Leader election & health monitoring
