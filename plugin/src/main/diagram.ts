@@ -200,16 +200,43 @@ interface Attachable {
   connectorEnd: ConnectorEndpoint;
 }
 
+/** The side of a node a create_connector end attaches to, as the tool spells it. */
+export type ConnectorAnchor = "top" | "bottom" | "left" | "right" | "auto";
+
+const ANCHOR_MAGNETS = new Map<string, Magnet>([
+  ["top", "TOP"],
+  ["bottom", "BOTTOM"],
+  ["left", "LEFT"],
+  ["right", "RIGHT"],
+  ["auto", "AUTO"],
+]);
+
+/** Figma's magnet for an anchor; anything unset is AUTO. */
+export const magnetFor = (anchor: ConnectorAnchor | undefined): Magnet =>
+  (anchor && ANCHOR_MAGNETS.get(anchor)) || "AUTO";
+
 /**
  * Joins a connector to two nodes. A new connector takes the line type last
  * picked in FigJam's toolbar, and a straight one refuses every magnet but
  * CENTER and NONE, so the line type is set before either end.
+ * @param anchors - Sides the caller chose; an end without one keeps the default.
  */
-export const attachConnector = (connector: Attachable, startId: string, endId: string): void => {
+export const attachConnector = (
+  connector: Attachable,
+  startId: string,
+  endId: string,
+  anchors: { start?: ConnectorAnchor; end?: ConnectorAnchor } = {}
+): void => {
   const magnets = connectorMagnets(startId, endId);
   connector.connectorLineType = "ELBOWED";
-  connector.connectorStart = { endpointNodeId: startId, magnet: magnets.start };
-  connector.connectorEnd = { endpointNodeId: endId, magnet: magnets.end };
+  connector.connectorStart = {
+    endpointNodeId: startId,
+    magnet: anchors.start ? magnetFor(anchors.start) : magnets.start,
+  };
+  connector.connectorEnd = {
+    endpointNodeId: endId,
+    magnet: anchors.end ? magnetFor(anchors.end) : magnets.end,
+  };
 };
 
 interface Removable {

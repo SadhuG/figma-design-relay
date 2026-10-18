@@ -14,6 +14,9 @@
 - [`libraries.md`](guides/libraries.md) — `whoami`, `get_libraries`, `import_library_asset`, `search_design_system`, and the permissions and plans they need.
 - [`figjam.md`](guides/figjam.md) — FigJam reads and writes, and `generate_diagram`'s Mermaid subset.
 - [`slides.md`](guides/slides.md) — what the relay can and cannot do in a Slides deck.
+- [`prototypes.md`](guides/prototypes.md) — `get_prototype_connections`, `trace_prototype_flow` and `get_node`'s `includePrototype`: what is resolved, followed and bounded.
+- [`svg.md`](guides/svg.md) — `create_svg`: accepted sources, the workspace and size limits, placement.
+- [`layout.md`](guides/layout.md) — the layout helpers and `set_node_properties` batches: coordinates, refusals and what is not atomic.
 
 ## Reference
 
@@ -21,6 +24,8 @@
 - [`2026-10-01-upstream-sync-live-check.md`](reference/2026-10-01-upstream-sync-live-check.md) — the 0.7.6 upstream sync's live Figma evidence and tested build.
 - [`2026-10-01-dev-name-port-live-check.md`](reference/2026-10-01-dev-name-port-live-check.md) — 0.7.7's live Figma evidence that Dev plugin names carry their port.
 - [`2026-10-01-project-review.md`](reference/2026-10-01-project-review.md) — 0.7.8's cleanup review, automated and live verification, and remaining findings.
+- [`2026-10-18-upstream-relay-live-check.md`](reference/2026-10-18-upstream-relay-live-check.md) — upstream integration candidate 0.8.2: tested build, automated results and live Figma evidence.
+- [`2026-10-18-upstream-relay-review.md`](reference/2026-10-18-upstream-relay-review.md) — the independent review of that integration, and how each finding was resolved.
 - [`2026-10-02-image-fetch-dns-pinning-live-check.md`](reference/2026-10-02-image-fetch-dns-pinning-live-check.md) — live Figma evidence that remote image fetches pin their validated DNS answer.
 - [`2026-10-18-image-fetch-dns-pinning-check.md`](reference/2026-10-18-image-fetch-dns-pinning-check.md) — integrated 0.8.1 candidate checks and fresh live Figma evidence.
 

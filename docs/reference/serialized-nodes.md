@@ -116,8 +116,9 @@ node. Every field is omitted on every other node type.
 | `connector`    | `CONNECTOR` — `{ from, to, lineType }`               | Never on a connector                                         |
 | `table`        | `TABLE` — rows of cell text, `table[row][column]`    | The table reports no rows or columns (an empty `{}` instead) |
 
-`connector.from` and `connector.to` are the ids of the nodes the connector is attached to, or `null`
-for an end that floats free on the canvas. They are what make a board's topology survive the round
+`connector.from` and `connector.to` are the ids of the nodes the connector is attached to. An end that
+floats free carries the id Figma anchors it to — the page, or the parent section or frame for a
+free end `create_connector` drew beside a node end — and `null` only when Figma names none. They are what make a board's topology survive the round
 trip: without them a flowchart serializes as a pile of unrelated shapes. `SECTION` needs no field of
 its own — it is a container, and its children serialize like any other.
 

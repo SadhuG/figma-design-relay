@@ -6,13 +6,17 @@ import type { Node } from "./node.js";
 import {
   createFrameInput,
   createImageInput,
+  createSvgInput,
   createPageInput,
   importHtmlLayersInput,
   createShapeShape,
   createTextShape,
   createShapeInput,
+  createShapeWithTextInput,
+  createShapeWithTextShape,
+  createSectionShape,
   createTextInput,
-  setNodePropertiesInput,
+  setNodePropertiesShape,
   setGradientFillInput,
   setSolidFillInput,
   setSolidFillShape,
@@ -27,10 +31,17 @@ import {
   ungroupNodeInput,
   setTextPropertiesShape,
   setTextPropertiesInput,
-  createShapeWithTextShape,
-  createShapeWithTextInput,
-  createSectionShape,
   createSectionInput,
+  createStickyShape,
+  createStickyInput,
+  createConnectorShape,
+  createConnectorInput,
+  fitToContentInput,
+  distributeInput,
+  alignToGridInput,
+  placeBelowInput,
+  placeRightOfInput,
+  duplicateWithOffsetInput,
   toolInputSchemas,
 } from "./schema.js";
 import { LOOPBACK_HOST } from "./types.js";
@@ -60,6 +71,7 @@ import { layoutDiagram } from "./mermaid/layout.js";
 import { parseMermaid } from "./mermaid/parse.js";
 import { fetchImageBytes, MAX_IMAGE_BYTES } from "./image-fetch.js";
 import { isInsideWorkspace, resolveWorkspacePath } from "./workspace-path.js";
+import { loadSvgSource } from "./svg.js";
 
 const RUN_SCRIPT_DESCRIPTION = `Execute JavaScript against the Figma Plugin API inside the connected file. This is the escape hatch: anything the Plugin API can do — components, variants, instances, variables and modes, styles, boolean operations, vector edits, prototyping, per-segment text styling, arbitrary reads — is reachable here, and nowhere else in this server.
 
@@ -330,10 +342,37 @@ export function registerTools(server: McpServer, node: Node, port: number): void
 
   server.tool(
     "get_node",
-    "Get a specific Figma node by ID. Accepts top-level IDs like '4029:12345' and instance-child IDs like 'I12740:17806;12740:17793'. Never use hyphens. When multiple files are connected, specify fileKey.",
+    "Get a specific Figma node by ID. Accepts top-level IDs like '4029:12345' and instance-child IDs like 'I12740:17806;12740:17793'. Never use hyphens. Pass includePrototype: true to add a `prototype` field with the reactions on the node and its descendants, as get_prototype_connections returns them — design files only; plain get_node works in every editor. When multiple files are connected, specify fileKey.",
     toolInputSchemas.get_node.shape,
-    async ({ nodeId, fileKey }): Promise<ToolResult> => {
-      return renderResponse(() => node.send("get_node", [nodeId], fileKey));
+    async ({ nodeId, fileKey, ...params }): Promise<ToolResult> => {
+      return renderResponse(() => node.sendWithParams("get_node", [nodeId], params, fileKey));
+    }
+  );
+
+  server.tool(
+    "get_prototype_connections",
+    "Read-only prototype inspection for design files only — refused in FigJam and Slides, which have no prototypes. Lists the interactions on a node and all its descendants, including instance sublayers: each reaction is Figma's own trigger and actions (navigate/swap/overlay/scroll-to/change-to, back, close, URL, set variable/mode, conditional blocks, media), with each destination resolved to its name, screen and page, and variables and modes resolved to names. Conditions are returned as written, never evaluated. Also returns the page's flow starting points. Omit nodeId to scan the current page; maxNodes (default 5000, max 50000) bounds the scan and `truncated` says when it was hit. A destination that cannot be read is marked missing or error rather than failing the scan. When multiple files are connected, specify fileKey.",
+    toolInputSchemas.get_prototype_connections.shape,
+    async ({ nodeId, fileKey, ...params }): Promise<ToolResult> => {
+      return renderResponse(() =>
+        node.sendWithParams(
+          "get_prototype_connections",
+          nodeId ? [nodeId] : undefined,
+          params,
+          fileKey
+        )
+      );
+    }
+  );
+
+  server.tool(
+    "trace_prototype_flow",
+    "Read-only prototype trace for design files only — refused in FigJam and Slides. Follows screen-to-screen navigation (navigate, swap, overlay) breadth-first from the screen containing nodeId: returns the screens reached, with depth and the node that reached them, and every interaction edge with its source node, trigger, action, enclosing conditional branches and destination screen. Conditions are not evaluated, so every branch is followed; back, close, URL, variable, media and in-screen actions are listed as edges but never followed. Screens reached again are marked as revisits; unresolvable destinations are listed. maxScreens (default 25, max 500) bounds the expansion — the rest are listed in `pending` — and maxNodesPerScreen (default 5000) each screen's scan. Start from a screen or a node inside one, not a page or section. When multiple files are connected, specify fileKey.",
+    toolInputSchemas.trace_prototype_flow.shape,
+    async ({ nodeId, fileKey, ...params }): Promise<ToolResult> => {
+      return renderResponse(() =>
+        node.sendWithParams("trace_prototype_flow", [nodeId], params, fileKey)
+      );
     }
   );
 
@@ -485,7 +524,7 @@ export function registerTools(server: McpServer, node: Node, port: number): void
 
   server.tool(
     "set_text_content",
-    "Update the contents of a single text node. The plugin loads the node's fonts before applying the new text. Accepts either text or characters. When multiple files are connected, specify fileKey.",
+    "Replace the text of a TEXT node, or the label of a FigJam sticky or shape-with-text (pass the sticky's or shape's own id; the result reports it). Works in design files, FigJam and Slides; refused in Dev Mode. Every font the text uses is loaded before the change, so a missing font leaves it unchanged. Accepts either text or characters. When multiple files are connected, specify fileKey.",
     setTextContentShape.shape,
     async (args): Promise<ToolResult> => {
       const parsed = parseToolInput(toolInputSchemas.set_text_content, args);
@@ -499,7 +538,7 @@ export function registerTools(server: McpServer, node: Node, port: number): void
 
   server.tool(
     "set_text_properties",
-    "Patch common text properties such as font family/style, size, alignment, auto-resize, line height, letter spacing, fill color, and bounds. When multiple files are connected, specify fileKey.",
+    "Patch text styling — font family/style, size, line height, letter spacing and fill color, plus alignment, auto-resize and bounds on TEXT nodes — in design files and FigJam; refused in Slides and Dev Mode. On a FigJam sticky or shape-with-text it styles the label: alignment and auto-resize do not exist there and are refused before anything changes, and a sticky cannot be resized. When multiple files are connected, specify fileKey.",
     setTextPropertiesShape.shape,
     async (args): Promise<ToolResult> => {
       const parsed = parseToolInput(setTextPropertiesInput, args);
@@ -513,14 +552,15 @@ export function registerTools(server: McpServer, node: Node, port: number): void
 
   server.tool(
     "set_node_properties",
-    "Patch common node properties such as name, position, size, visibility, opacity, and corner radius. Only supported properties for the target node type may be changed. Use set_solid_fill or set_gradient_fill to change paints. When multiple files are connected, specify fileKey.",
-    setNodePropertiesInput.shape,
+    "Patch common node properties such as name, position, size, visibility, opacity, and corner radius, on one node (nodeId) or the same patch on several (nodeIds, which wins if both are given; repeats are applied once). Works in design files, FigJam and Slides; refused in Dev Mode. Every node is found and every property checked before anything is written, so a missing id or an unsupported property changes nothing — but the Plugin API has no rollback, so if Figma itself rejects a value part-way, earlier nodes keep their change. One node returns { nodeId, nodeName, applied }; several return { updatedCount, results }. Use set_solid_fill or set_gradient_fill to change paints. When multiple files are connected, specify fileKey.",
+    setNodePropertiesShape.shape,
     async (args): Promise<ToolResult> => {
       const parsed = parseToolInput(toolInputSchemas.set_node_properties, args);
       if (!parsed.success) return parsed.error;
-      const { nodeId, fileKey, ...properties } = parsed.data;
+      const { nodeId, nodeIds, fileKey, ...properties } = parsed.data;
+      const ids = nodeIds ?? (nodeId !== undefined ? [nodeId] : []);
       return renderResponse(() =>
-        node.sendWithParams("set_node_properties", [nodeId], properties, fileKey)
+        node.sendWithParams("set_node_properties", ids, properties, fileKey)
       );
     }
   );
@@ -576,7 +616,7 @@ export function registerTools(server: McpServer, node: Node, port: number): void
 
   server.tool(
     "set_auto_layout",
-    "Configure auto-layout on a frame: direction, gap, padding, alignment, sizing modes, wrap. Set layoutMode='NONE' to disable auto-layout on the frame.",
+    "Configure auto-layout on a frame: direction, gap, padding, alignment, sizing modes, wrap. Set layoutMode='NONE' to disable auto-layout on the frame. Not supported on SECTION nodes (Figma's API has no section auto-layout).",
     setAutoLayoutInput.shape,
     async (args): Promise<ToolResult> => {
       const parsed = parseToolInput(toolInputSchemas.set_auto_layout, args);
@@ -661,6 +701,30 @@ export function registerTools(server: McpServer, node: Node, port: number): void
   );
 
   server.tool(
+    "create_svg",
+    "Insert SVG as editable vector layers — design files only (refused in FigJam, Slides and Dev Mode), from raw <svg> markup or a .svg file inside the MCP server working directory; URLs and data URIs are not fetched, and the SVG is limited to 2 MiB (2097152 UTF-8 bytes). Figma's own SVG importer does the parsing, so anything it cannot import fails without leaving a node behind. You can set the parent, position (relative to that parent), width and/or height (one alone keeps the other), and name. Returns the new frame's id, type, size and child count. When multiple files are connected, specify fileKey.",
+    createSvgInput.shape,
+    async ({ source, fileKey, ...params }): Promise<ToolResult> => {
+      try {
+        const svgText = await loadSvgSource(source, process.cwd());
+        return await renderResponse(() =>
+          node.sendWithParams("create_svg", undefined, { ...params, svgText }, fileKey)
+        );
+      } catch (err) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: err instanceof Error ? err.message : String(err),
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
     "import_html_layers",
     "Import a DOM serialization (JSON produced by html-figma's browser htmlToFigma()) as editable Figma layers inside a new wrapper frame — frames, text, rectangles, and SVG vectors in one call. Source must be a JSON file path inside the MCP server working directory. Optionally append the wrapper into an existing frame/section via parentId. Requires the plugin to be open in the design editor. When multiple files are connected, specify fileKey.",
     importHtmlLayersInput.shape,
@@ -686,11 +750,88 @@ export function registerTools(server: McpServer, node: Node, port: number): void
 
   server.tool(
     "duplicate_nodes",
-    "Duplicate one or more nodes in place. The duplicates remain under the same parent as the originals. When multiple files are connected, specify fileKey.",
+    "Duplicate one or more nodes in place, each copy beside its original under the same parent; layers inside an instance are refused, since Figma cannot add a copy there. Every node is checked before the first copy, and if any copy fails, every copy made by the call is removed. When multiple files are connected, specify fileKey.",
     toolInputSchemas.duplicate_nodes.shape,
     async ({ nodeIds, fileKey }): Promise<ToolResult> => {
       return renderResponse(() =>
         node.sendWithParams("duplicate_nodes", nodeIds, undefined, fileKey)
+      );
+    }
+  );
+
+  server.tool(
+    "duplicate_with_offset",
+    "Duplicate nodes and move each copy by offsetX/offsetY from its original, in that original's parent. Works in design files, FigJam and Slides; refused in Dev Mode, for nodes placed by an auto-layout parent and for layers inside an instance. If any copy fails, every copy made by the call is removed. Returns each source id with its copy's id and position. When multiple files are connected, specify fileKey.",
+    duplicateWithOffsetInput.shape,
+    async ({ nodeIds, offsetX, offsetY, fileKey }): Promise<ToolResult> => {
+      return renderResponse(() =>
+        node.sendWithParams("duplicate_with_offset", nodeIds, { offsetX, offsetY }, fileKey)
+      );
+    }
+  );
+
+  server.tool(
+    "fit_to_content",
+    "Resize a SECTION to wrap its children with optional padding (default 0) — sections only, in design files and FigJam; refused in Slides and Dev Mode, and for frames use set_auto_layout hug sizing instead. The section keeps its position: its children are moved so their bounding box starts at the padding, then the section is resized to that box plus padding on each side, so the content shifts on the canvas — this is not a crop. Rotated children are refused; an empty section shrinks to twice the padding (at least 0.01). When multiple files are connected, specify fileKey.",
+    fitToContentInput.shape,
+    async ({ nodeId, padding, fileKey }): Promise<ToolResult> => {
+      return renderResponse(() =>
+        node.sendWithParams("fit_to_content", [nodeId], { padding }, fileKey)
+      );
+    }
+  );
+
+  server.tool(
+    "distribute_horizontally",
+    "Space three or more existing nodes with equal horizontal gaps between their edges, keeping the leftmost and rightmost exactly where they are. Works in design files, FigJam and Slides; refused in Dev Mode. The nodes must share one parent that does not use auto-layout, and must not be rotated: x/y are relative to that parent, and a rotated node's width and height are not its extent. Anything else is refused before a node moves. The gap can come out negative when the nodes overlap more than the span allows. Returns the gap and the nodes that moved. When multiple files are connected, specify fileKey.",
+    distributeInput.shape,
+    async ({ nodeIds, fileKey }): Promise<ToolResult> => {
+      return renderResponse(() =>
+        node.sendWithParams("distribute_horizontally", nodeIds, undefined, fileKey)
+      );
+    }
+  );
+
+  server.tool(
+    "distribute_vertically",
+    "Space three or more existing nodes with equal vertical gaps between their edges, keeping the topmost and bottommost exactly where they are. Works in design files, FigJam and Slides; refused in Dev Mode. The nodes must share one parent that does not use auto-layout, and must not be rotated: x/y are relative to that parent, and a rotated node's width and height are not its extent. Anything else is refused before a node moves. The gap can come out negative when the nodes overlap more than the span allows. Returns the gap and the nodes that moved. When multiple files are connected, specify fileKey.",
+    distributeInput.shape,
+    async ({ nodeIds, fileKey }): Promise<ToolResult> => {
+      return renderResponse(() =>
+        node.sendWithParams("distribute_vertically", nodeIds, undefined, fileKey)
+      );
+    }
+  );
+
+  server.tool(
+    "align_to_grid",
+    "Snap each node's x and y, relative to its parent, to the nearest multiple of gridSize. Works in design files, FigJam and Slides; refused in Dev Mode. Nodes placed by an auto-layout parent are refused, since the parent decides their position. When multiple files are connected, specify fileKey.",
+    alignToGridInput.shape,
+    async ({ nodeIds, gridSize, fileKey }): Promise<ToolResult> => {
+      return renderResponse(() =>
+        node.sendWithParams("align_to_grid", nodeIds, { gridSize }, fileKey)
+      );
+    }
+  );
+
+  server.tool(
+    "place_below",
+    "Move a node directly below a reference node (relativeToId) with an optional gap (default 0), aligned to the reference's left edge (align: start, default) or centred under it (align: center). Works in design files, FigJam and Slides; refused in Dev Mode. The nodes must share one parent that does not use auto-layout, and must not be rotated: x/y are relative to that parent, and a rotated node's width and height are not its extent. Anything else is refused before a node moves. When multiple files are connected, specify fileKey.",
+    placeBelowInput.shape,
+    async ({ nodeId, relativeToId, gap, align, fileKey }): Promise<ToolResult> => {
+      return renderResponse(() =>
+        node.sendWithParams("place_below", [nodeId], { relativeToId, gap, align }, fileKey)
+      );
+    }
+  );
+
+  server.tool(
+    "place_right_of",
+    "Move a node directly to the right of a reference node (relativeToId) with an optional gap (default 0), aligned to the reference's top edge (align: start, default) or centred beside it (align: center). Works in design files, FigJam and Slides; refused in Dev Mode. The nodes must share one parent that does not use auto-layout, and must not be rotated: x/y are relative to that parent, and a rotated node's width and height are not its extent. Anything else is refused before a node moves. When multiple files are connected, specify fileKey.",
+    placeRightOfInput.shape,
+    async ({ nodeId, relativeToId, gap, align, fileKey }): Promise<ToolResult> => {
+      return renderResponse(() =>
+        node.sendWithParams("place_right_of", [nodeId], { relativeToId, gap, align }, fileKey)
       );
     }
   );
@@ -953,16 +1094,19 @@ export function registerTools(server: McpServer, node: Node, port: number): void
 
   server.tool(
     "create_sticky",
-    "Create a FigJam sticky note. FigJam boards only — refused in design files and Slides; list_files shows each file's editorType. Returns the new node's id and type. When multiple files are connected, specify fileKey.",
-    toolInputSchemas.create_sticky.shape,
-    async ({ fileKey, ...params }): Promise<ToolResult> => {
+    "Create a FigJam sticky note. FigJam boards only — refused in design files and Slides; list_files shows each file's editorType. Set its text (or characters), name, wide shape (isWideWidth), and a parent section or frame — x/y are then relative to that parent. A bad parent creates nothing. Returns the new node's id, type, parentId, position and size. When multiple files are connected, specify fileKey.",
+    createStickyShape.shape,
+    async (args): Promise<ToolResult> => {
+      const parsed = parseToolInput(createStickyInput, args);
+      if (!parsed.success) return parsed.error;
+      const { fileKey, ...params } = parsed.data;
       return renderResponse(() => node.sendWithParams("create_sticky", undefined, params, fileKey));
     }
   );
 
   server.tool(
     "create_shape_with_text",
-    "Create a FigJam shape with text inside it — the flowchart building block, with shapes such as SQUARE, DIAMOND, ELLIPSE and ENG_DATABASE. FigJam boards only — refused in design files and Slides; use create_shape for design files. Returns the new node's id and type; pass it to create_connector to join shapes. When multiple files are connected, specify fileKey.",
+    "Create a FigJam shape with text inside it — the flowchart building block, with shapes such as SQUARE (default), DIAMOND, ELLIPSE and ENG_DATABASE. FigJam boards only — refused in design files and Slides; use create_shape for design files. Optional name, parent (x/y become relative to it), size (width and height together), rotation, fill and stroke colors and opacities, stroke weight, and the label's font family/style/size and text color. Anything that fails removes the shape again. Returns the new node's id, type, parentId, position and size; pass the id to create_connector to join shapes. When multiple files are connected, specify fileKey.",
     createShapeWithTextShape.shape,
     async (args): Promise<ToolResult> => {
       const parsed = parseToolInput(createShapeWithTextInput, args);
@@ -976,9 +1120,12 @@ export function registerTools(server: McpServer, node: Node, port: number): void
 
   server.tool(
     "create_connector",
-    "Connect two nodes on a FigJam board with a connector, optionally labelled. FigJam boards only — refused in design files and Slides. Both endpoints must already exist in the same file; the connector attaches to them, so it follows when they move. Returns the connector's id and type. When multiple files are connected, specify fileKey.",
-    toolInputSchemas.create_connector.shape,
-    async ({ fileKey, ...params }): Promise<ToolResult> => {
+    "Draw a connector on a FigJam board, optionally labelled. FigJam boards only — refused in design files and Slides. Each end is either a node (startNodeId/endNodeId, with an optional side: startAnchor/endAnchor top, bottom, left, right or auto) — the connector attaches and follows it when it moves — or a free point (startX+startY/endX+endY), relative to the connector's parent. Endpoint nodes must exist on the page the connector goes to. Optional name, parent section or frame, stroke color and weight. Figma keeps a connector with a node end in the closest container its ends share, so with a parent the endpoint nodes must sit inside it; if Figma places the connector elsewhere, it is removed and the error names where it went. A failure removes the connector again. Returns the connector's id, type, parentId and the endpoint node ids. When multiple files are connected, specify fileKey.",
+    createConnectorShape.shape,
+    async (args): Promise<ToolResult> => {
+      const parsed = parseToolInput(createConnectorInput, args);
+      if (!parsed.success) return parsed.error;
+      const { fileKey, ...params } = parsed.data;
       return renderResponse(() =>
         node.sendWithParams("create_connector", undefined, params, fileKey)
       );
@@ -987,7 +1134,7 @@ export function registerTools(server: McpServer, node: Node, port: number): void
 
   server.tool(
     "create_section",
-    "Create a section in a FigJam board or a design file. Refused in Slides. Sections group content on the canvas; move nodes into one with reparent_nodes. Returns the new node's id and type. When multiple files are connected, specify fileKey.",
+    "Create a section in a FigJam board or a design file. Refused in Slides. Sections group content on the canvas; move nodes into one with reparent_nodes, and wrap it around them with fit_to_content. Optional name, parent (x/y become relative to it), size (width and height together), background color and opacity, and sectionContentsHidden. A bad parent creates nothing. Returns the new node's id, type, parentId, position and size. When multiple files are connected, specify fileKey.",
     createSectionShape.shape,
     async (args): Promise<ToolResult> => {
       const parsed = parseToolInput(createSectionInput, args);

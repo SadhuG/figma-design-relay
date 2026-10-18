@@ -8,6 +8,8 @@ import {
   capFor,
   fontLoader,
   labelFont,
+  magnetFor,
+  type ConnectorAnchor,
   placementOrigin,
   readDiagramPayload,
   removeOnFailure,
@@ -26,11 +28,32 @@ import {
   whoami,
   type SearchRoots,
 } from "./library";
+import {
+  getPrototypeConnections,
+  scanPrototype,
+  tracePrototypeFlow,
+  type PrototypeContext,
+} from "./prototype";
+import { createSvg, type SvgPlacement } from "./svg";
+import {
+  applyNodeProperties,
+  preflightNodeProperties,
+  readNodePropertyPatch,
+} from "./node-properties";
+import {
+  assertDuplicableInPlace,
+  executeLayoutAction,
+  keepBesideOriginal,
+  type LayoutParams,
+} from "./layout-actions";
+import { assertTextPropertiesSupported, getTextTargetById, type TextTarget } from "./text-target";
 
 export type RequestType =
   | "get_document"
   | "get_selection"
   | "get_node"
+  | "get_prototype_connections"
+  | "trace_prototype_flow"
   | "get_layout_tree"
   | "get_styles"
   | "get_metadata"
@@ -51,8 +74,16 @@ export type RequestType =
   | "create_text"
   | "create_shape"
   | "create_image"
+  | "create_svg"
   | "import_html_layers"
   | "duplicate_nodes"
+  | "duplicate_with_offset"
+  | "fit_to_content"
+  | "distribute_horizontally"
+  | "distribute_vertically"
+  | "align_to_grid"
+  | "place_below"
+  | "place_right_of"
   | "reparent_nodes"
   | "group_nodes"
   | "ungroup_node"
@@ -89,6 +120,11 @@ type ServerRequestParams = Record<string, unknown> & {
    */
   clip?: boolean;
   depth?: number;
+  maxNodes?: number;
+  includeEmpty?: boolean;
+  includePrototype?: boolean;
+  maxScreens?: number;
+  maxNodesPerScreen?: number;
   styleId?: string;
   animationStyleId?: string;
   animationStyleData?: Record<string, unknown>;
@@ -178,9 +214,6 @@ const serializeVariableValue = (value: VariableValue): unknown => {
 const isSceneNode = (node: BaseNode | null): node is SceneNode =>
   node !== null && node.type !== "DOCUMENT" && node.type !== "PAGE";
 
-const isTextNode = (node: BaseNode | null): node is TextNode =>
-  node !== null && node.type === "TEXT";
-
 const getSceneNodeById = async (nodeId: string): Promise<SceneNode> => {
   const node = await figma.getNodeByIdAsync(nodeId);
   if (!isSceneNode(node)) {
@@ -189,13 +222,9 @@ const getSceneNodeById = async (nodeId: string): Promise<SceneNode> => {
   return node;
 };
 
-const getTextNodeById = async (nodeId: string): Promise<TextNode> => {
-  const node = await figma.getNodeByIdAsync(nodeId);
-  if (!isTextNode(node)) {
-    throw new Error(`Text node not found: ${nodeId}`);
-  }
-  return node;
-};
+/** A text tool's target, resolved through the injected lookup in text-target.ts. */
+const findTextTarget = (nodeId: string, toolName: string): Promise<TextTarget> =>
+  getTextTargetById(nodeId, toolName, (id) => figma.getNodeByIdAsync(id));
 
 const supportsChildren = (node: BaseNode): node is BaseNode & ChildrenMixin =>
   "appendChild" in node;
@@ -299,7 +328,7 @@ const buildGradientPaint = (
   return paint;
 };
 
-const loadFontsForTextNode = async (node: TextNode): Promise<void> => {
+const loadFontsForTextNode = async (node: TextNode | TextSublayerNode): Promise<void> => {
   const fonts = new Map<string, FontName>();
 
   if (node.characters.length > 0) {
@@ -309,7 +338,9 @@ const loadFontsForTextNode = async (node: TextNode): Promise<void> => {
   } else if (typeof node.fontName !== "symbol") {
     fonts.set(`${node.fontName.family}::${node.fontName.style}`, node.fontName);
   } else {
-    throw new Error(`Cannot determine font for empty mixed-font text node: ${node.id}`);
+    throw new Error(
+      `Cannot determine font for empty mixed-font text node: ${"id" in node ? node.id : "text sublayer"}`
+    );
   }
 
   await Promise.all([...fonts.values()].map((font) => figma.loadFontAsync(font)));
@@ -321,7 +352,11 @@ const ensureFont = async (family: string, style: string): Promise<FontName> => {
   return font;
 };
 
-const applyTextFill = (node: TextNode, fillHex: string, fillOpacity?: number): void => {
+const applyTextFill = (
+  node: TextNode | TextSublayerNode,
+  fillHex: string,
+  fillOpacity?: number
+): void => {
   node.fills = [
     {
       type: "SOLID",
@@ -378,6 +413,76 @@ const describeCreated = (node: SceneNode) => ({
   width: node.width,
   height: node.height,
 });
+
+const isFigJam = (): boolean => figma.editorType === "figjam";
+
+/** The Figma lookups prototype.ts takes, so it never names the global itself. */
+const prototypeContext = (): PrototypeContext => ({
+  getNodeByIdAsync: (id) => figma.getNodeByIdAsync(id),
+  getVariableByIdAsync: (id) => figma.variables.getVariableByIdAsync(id),
+  getVariableCollectionByIdAsync: (id) => figma.variables.getVariableCollectionByIdAsync(id),
+  fileName: figma.root.name,
+  fileKey: figma.fileKey,
+});
+
+/** A prototype root or start, with an error that says how to find a real id. */
+const findPrototypeNode = async (nodeId: string): Promise<BaseNode> => {
+  let node: BaseNode | null = null;
+  try {
+    node = await figma.getNodeByIdAsync(nodeId);
+  } catch {
+    node = null;
+  }
+  if (!node) {
+    throw new Error(
+      `Node ${nodeId} not found in this file. Check the id with get_document or get_selection, and the fileKey with list_files.`
+    );
+  }
+  return node;
+};
+
+/** A numeric option, or undefined so the module's default applies. */
+const numberParam = (value: unknown): number | undefined =>
+  typeof value === "number" && Number.isFinite(value) ? value : undefined;
+
+/** One end of a create_connector: a node it attaches to, or a free point in the parent. */
+type ConnectorEnd =
+  { kind: "node"; nodeId: string; anchor?: ConnectorAnchor } | { kind: "point"; position: Vector };
+
+/** A creator's parent, resolved (and its page loaded) before anything is created. */
+const optionalParent = async (
+  parentId: unknown
+): Promise<(BaseNode & ChildrenMixin) | undefined> =>
+  typeof parentId === "string" ? getParentNodeById(parentId) : undefined;
+
+/** The page a node sits on, or the node itself when it is a page. */
+const pageOf = (node: BaseNode): PageNode | null => {
+  for (let current: BaseNode | null = node; current; current = current.parent) {
+    if (current.type === "PAGE") return current as PageNode;
+  }
+  return null;
+};
+
+/**
+ * Figma reads an unattached connector end as a canvas location, while
+ * create_connector takes it relative to the parent: map it through the
+ * parent's transform. A page's space is the canvas.
+ */
+const toCanvasPoint = (parent: BaseNode | undefined, { x, y }: Vector): Vector => {
+  if (!parent || parent.type === "PAGE" || !("absoluteTransform" in parent)) return { x, y };
+  const [[a, b, tx], [c, d, ty]] = (parent as SceneNode).absoluteTransform;
+  return { x: a * x + b * y + tx, y: c * x + d * y + ty };
+};
+
+/**
+ * The free end of a connector whose other end is a node. Figma keeps such a
+ * connector in the closest container its two ends share, and a bare position
+ * belongs to the page, so in a section it would move to the page. Anchored to
+ * the parent instead, the point stays in it, and Figma reads the position in
+ * the parent's own coordinates — no canvas mapping.
+ */
+const freeEndBesideNode = (parent: BaseNode | undefined, position: Vector): ConnectorEndpoint =>
+  parent && parent.type !== "PAGE" ? { endpointNodeId: parent.id, position } : { position };
 
 /** Caps, stroke and label shared by node-to-node edges and free segments. */
 const styleConnector = async (
@@ -437,21 +542,90 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
         if (!node || node.type === "DOCUMENT") {
           throw new Error(`Node not found: ${nodeId}`);
         }
+        // The prototype scan is opt-in and has its own gate: plain get_node
+        // runs in every editor, the scan only where prototypes exist.
+        const includePrototype = request.params?.includePrototype === true;
+        if (includePrototype) {
+          assertEditorSupports("get_node_prototype", figma.editorType as EditorType);
+        }
         if (node.type === "PAGE") {
           await node.loadAsync();
+        }
+        const data = await serializeNode(node as SceneNode);
+        if (!includePrototype) {
+          return { type: request.type, requestId: request.requestId, data };
         }
         return {
           type: request.type,
           requestId: request.requestId,
-          data: await serializeNode(node as SceneNode),
+          data: {
+            ...data,
+            prototype: await scanPrototype(
+              node as PageNode | SceneNode,
+              undefined,
+              prototypeContext()
+            ),
+          },
+        };
+      }
+      case "get_prototype_connections": {
+        const nodeId = request.nodeIds?.[0];
+        const root = nodeId ? await findPrototypeNode(nodeId) : figma.currentPage;
+        return {
+          type: request.type,
+          requestId: request.requestId,
+          data: await getPrototypeConnections(
+            root as PageNode | SceneNode,
+            {
+              maxNodes: numberParam(request.params?.maxNodes),
+              includeEmpty: request.params?.includeEmpty === true,
+            },
+            prototypeContext()
+          ),
+        };
+      }
+      case "trace_prototype_flow": {
+        const nodeId = request.nodeIds?.[0];
+        if (!nodeId) {
+          throw new Error(
+            "trace_prototype_flow requires a node id: pass the screen to start from."
+          );
+        }
+        return {
+          type: request.type,
+          requestId: request.requestId,
+          data: await tracePrototypeFlow(
+            (await findPrototypeNode(nodeId)) as SceneNode,
+            {
+              maxScreens: numberParam(request.params?.maxScreens),
+              maxNodesPerScreen: numberParam(request.params?.maxNodesPerScreen),
+            },
+            prototypeContext()
+          ),
         };
       }
       case "get_styles": {
+        // FigJam boards may lack some style APIs. There, return the categories
+        // that work and name the ones that did not; a design file still fails
+        // loudly, since a missing category there is a real error.
+        const figjam = isFigJam();
+        const notes: string[] = [];
+        const readCategory = async <T>(label: string, load: () => Promise<T[]>): Promise<T[]> => {
+          if (!figjam) return load();
+          try {
+            return await load();
+          } catch (err) {
+            const reason = err instanceof Error ? err.message : String(err);
+            notes.push(`${label} styles could not be read in this FigJam board: ${reason}`);
+            return [];
+          }
+        };
         const [paintStyles, textStyles, effectStyles, gridStyles] = await Promise.all([
-          figma.getLocalPaintStylesAsync(),
-          figma.getLocalTextStylesAsync(),
-          figma.getLocalEffectStylesAsync(),
-          figma.getLocalGridStylesAsync(),
+          readCategory("Paint", () => figma.getLocalPaintStylesAsync()),
+          readCategory("Text", () => figma.getLocalTextStylesAsync()),
+          readCategory("Effect", () => figma.getLocalEffectStylesAsync()),
+          // FigJam has no layout grids, so their styles are not asked for.
+          figjam ? Promise.resolve([] as GridStyle[]) : figma.getLocalGridStylesAsync(),
         ]);
         return {
           type: request.type,
@@ -481,6 +655,7 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
               name: style.name,
               layoutGrids: style.layoutGrids,
             })),
+            ...(notes.length > 0 ? { notes } : {}),
           },
         };
       }
@@ -557,41 +732,58 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
         };
       }
       case "get_variable_defs": {
-        const collections = await figma.variables.getLocalVariableCollectionsAsync();
-        const variableData = await Promise.all(
-          collections.map(async (collection) => {
-            const variables = await Promise.all(
-              collection.variableIds.map((id) => figma.variables.getVariableByIdAsync(id))
-            );
-            return {
-              id: collection.id,
-              name: collection.name,
-              modes: collection.modes.map((mode) => ({
-                modeId: mode.modeId,
-                name: mode.name,
-              })),
-              variables: variables
-                .filter((v): v is Variable => v !== null)
-                .map((variable) => ({
-                  id: variable.id,
-                  name: variable.name,
-                  resolvedType: variable.resolvedType,
-                  valuesByMode: Object.fromEntries(
-                    Object.entries(variable.valuesByMode).map(([modeId, value]) => [
-                      modeId,
-                      serializeVariableValue(value),
-                    ])
-                  ),
+        const readCollections = async () => {
+          const collections = await figma.variables.getLocalVariableCollectionsAsync();
+          return Promise.all(
+            collections.map(async (collection) => {
+              const variables = await Promise.all(
+                collection.variableIds.map((id) => figma.variables.getVariableByIdAsync(id))
+              );
+              return {
+                id: collection.id,
+                name: collection.name,
+                modes: collection.modes.map((mode) => ({
+                  modeId: mode.modeId,
+                  name: mode.name,
                 })),
-            };
-          })
-        );
+                variables: variables
+                  .filter((v): v is Variable => v !== null)
+                  .map((variable) => ({
+                    id: variable.id,
+                    name: variable.name,
+                    resolvedType: variable.resolvedType,
+                    valuesByMode: Object.fromEntries(
+                      Object.entries(variable.valuesByMode).map(([modeId, value]) => [
+                        modeId,
+                        serializeVariableValue(value),
+                      ])
+                    ),
+                  })),
+              };
+            })
+          );
+        };
+        let collections: Awaited<ReturnType<typeof readCollections>>;
+        try {
+          collections = await readCollections();
+        } catch (err) {
+          // FigJam may not offer the variables API at all: say so instead of
+          // failing. In a design file the error stands.
+          if (!isFigJam()) throw err;
+          const reason = err instanceof Error ? err.message : String(err);
+          return {
+            type: request.type,
+            requestId: request.requestId,
+            data: {
+              collections: [],
+              note: `Variables could not be read in this FigJam board (${reason}). get_styles and get_document still work here.`,
+            },
+          };
+        }
         return {
           type: request.type,
           requestId: request.requestId,
-          data: {
-            collections: variableData,
-          },
+          data: { collections },
         };
       }
       case "get_screenshot": {
@@ -699,20 +891,20 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
           throw new Error("text is required for set_text_content");
         }
 
-        const node = await getTextNodeById(nodeId);
-        await loadFontsForTextNode(node);
+        const target = await findTextTarget(nodeId, "set_text_content");
+        await loadFontsForTextNode(target.text);
 
-        const previousCharacters = node.characters;
-        node.characters = text;
+        const previousCharacters = target.text.characters;
+        target.text.characters = text;
 
         return {
           type: request.type,
           requestId: request.requestId,
           data: {
-            nodeId: node.id,
-            nodeName: node.name,
+            nodeId: target.node.id,
+            nodeName: target.node.name,
             previousCharacters,
-            characters: node.characters,
+            characters: target.text.characters,
           },
         };
       }
@@ -722,14 +914,17 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
           throw new Error("nodeIds is required for set_text_properties");
         }
 
-        const node = await getTextNodeById(nodeId);
+        const target = await findTextTarget(nodeId, "set_text_properties");
+        const text = target.text;
         const params = request.params ?? {};
         const applied: Record<string, unknown> = {};
+        // Refuse what the target cannot take before the first write.
+        assertTextPropertiesSupported(target, params);
 
-        await loadFontsForTextNode(node);
+        await loadFontsForTextNode(text);
 
         if (typeof params.fontFamily === "string" || typeof params.fontStyle === "string") {
-          const currentFontName = typeof node.fontName === "symbol" ? null : node.fontName;
+          const currentFontName = typeof text.fontName === "symbol" ? null : text.fontName;
           const nextFamily =
             typeof params.fontFamily === "string" ? params.fontFamily : currentFontName?.family;
           const nextStyle =
@@ -741,68 +936,81 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
             );
           }
 
-          node.fontName = await ensureFont(nextFamily, nextStyle);
-          applied.fontName = node.fontName;
+          text.fontName = await ensureFont(nextFamily, nextStyle);
+          applied.fontName = text.fontName;
         }
 
         if (typeof params.fontSize === "number") {
-          node.fontSize = params.fontSize;
-          applied.fontSize = node.fontSize;
+          text.fontSize = params.fontSize;
+          applied.fontSize = text.fontSize;
         }
 
         if (
-          params.textAlignHorizontal === "LEFT" ||
-          params.textAlignHorizontal === "CENTER" ||
-          params.textAlignHorizontal === "RIGHT" ||
-          params.textAlignHorizontal === "JUSTIFIED"
+          params.textAlignHorizontal !== undefined ||
+          params.textAlignVertical !== undefined ||
+          params.textAutoResize !== undefined
         ) {
-          node.textAlignHorizontal = params.textAlignHorizontal;
-          applied.textAlignHorizontal = node.textAlignHorizontal;
-        }
+          if (target.kind !== "text") {
+            throw new Error(
+              "textAlignHorizontal/textAlignVertical/textAutoResize are only supported on TEXT nodes — they do not exist on STICKY/SHAPE_WITH_TEXT text"
+            );
+          }
+          const node = target.node;
+          if (
+            params.textAlignHorizontal === "LEFT" ||
+            params.textAlignHorizontal === "CENTER" ||
+            params.textAlignHorizontal === "RIGHT" ||
+            params.textAlignHorizontal === "JUSTIFIED"
+          ) {
+            node.textAlignHorizontal = params.textAlignHorizontal;
+            applied.textAlignHorizontal = node.textAlignHorizontal;
+          }
 
-        if (
-          params.textAlignVertical === "TOP" ||
-          params.textAlignVertical === "CENTER" ||
-          params.textAlignVertical === "BOTTOM"
-        ) {
-          node.textAlignVertical = params.textAlignVertical;
-          applied.textAlignVertical = node.textAlignVertical;
-        }
+          if (
+            params.textAlignVertical === "TOP" ||
+            params.textAlignVertical === "CENTER" ||
+            params.textAlignVertical === "BOTTOM"
+          ) {
+            node.textAlignVertical = params.textAlignVertical;
+            applied.textAlignVertical = node.textAlignVertical;
+          }
 
-        if (
-          params.textAutoResize === "NONE" ||
-          params.textAutoResize === "WIDTH_AND_HEIGHT" ||
-          params.textAutoResize === "HEIGHT" ||
-          params.textAutoResize === "TRUNCATE"
-        ) {
-          node.textAutoResize = params.textAutoResize;
-          applied.textAutoResize = node.textAutoResize;
+          if (
+            params.textAutoResize === "NONE" ||
+            params.textAutoResize === "WIDTH_AND_HEIGHT" ||
+            params.textAutoResize === "HEIGHT" ||
+            params.textAutoResize === "TRUNCATE"
+          ) {
+            node.textAutoResize = params.textAutoResize;
+            applied.textAutoResize = node.textAutoResize;
+          }
         }
 
         if (typeof params.lineHeightPx === "number") {
-          node.lineHeight = {
+          text.lineHeight = {
             unit: "PIXELS",
             value: params.lineHeightPx,
           };
-          applied.lineHeight = node.lineHeight;
+          applied.lineHeight = text.lineHeight;
         }
 
         if (typeof params.letterSpacingPx === "number") {
-          node.letterSpacing = {
+          text.letterSpacing = {
             unit: "PIXELS",
             value: params.letterSpacingPx,
           };
-          applied.letterSpacing = node.letterSpacing;
+          applied.letterSpacing = text.letterSpacing;
         }
 
         if (typeof params.fillHex === "string") {
           const fillOpacity =
             typeof params.fillOpacity === "number" ? params.fillOpacity : undefined;
-          applyTextFill(node, params.fillHex, fillOpacity);
+          applyTextFill(text, params.fillHex, fillOpacity);
           applied.fillHex = params.fillHex;
           applied.fillOpacity = fillOpacity ?? 1;
         }
 
+        const node = target.node;
         if (typeof params.x === "number" || typeof params.y === "number") {
           positionNode(node, params.x, params.y);
           applied.x = node.x;
@@ -826,87 +1034,30 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
         };
       }
       case "set_node_properties": {
-        const nodeId = request.nodeIds && request.nodeIds[0];
-        if (!nodeId) {
-          throw new Error("nodeIds is required for set_node_properties");
+        // Each id once, in the order first given.
+        const nodeIds = [...new Set(request.nodeIds ?? [])];
+        if (nodeIds.length === 0) {
+          throw new Error("set_node_properties requires nodeId or nodeIds.");
         }
-
-        const node = await getSceneNodeById(nodeId);
-        const params = request.params ?? {};
-        const applied: Record<string, unknown> = {};
-        const hasUpdates = Object.keys(params).length > 0;
-
-        if (!hasUpdates) {
+        const patch = readNodePropertyPatch(request.params ?? {});
+        if (Object.keys(patch).length === 0) {
           throw new Error("At least one property is required for set_node_properties");
         }
 
-        if (typeof params.name === "string") {
-          node.name = params.name;
-          applied.name = node.name;
-        }
+        // Resolve and check every node before writing to any, so a missing id
+        // or an unsupported property cannot leave part of the batch applied.
+        const nodes: SceneNode[] = [];
+        for (const id of nodeIds) nodes.push(await getSceneNodeById(id));
+        for (const node of nodes) preflightNodeProperties(node, patch);
 
-        if (typeof params.visible === "boolean") {
-          node.visible = params.visible;
-          applied.visible = node.visible;
-        }
-
-        if (typeof params.x === "number" || typeof params.y === "number") {
-          // The typings say every SceneNode has x/y, so TS narrows `node` to
-          // `never` here -- hence `nodeId` rather than `node.id`. The check stays
-          // because the lookup is driven by a caller-supplied id.
-          if (!("x" in node) || !("y" in node)) {
-            throw new Error(`Node does not support x/y positioning: ${nodeId}`);
-          }
-          positionNode(node, params.x, params.y);
-          applied.x = node.x;
-          applied.y = node.y;
-        }
-
-        if (typeof params.width === "number" || typeof params.height === "number") {
-          resizeNodeIfSupported(node, params.width, params.height);
-          applied.width = node.width;
-          applied.height = node.height;
-        }
-
-        if (typeof params.rotation === "number") {
-          if (!("rotation" in node)) {
-            throw new Error(`Node does not support rotation: ${node.id}`);
-          }
-          node.rotation = params.rotation;
-          applied.rotation = node.rotation;
-        }
-
-        if (typeof params.opacity === "number") {
-          if (!("opacity" in node)) {
-            throw new Error(`Node does not support opacity: ${node.id}`);
-          }
-          node.opacity = params.opacity;
-          applied.opacity = node.opacity;
-        }
-
-        if (typeof params.cornerRadius === "number") {
-          // FigJam's SHAPE_WITH_TEXT and CONNECTOR expose `cornerRadius` as
-          // read-only, so having the property is not enough to set it.
-          if (
-            !("cornerRadius" in node) ||
-            node.type === "SHAPE_WITH_TEXT" ||
-            node.type === "CONNECTOR"
-          ) {
-            throw new Error(`Node does not support setting cornerRadius: ${nodeId}`);
-          }
-          const cornerNode = node as CornerMixin;
-          cornerNode.cornerRadius = params.cornerRadius;
-          applied.cornerRadius = cornerNode.cornerRadius;
-        }
-
+        const results = nodes.map((node) => {
+          const applied = applyNodeProperties(node, patch);
+          return { nodeId: node.id, nodeName: node.name, applied };
+        });
         return {
           type: request.type,
           requestId: request.requestId,
-          data: {
-            nodeId: node.id,
-            nodeName: node.name,
-            applied,
-          },
+          data: results.length === 1 ? results[0] : { updatedCount: results.length, results },
         };
       }
       case "set_solid_fill": {
@@ -1148,6 +1299,9 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
         }
 
         const node = await getSceneNodeById(nodeId);
+        if (node.type === "SECTION") {
+          throw new Error(`Auto-layout is not supported on sections in Figma's API: ${node.id}`);
+        }
         if (!("layoutMode" in node)) {
           throw new Error(`Node does not support auto-layout: ${node.id}`);
         }
@@ -1487,6 +1641,17 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
           },
         };
       }
+      case "create_svg": {
+        const params = request.params ?? {};
+        return {
+          type: request.type,
+          requestId: request.requestId,
+          data: await createSvg(params.svgText as string, params as SvgPlacement, {
+            createNodeFromSvg: (svg) => figma.createNodeFromSvg(svg),
+            getParentNodeById,
+          }),
+        };
+      }
       case "import_html_layers": {
         const params = request.params ?? {};
         const root = params.layers as
@@ -1560,20 +1725,32 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
           throw new Error("nodeIds is required for duplicate_nodes");
         }
 
-        const duplicates = [];
+        // Check every node before the first clone, so a refusal copies nothing.
+        const originals: SceneNode[] = [];
         for (const nodeId of request.nodeIds) {
           const node = await getSceneNodeById(nodeId);
           if (!("clone" in node) || typeof node.clone !== "function") {
             throw new Error(`Node does not support duplication: ${node.id}`);
           }
-          const clone = node.clone();
-          duplicates.push({
-            sourceNodeId: node.id,
-            nodeId: clone.id,
-            nodeName: clone.name,
-            parentId: clone.parent?.id,
-          });
+          assertDuplicableInPlace("duplicate_nodes", node);
+          originals.push(node);
         }
+
+        const created: SceneNode[] = [];
+        const duplicates = await removeOnFailure(created, async () =>
+          originals.map((node) => {
+            const clone = node.clone();
+            created.push(clone);
+            // Figma puts the clone of an off-page node on the current page.
+            keepBesideOriginal(node, clone);
+            return {
+              sourceNodeId: node.id,
+              nodeId: clone.id,
+              nodeName: clone.name,
+              parentId: clone.parent?.id,
+            };
+          })
+        );
 
         return {
           type: request.type,
@@ -1584,6 +1761,23 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
           },
         };
       }
+      case "fit_to_content":
+      case "distribute_horizontally":
+      case "distribute_vertically":
+      case "align_to_grid":
+      case "place_below":
+      case "place_right_of":
+      case "duplicate_with_offset":
+        return {
+          type: request.type,
+          requestId: request.requestId,
+          data: await executeLayoutAction(
+            request.type,
+            request.nodeIds ?? [],
+            (request.params ?? {}) as LayoutParams,
+            { getSceneNodeById }
+          ),
+        };
       case "reparent_nodes": {
         if (!request.nodeIds || request.nodeIds.length === 0) {
           throw new Error("nodeIds is required for reparent_nodes");
@@ -1928,56 +2122,165 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
       }
       case "create_sticky": {
         const params = request.params ?? {};
-        const sticky = figma.createSticky();
-        // FigJam text needs its font loaded before characters change, exactly
-        // as design text does.
-        await figma.loadFontAsync(sticky.text.fontName as FontName);
-        if (typeof params.text === "string") sticky.text.characters = params.text;
-        positionNode(sticky, params.x, params.y);
-        return { type: request.type, requestId: request.requestId, data: describeCreated(sticky) };
+        // A bad parent is found before anything is created.
+        const parent = await optionalParent(params.parentId);
+        const created: SceneNode[] = [];
+        const sticky = await removeOnFailure(created, async () => {
+          const sticky = figma.createSticky();
+          created.push(sticky);
+          if (typeof params.name === "string") sticky.name = params.name;
+          if (typeof params.isWideWidth === "boolean") sticky.isWideWidth = params.isWideWidth;
+          // FigJam text needs its font loaded before characters change, exactly
+          // as design text does.
+          await figma.loadFontAsync(sticky.text.fontName as FontName);
+          if (typeof params.text === "string") sticky.text.characters = params.text;
+          parent?.appendChild(sticky);
+          positionNode(sticky, params.x, params.y);
+          return sticky;
+        });
+        return {
+          type: request.type,
+          requestId: request.requestId,
+          data: { ...describeCreated(sticky), parentId: sticky.parent?.id },
+        };
       }
       case "create_shape_with_text": {
         const params = request.params ?? {};
-        const shape = figma.createShapeWithText();
-        if (typeof params.shapeType === "string") {
-          shape.shapeType = params.shapeType as ShapeWithTextNode["shapeType"];
-        }
-        await figma.loadFontAsync(shape.text.fontName as FontName);
-        if (typeof params.text === "string") shape.text.characters = params.text;
-        if (typeof params.width === "number" && typeof params.height === "number") {
-          shape.resize(params.width, params.height);
-        }
-        positionNode(shape, params.x, params.y);
-        return { type: request.type, requestId: request.requestId, data: describeCreated(shape) };
+        const parent = await optionalParent(params.parentId);
+        const created: SceneNode[] = [];
+        const shape = await removeOnFailure(created, async () => {
+          const shape = figma.createShapeWithText();
+          created.push(shape);
+          // A new shape takes the one last picked in the toolbar; the tool
+          // promises SQUARE when none is asked for.
+          shape.shapeType =
+            typeof params.shapeType === "string"
+              ? (params.shapeType as ShapeWithTextNode["shapeType"])
+              : "SQUARE";
+          if (typeof params.name === "string") shape.name = params.name;
+          // The label's current font must be loaded before its text changes,
+          // and a new font before it is assigned.
+          await figma.loadFontAsync(shape.text.fontName as FontName);
+          if (typeof params.fontFamily === "string" || typeof params.fontStyle === "string") {
+            const current = shape.text.fontName as FontName;
+            shape.text.fontName = await ensureFont(
+              typeof params.fontFamily === "string" ? params.fontFamily : current.family,
+              typeof params.fontStyle === "string" ? params.fontStyle : current.style
+            );
+          }
+          if (typeof params.text === "string") shape.text.characters = params.text;
+          if (typeof params.fontSize === "number") shape.text.fontSize = params.fontSize;
+          if (typeof params.textFillHex === "string") {
+            applyTextFill(shape.text, params.textFillHex, numberParam(params.textFillOpacity));
+          }
+          if (typeof params.fillHex === "string") {
+            setSolidFill(shape, params.fillHex, numberParam(params.fillOpacity));
+          }
+          if (typeof params.strokeHex === "string") {
+            setSolidFill(shape, params.strokeHex, numberParam(params.strokeOpacity), "stroke");
+          }
+          if (typeof params.strokeWeight === "number") shape.strokeWeight = params.strokeWeight;
+          if (typeof params.width === "number" && typeof params.height === "number") {
+            shape.resize(params.width, params.height);
+          }
+          if (typeof params.rotation === "number") shape.rotation = params.rotation;
+          parent?.appendChild(shape);
+          positionNode(shape, params.x, params.y);
+          return shape;
+        });
+        return {
+          type: request.type,
+          requestId: request.requestId,
+          data: { ...describeCreated(shape), parentId: shape.parent?.id },
+        };
       }
       case "create_connector": {
         const params = request.params ?? {};
-        const startId = params.startNodeId;
-        const endId = params.endNodeId;
-        if (typeof startId !== "string" || typeof endId !== "string") {
-          throw new Error("create_connector requires `startNodeId` and `endNodeId`.");
-        }
-        // A connector to a missing node fails deep in the API with a message
-        // that names neither end, so check both first.
-        for (const id of [startId, endId]) {
-          const endpoint = await figma.getNodeByIdAsync(id);
+        const ends = (["start", "end"] as const).map((end): ConnectorEnd => {
+          const nodeId = params[`${end}NodeId`];
+          const x = params[`${end}X`];
+          const y = params[`${end}Y`];
+          if (typeof nodeId === "string") {
+            return {
+              kind: "node",
+              nodeId,
+              anchor: params[`${end}Anchor`] as ConnectorAnchor | undefined,
+            };
+          }
+          if (typeof x === "number" && typeof y === "number") {
+            return { kind: "point", position: { x, y } };
+          }
+          throw new Error(
+            `create_connector needs ${end}NodeId, or both ${end}X and ${end}Y, for its ${end}.`
+          );
+        });
+        const parent = await optionalParent(params.parentId);
+        // Everything a connector joins must be on the page it is drawn on;
+        // check before creating so a failure leaves nothing behind.
+        const targetPage = parent ? pageOf(parent) : figma.currentPage;
+        for (const end of ends) {
+          if (end.kind !== "node") continue;
+          const endpoint = await figma.getNodeByIdAsync(end.nodeId);
           if (!endpoint || endpoint.type === "DOCUMENT" || endpoint.type === "PAGE") {
             throw new Error(
-              `Connector endpoint ${id} is not a node on this board. Check the id with get_document and the fileKey with list_files.`
+              `Connector endpoint ${end.nodeId} is not a node on this board. Check the id with get_document and the fileKey with list_files.`
+            );
+          }
+          const endpointPage = pageOf(endpoint);
+          if (targetPage && endpointPage && endpointPage.id !== targetPage.id) {
+            throw new Error(
+              `Connector endpoint ${end.nodeId} is on another page (${endpointPage.name}). Draw the connector on that page, or move the node first.`
             );
           }
         }
-        // Attaching an end or loading the label font can still throw — an
-        // endpoint on another page, a node the API will not connect — and a
-        // failure must not leave an empty connector behind.
+        const [start, end] = ends;
         const created: SceneNode[] = [];
         const connector = await removeOnFailure(created, async () => {
           const connector = figma.createConnector();
           created.push(connector);
-          attachConnector(connector, startId, endId);
+          if (typeof params.name === "string") connector.name = params.name;
+          // Join the parent first, so node ends attach in their final parent.
+          parent?.appendChild(connector);
+          if (start.kind === "node" && end.kind === "node") {
+            attachConnector(connector, start.nodeId, end.nodeId, {
+              start: start.anchor,
+              end: end.anchor,
+            });
+          } else {
+            // A connector takes the toolbar's line type, and a straight one
+            // refuses side magnets: set it before any node end.
+            connector.connectorLineType = "ELBOWED";
+            const mixed = start.kind !== end.kind;
+            const endpoint = (connectorEnd: ConnectorEnd): ConnectorEndpoint => {
+              if (connectorEnd.kind === "node") {
+                return {
+                  endpointNodeId: connectorEnd.nodeId,
+                  magnet: magnetFor(connectorEnd.anchor),
+                };
+              }
+              return mixed
+                ? freeEndBesideNode(parent, connectorEnd.position)
+                : { position: toCanvasPoint(parent, connectorEnd.position) };
+            };
+            connector.connectorStart = endpoint(start);
+            connector.connectorEnd = endpoint(end);
+          }
+          if (typeof params.strokeHex === "string") {
+            setSolidFill(connector, params.strokeHex, undefined, "stroke");
+          }
+          if (typeof params.strokeWeight === "number") connector.strokeWeight = params.strokeWeight;
           if (typeof params.text === "string" && params.text !== "") {
             await figma.loadFontAsync(labelFont(connector.text.fontName as FontName));
             connector.text.characters = params.text;
+          }
+          // Figma moves a connector with a node end into the closest container
+          // its ends share; one that ended up elsewhere is removed, not
+          // returned under a parent nobody asked for.
+          const placed = connector.parent;
+          if (parent && placed?.id !== parent.id) {
+            throw new Error(
+              `Figma put the connector in ${placed?.name} (${placed?.id}), not in ${parent.name} (${parent.id}): a connector stays in the closest container its node ends share. Pass parentId ${placed?.id}, or move the endpoint nodes so ${parent.id} is the closest container they share.`
+            );
           }
           return connector;
         });
@@ -1988,20 +2291,38 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
             nodeId: connector.id,
             nodeName: connector.name,
             type: connector.type,
-            startNodeId: startId,
-            endNodeId: endId,
+            parentId: connector.parent?.id,
+            startNodeId: start.kind === "node" ? start.nodeId : undefined,
+            endNodeId: end.kind === "node" ? end.nodeId : undefined,
           },
         };
       }
       case "create_section": {
         const params = request.params ?? {};
-        const section = figma.createSection();
-        if (typeof params.name === "string") section.name = params.name;
-        if (typeof params.width === "number" && typeof params.height === "number") {
-          section.resizeWithoutConstraints(params.width, params.height);
-        }
-        positionNode(section, params.x, params.y);
-        return { type: request.type, requestId: request.requestId, data: describeCreated(section) };
+        const parent = await optionalParent(params.parentId);
+        const created: SceneNode[] = [];
+        const section = await removeOnFailure(created, async () => {
+          const section = figma.createSection();
+          created.push(section);
+          if (typeof params.name === "string") section.name = params.name;
+          if (typeof params.width === "number" && typeof params.height === "number") {
+            section.resizeWithoutConstraints(params.width, params.height);
+          }
+          if (typeof params.fillHex === "string") {
+            setSolidFill(section, params.fillHex, numberParam(params.fillOpacity));
+          }
+          if (typeof params.sectionContentsHidden === "boolean") {
+            section.sectionContentsHidden = params.sectionContentsHidden;
+          }
+          parent?.appendChild(section);
+          positionNode(section, params.x, params.y);
+          return section;
+        });
+        return {
+          type: request.type,
+          requestId: request.requestId,
+          data: { ...describeCreated(section), parentId: section.parent?.id },
+        };
       }
       case "render_diagram": {
         // Parsed and laid out server-side; readDiagramPayload refuses anything

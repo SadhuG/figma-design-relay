@@ -3,6 +3,7 @@ import {
   attachConnector,
   capFor,
   connectorMagnets,
+  magnetFor,
   fontLoader,
   labelFont,
   placementOrigin,
@@ -164,6 +165,38 @@ describe("attachConnector", () => {
       { endpointNodeId: "1:1", magnet: "RIGHT" },
       { endpointNodeId: "1:1", magnet: "TOP" },
     ]);
+  });
+
+  test("uses the sides a caller asks for, even from a straight toolbar setting", () => {
+    const connector = fakeConnector("STRAIGHT");
+    attachConnector(connector, "1:1", "1:2", { start: "top", end: "bottom" });
+    expect(connector.connectorLineType).toBe("ELBOWED");
+    expect(connector.ends).toEqual([
+      { endpointNodeId: "1:1", magnet: "TOP" },
+      { endpointNodeId: "1:2", magnet: "BOTTOM" },
+    ]);
+  });
+
+  test("an explicit side on one end of a self-loop keeps the default on the other", () => {
+    const connector = fakeConnector("ELBOWED");
+    attachConnector(connector, "1:1", "1:1", { start: "left" });
+    expect(connector.ends).toEqual([
+      { endpointNodeId: "1:1", magnet: "LEFT" },
+      { endpointNodeId: "1:1", magnet: "TOP" },
+    ]);
+  });
+});
+
+describe("magnetFor", () => {
+  test("maps each anchor to Figma's magnet, defaulting to AUTO", () => {
+    expect(["top", "bottom", "left", "right", "auto"].map((a) => magnetFor(a as any))).toEqual([
+      "TOP",
+      "BOTTOM",
+      "LEFT",
+      "RIGHT",
+      "AUTO",
+    ]);
+    expect(magnetFor(undefined)).toBe("AUTO");
   });
 });
 

@@ -10,8 +10,11 @@ let workspace: string;
 let outside: string;
 let previousCwd: string;
 const handlers = new Map<string, (...args: any[]) => Promise<any>>();
+/** Request types that reached the sender, i.e. would have gone to the plugin. */
+const sentTypes: string[] = [];
 const sender = {
-  async sendWithParams(_type: string, ids?: string[]) {
+  async sendWithParams(type: string, ids?: string[]) {
+    sentTypes.push(type);
     return {
       type: "get_screenshot",
       requestId: "r",
@@ -52,6 +55,7 @@ afterEach(async () => {
   process.chdir(previousCwd);
   await rm(root, { recursive: true, force: true });
   handlers.clear();
+  sentTypes.length = 0;
 });
 
 test("screenshots refuse an external directory link before creating subdirectories", async () => {
@@ -132,3 +136,19 @@ test.each(["[::ffff:127.0.0.1]", "[::ffff:10.0.0.1]", "[::ffff:192.168.1.1]", "[
 );
 
 // Transport behaviour (pinning, redirects, deadlines, size limits) is covered in image-fetch.test.ts.
+
+test("create_svg refuses an external directory link without contacting the plugin", async () => {
+  await writeFile(path.join(outside, "a.svg"), "<svg/>");
+  await symlink(outside, path.join(workspace, "linked"), "junction");
+  const result = await handlers.get("create_svg")!({ source: "linked/a.svg" });
+  expect(result.isError).toBe(true);
+  expect(result.content[0].text).toContain("inside");
+  expect(sentTypes).toEqual([]);
+});
+
+test("create_svg reads a workspace file and sends only its markup", async () => {
+  await writeFile(path.join(workspace, "a.svg"), "<svg/>");
+  const result = await handlers.get("create_svg")!({ source: "a.svg", name: "Icon" });
+  expect(result.isError).toBeUndefined();
+  expect(sentTypes).toEqual(["create_svg"]);
+});
