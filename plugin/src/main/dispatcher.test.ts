@@ -196,7 +196,8 @@ test("get_node includePrototype is refused in FigJam while plain get_node still 
   prototypeFixture();
   api.editorType = "figjam";
   const refused = await dispatch("get_node", ["1:1"], { includePrototype: true });
-  expect(refused.error).toMatch(/^get_node includePrototype requires design editor or Dev Mode/);
+  expect(refused.error).toMatch(/^get_node includePrototype requires design editor \(/);
+  expect(refused.error).not.toContain("Dev Mode");
   const plain = await dispatch("get_node", ["1:1"]);
   expect(plain.error).toBeUndefined();
   expect(plain.data).toMatchObject({ id: "1:1" });

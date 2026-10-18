@@ -342,7 +342,7 @@ export function registerTools(server: McpServer, node: Node, port: number): void
 
   server.tool(
     "get_node",
-    "Get a specific Figma node by ID. Accepts top-level IDs like '4029:12345' and instance-child IDs like 'I12740:17806;12740:17793'. Never use hyphens. Pass includePrototype: true to add a `prototype` field with the reactions on the node and its descendants, as get_prototype_connections returns them — design files and Dev Mode only; plain get_node works in every editor. When multiple files are connected, specify fileKey.",
+    "Get a specific Figma node by ID. Accepts top-level IDs like '4029:12345' and instance-child IDs like 'I12740:17806;12740:17793'. Never use hyphens. Pass includePrototype: true to add a `prototype` field with the reactions on the node and its descendants, as get_prototype_connections returns them — design files only; plain get_node works in every editor. When multiple files are connected, specify fileKey.",
     toolInputSchemas.get_node.shape,
     async ({ nodeId, fileKey, ...params }): Promise<ToolResult> => {
       return renderResponse(() => node.sendWithParams("get_node", [nodeId], params, fileKey));
@@ -351,7 +351,7 @@ export function registerTools(server: McpServer, node: Node, port: number): void
 
   server.tool(
     "get_prototype_connections",
-    "Read-only prototype inspection for design files and Dev Mode only — refused in FigJam and Slides, which have no prototypes. Lists the interactions on a node and all its descendants, including instance sublayers: each reaction is Figma's own trigger and actions (navigate/swap/overlay/scroll-to/change-to, back, close, URL, set variable/mode, conditional blocks, media), with each destination resolved to its name, screen and page, and variables and modes resolved to names. Conditions are returned as written, never evaluated. Also returns the page's flow starting points. Omit nodeId to scan the current page; maxNodes (default 5000, max 50000) bounds the scan and `truncated` says when it was hit. A destination that cannot be read is marked missing or error rather than failing the scan. When multiple files are connected, specify fileKey.",
+    "Read-only prototype inspection for design files only — refused in FigJam and Slides, which have no prototypes. Lists the interactions on a node and all its descendants, including instance sublayers: each reaction is Figma's own trigger and actions (navigate/swap/overlay/scroll-to/change-to, back, close, URL, set variable/mode, conditional blocks, media), with each destination resolved to its name, screen and page, and variables and modes resolved to names. Conditions are returned as written, never evaluated. Also returns the page's flow starting points. Omit nodeId to scan the current page; maxNodes (default 5000, max 50000) bounds the scan and `truncated` says when it was hit. A destination that cannot be read is marked missing or error rather than failing the scan. When multiple files are connected, specify fileKey.",
     toolInputSchemas.get_prototype_connections.shape,
     async ({ nodeId, fileKey, ...params }): Promise<ToolResult> => {
       return renderResponse(() =>
@@ -367,7 +367,7 @@ export function registerTools(server: McpServer, node: Node, port: number): void
 
   server.tool(
     "trace_prototype_flow",
-    "Read-only prototype trace for design files and Dev Mode only — refused in FigJam and Slides. Follows screen-to-screen navigation (navigate, swap, overlay) breadth-first from the screen containing nodeId: returns the screens reached, with depth and the node that reached them, and every interaction edge with its source node, trigger, action, enclosing conditional branches and destination screen. Conditions are not evaluated, so every branch is followed; back, close, URL, variable, media and in-screen actions are listed as edges but never followed. Screens reached again are marked as revisits; unresolvable destinations are listed. maxScreens (default 25, max 500) bounds the expansion — the rest are listed in `pending` — and maxNodesPerScreen (default 5000) each screen's scan. Start from a screen or a node inside one, not a page or section. When multiple files are connected, specify fileKey.",
+    "Read-only prototype trace for design files only — refused in FigJam and Slides. Follows screen-to-screen navigation (navigate, swap, overlay) breadth-first from the screen containing nodeId: returns the screens reached, with depth and the node that reached them, and every interaction edge with its source node, trigger, action, enclosing conditional branches and destination screen. Conditions are not evaluated, so every branch is followed; back, close, URL, variable, media and in-screen actions are listed as edges but never followed. Screens reached again are marked as revisits; unresolvable destinations are listed. maxScreens (default 25, max 500) bounds the expansion — the rest are listed in `pending` — and maxNodesPerScreen (default 5000) each screen's scan. Start from a screen or a node inside one, not a page or section. When multiple files are connected, specify fileKey.",
     toolInputSchemas.trace_prototype_flow.shape,
     async ({ nodeId, fileKey, ...params }): Promise<ToolResult> => {
       return renderResponse(() =>

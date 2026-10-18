@@ -8,7 +8,7 @@ paths:
 ## Landmarks
 
 - `plugin/src/main/code.ts:509` — the dispatcher calls `assertEditorSupports` before any tool runs.
-- `plugin/src/main/capabilities.ts:62` — `CAPABILITIES`; `:137` — `assertEditorSupports`, which
+- `plugin/src/main/capabilities.ts:64` — `CAPABILITIES`; `:148` — `assertEditorSupports`, which
   takes the editor as a parameter rather than reading `figma.editorType`, so the gate is
   unit-testable. **The table is keyed by the request type the plugin receives, not the MCP tool
   name** — `generate_diagram` arrives as `render_diagram`, and an entry under the tool name never

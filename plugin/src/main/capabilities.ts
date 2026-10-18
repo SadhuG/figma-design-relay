@@ -22,6 +22,8 @@ export interface Capability {
   reason?: string;
   /** The MCP tool to name in the refusal, when it differs from the request type. */
   tool?: string;
+  /** Reachable editors to advertise when latent support is absent from the manifest. */
+  guidanceEditors?: EditorType[];
 }
 
 const EDITOR_LABEL: Record<EditorType, string> = {
@@ -103,13 +105,22 @@ export const CAPABILITIES: Record<string, Capability> = {
   set_timeline_duration: designWrite(),
 
   // Prototype reads. Reads, so Dev Mode is allowed — the only entries that list it.
-  get_prototype_connections: { editors: PROTOTYPE_READ, reason: NO_PROTOTYPES },
-  trace_prototype_flow: { editors: PROTOTYPE_READ, reason: NO_PROTOTYPES },
+  get_prototype_connections: {
+    editors: PROTOTYPE_READ,
+    reason: NO_PROTOTYPES,
+    guidanceEditors: DESIGN_ONLY,
+  },
+  trace_prototype_flow: {
+    editors: PROTOTYPE_READ,
+    reason: NO_PROTOTYPES,
+    guidanceEditors: DESIGN_ONLY,
+  },
   // Checked only when get_node is called with includePrototype; plain get_node runs everywhere.
   get_node_prototype: {
     editors: PROTOTYPE_READ,
     reason: NO_PROTOTYPES,
     tool: "get_node includePrototype",
+    guidanceEditors: DESIGN_ONLY,
   },
 
   // FigJam only.
@@ -139,14 +150,15 @@ export const assertEditorSupports = (tool: string, editor: EditorType): void => 
   if (!capability) return;
   if (capability.editors.includes(editor)) return;
 
-  const wanted = capability.editors.map((allowed) => EDITOR_LABEL[allowed]).join(" or ");
+  const guidanceEditors = capability.guidanceEditors ?? capability.editors;
+  const wanted = guidanceEditors.map((allowed) => EDITOR_LABEL[allowed]).join(" or ");
   const because = capability.reason ? ` (${capability.reason})` : "";
   // Dev Mode sits on a design file, so a design write only needs a mode switch;
   // anything else needs a different file altogether.
   const next =
     editor === "dev" && capability.editors.includes("figma")
       ? "Dev Mode is read-only; switch to the design editor and re-run."
-      : `Run the plugin in a ${capability.editors
+      : `Run the plugin in a ${guidanceEditors
           .map((allowed) => FILE_LABEL[allowed])
           .join(" or ")} and retry, passing that file's fileKey.`;
 

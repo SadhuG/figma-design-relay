@@ -1,9 +1,12 @@
 # Reading prototypes
 
 Three read-only entry points describe a design file's prototype exactly as Figma stores it. They run
-in design files and Dev Mode; FigJam boards and Slides decks have no prototypes, so there they are
+in design files only; FigJam boards and Slides decks have no prototypes, so there they are
 refused before anything is read. Nothing here plays the prototype: conditions are returned as
 written and never evaluated.
+
+The capability table retains read-only Dev Mode support for a future manifest change, but the
+shipped plugin excludes Dev Mode because Figma does not allow it alongside FigJam.
 
 | Tool                                     | Answers                                                         |
 | ---------------------------------------- | --------------------------------------------------------------- |

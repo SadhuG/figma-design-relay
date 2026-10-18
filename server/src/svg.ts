@@ -39,8 +39,35 @@ const nodeFs: SvgFs = {
 const SVG_PROLOG_TOKENS: ReadonlyArray<readonly [open: string, close: string]> = [
   ["<?xml", "?>"],
   ["<!--", "-->"],
-  ["<!DOCTYPE", ">"],
 ];
+
+/** End of the DOCTYPE, ignoring delimiters inside quoted values, comments and subsets. */
+function doctypeEnd(source: string): number {
+  let quote = "";
+  let depth = 0;
+  for (let i = "<!DOCTYPE".length; i < source.length; i++) {
+    const char = source[i];
+    if (quote) {
+      if (char === quote) quote = "";
+      continue;
+    }
+    if (source.startsWith("<!--", i)) {
+      const end = source.indexOf("-->", i + 4);
+      if (end === -1) return -1;
+      i = end + 2;
+    } else if (char === '"' || char === "'") {
+      quote = char;
+    } else if (char === "[") {
+      depth++;
+    } else if (char === "]") {
+      if (depth === 0) return -1;
+      depth--;
+    } else if (char === ">" && depth === 0) {
+      return i + 1;
+    }
+  }
+  return -1;
+}
 
 const tooLarge = () =>
   new Error(
@@ -74,6 +101,12 @@ function isRemote(source: string): boolean {
 function hasSvgRoot(source: string): boolean {
   let rest = stripLeadingBomAndWhitespace(source);
   for (;;) {
+    if (rest.startsWith("<!DOCTYPE")) {
+      const end = doctypeEnd(rest);
+      if (end === -1) return false;
+      rest = rest.slice(end).trimStart();
+      continue;
+    }
     const token = SVG_PROLOG_TOKENS.find(([open]) => rest.startsWith(open));
     if (!token) break;
     const [open, close] = token;

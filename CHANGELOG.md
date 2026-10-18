@@ -25,7 +25,7 @@ editor gates, follower validation and file safety. Ten new tools: 64 in all.
 
 ### Added
 
-- `get_prototype_connections`, `trace_prototype_flow` and `get_node`'s `includePrototype`: read-only prototype inspection with resolved destinations, variables and modes, bounded scans and breadth-first screen traces. Design files and Dev Mode only ([guide](docs/guides/prototypes.md)).
+- `get_prototype_connections`, `trace_prototype_flow` and `get_node`'s `includePrototype`: read-only prototype inspection with resolved destinations, variables and modes, bounded scans and breadth-first screen traces. Design files only ([guide](docs/guides/prototypes.md)).
 - `create_svg`: SVG markup or a workspace `.svg` file, up to 2 MiB, as editable vector layers in design files ([guide](docs/guides/svg.md)).
 - `distribute_horizontally`, `distribute_vertically`, `align_to_grid`, `place_below`, `place_right_of`, `duplicate_with_offset` and `fit_to_content` for arranging existing nodes ([guide](docs/guides/layout.md)).
 - `set_node_properties` takes `nodeIds` to patch several nodes, checking every node and property before writing any.
@@ -42,6 +42,8 @@ editor gates, follower validation and file safety. Ten new tools: 64 in all.
 
 ### Fixed
 
+- Prototype descriptions and editor refusals advertise the shipped design-editor scope; latent Dev Mode read gates remain unit-tested.
+- SVG source preflight handles DOCTYPE internal subsets, quoted delimiters and comments.
 - `duplicate_nodes` and `duplicate_with_offset` keep a copy beside its original. Figma parents the clone of a node on another page under the current page, so copies of off-page nodes used to land on whatever page the user had open (found by the live check).
 - `duplicate_nodes` checks every node before its first copy, refuses layers inside an instance (Figma cannot add a copy there) and removes every copy it made if a later one fails, instead of leaving an unreported copy behind. `duplicate_with_offset` refuses instance layers up front too (found by review).
 - `create_connector` gives Figma free endpoints on the canvas. They are taken relative to the parent, but were passed through unchanged, so a free end inside a moved, nested or rotated section or frame was drawn in the wrong place (found by review).

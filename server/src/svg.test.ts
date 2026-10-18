@@ -51,6 +51,23 @@ describe("inline SVG", () => {
     await expect(loadSvgSource("<?xml version='1.0' <svg/>", workspace)).rejects.toThrow(/<svg>/);
   });
 
+  test.each([
+    '<!DOCTYPE svg [ <!ENTITY label "export"> ]>',
+    '<!DOCTYPE svg PUBLIC "id[>" "uri>" [ <!ENTITY label "quoted ] > ["> ]>',
+    '<!DOCTYPE svg [ <!-- misleading ] > [ --> <!ENTITY label "ok"> ]>',
+  ])("DOCTYPE scanning respects internal subsets, quotes and comments: %s", async (doctype) => {
+    const text = doctype + SVG;
+    expect(await loadSvgSource(text, workspace)).toBe(text);
+  });
+
+  test.each([
+    '<!DOCTYPE svg [ <!ENTITY label "export"> <svg/>',
+    "<!DOCTYPE svg [ <!-- unfinished ]> <svg/>",
+    '<!DOCTYPE svg PUBLIC "unfinished > <svg/>',
+  ])("an unterminated DOCTYPE is refused: %s", async (source) => {
+    await expect(loadSvgSource(source, workspace)).rejects.toThrow(/<svg>/);
+  });
+
   test("exactly the byte cap succeeds and one byte more fails, counting UTF-8 bytes", async () => {
     expect(await loadSvgSource(svgOfBytes(MAX_SVG_BYTES), workspace)).toHaveLength(
       svgOfBytes(MAX_SVG_BYTES).length

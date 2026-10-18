@@ -156,6 +156,22 @@ describe("prototype reads", () => {
     }
   });
 
+  test("prototype refusals direct users only to the shipped design editor", () => {
+    for (const tool of READS) {
+      for (const editor of ["figjam", "slides"] as const) {
+        let message = "";
+        try {
+          assertEditorSupports(tool, editor);
+        } catch (error) {
+          message = String(error);
+        }
+        expect(message).toContain("requires design editor (");
+        expect(message).toContain("Run the plugin in a design file and retry");
+        expect(message).not.toContain("Dev Mode");
+      }
+    }
+  });
+
   test("the get_node flag is named as the agent wrote it", () => {
     expect(() => assertEditorSupports("get_node_prototype", "figjam")).toThrow(
       /^get_node includePrototype requires/
