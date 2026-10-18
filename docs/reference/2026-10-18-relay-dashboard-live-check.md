@@ -5,8 +5,9 @@ merge this candidate until the checks below pass, or the user explicitly grants 
 
 ## Candidate and setup
 
-- Branch: `feat/relay-dashboard`, based on merge commit `cb44dbf` (reviewed `origin/dev`, then
-  `origin/main`); the release preparation advances both packages to 0.9.0.
+- Branch: `feat/relay-dashboard`. Merge `f645c8b` incorporates landed upstream integration
+  `43bdaef` from `origin/dev`, followed by `origin/main` (`6e18047`, already an ancestor at this
+  refresh). Both packages remain 0.9.0. The upcoming main promotion still requires a final refresh.
 - Worktree: `C:/Users/sadhu/code/figma-design-relay-relay-dashboard`.
 - Dev plugin: `Figma Design Relay (Dev: relay-dashboard, port 1996)`.
 - Stable relay and MCP configuration were not changed.
