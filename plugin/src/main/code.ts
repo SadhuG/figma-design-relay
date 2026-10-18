@@ -1,5 +1,5 @@
 import { getLayoutTree } from "./layout-tree";
-import { serializeNode, type SerializeOptions } from "./serializer";
+import { CHECKPOINTS_PER_NODE, serializeNode, type SerializeOptions } from "./serializer";
 import { countNodes, progressReporter, type Countable } from "./read-progress";
 import { addLayersToFrame } from "../html-figma/figma";
 import { runScript } from "./script-runner";
@@ -196,7 +196,7 @@ const sendStatus = () => {
 
 /**
  * Serializer options for a read the panel may show as "Syncing": counts the nodes the walk will
- * visit, then posts the percent done as it goes.
+ * visit, then posts the percent done as it goes and lets the walk yield so the posts arrive.
  */
 const readOptions = (
   requestId: string,
@@ -205,7 +205,7 @@ const readOptions = (
 ): SerializeOptions => ({
   maxDepth,
   onNode: progressReporter(
-    countNodes(roots as unknown as readonly Countable[], maxDepth),
+    countNodes(roots as unknown as readonly Countable[], maxDepth) * CHECKPOINTS_PER_NODE,
     (percent) => figma.ui.postMessage({ type: "read-progress", requestId, percent }),
     Date.now
   ),
