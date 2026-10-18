@@ -1,11 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ChevronIcon, CursorIcon, LostIcon, PlaneIcon, SunIcon } from "./icons";
 import {
+  ActivityLog,
   chipState,
   formatSelection,
   relayAddress,
   relayPort,
   relayRowText,
+  retryDelayMs,
+  workingLabel,
   type ChipTone,
 } from "./panel-state";
 
@@ -109,14 +112,59 @@ export default function App() {
   });
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<number | null>(null);
+  /** Retries since the last successful connect; picks the next delay. */
+  const retryAttempt = useRef(0);
+  /** When the pending retry fires, or null while an attempt is under way. */
+  const retryDeadline = useRef<number | null>(null);
+  /** Set by the socket effect; Retry now calls it. */
+  const connectNow = useRef<(() => void) | null>(null);
+  const activity = useRef(new ActivityLog());
+  const [retryInSeconds, setRetryInSeconds] = useState<number | null>(null);
+  // Bumped whenever the activity log changes or an entry leaves its window.
+  const [activityVersion, setActivityVersion] = useState(0);
+  const bumpActivity = () => setActivityVersion((version) => version + 1);
 
+  const agents = activity.current.activeAgents(Date.now());
   const chip = chipState({
     connected,
     port: RELAY_PORT,
-    workingLabel: null,
-    retryInSeconds: null,
+    workingLabel: workingLabel(agents),
+    retryInSeconds,
   });
   const chipTitle = WS_BASE_URL;
+
+  // Re-render once when the oldest finished request leaves the working window.
+  useEffect(() => {
+    const wait = activity.current.nextExpiry(Date.now());
+    if (wait === null) return;
+    const timer = window.setTimeout(bumpActivity, wait);
+    return () => window.clearTimeout(timer);
+  }, [activityVersion]);
+
+  // While disconnected, count down to the next attempt once a second.
+  useEffect(() => {
+    if (connected) return;
+    const tick = () => {
+      const deadline = retryDeadline.current;
+      setRetryInSeconds(
+        deadline === null ? 0 : Math.max(0, Math.ceil((deadline - Date.now()) / 1000))
+      );
+    };
+    tick();
+    const timer = window.setInterval(tick, 1000);
+    return () => window.clearInterval(timer);
+  }, [connected]);
+
+  const retryNow = () => {
+    if (reconnectTimer.current !== null) {
+      window.clearTimeout(reconnectTimer.current);
+      reconnectTimer.current = null;
+    }
+    retryAttempt.current = 0;
+    retryDeadline.current = null;
+    setRetryInSeconds(0);
+    connectNow.current?.();
+  };
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -136,6 +184,10 @@ export default function App() {
       if (!("requestId" in msg)) {
         return;
       }
+
+      // A response on its way back: the request it answers is no longer running.
+      activity.current.finish(msg.requestId, Date.now());
+      bumpActivity();
 
       if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
         return;
@@ -183,18 +235,29 @@ export default function App() {
       socketRef.current = ws;
 
       ws.onopen = () => {
+        retryAttempt.current = 0;
+        retryDeadline.current = null;
+        setRetryInSeconds(null);
         setConnected(true);
         parent.postMessage({ pluginMessage: { type: "ui-ready" } }, "*");
       };
 
       ws.onclose = () => {
         if (disposed || socketRef.current !== ws) return;
+        // Responses to requests still in flight will never arrive.
+        activity.current.clear();
+        bumpActivity();
         setConnected(false);
         if (reconnectTimer.current === null) {
+          const delay = retryDelayMs(retryAttempt.current++);
+          retryDeadline.current = Date.now() + delay;
+          setRetryInSeconds(Math.ceil(delay / 1000));
           reconnectTimer.current = window.setTimeout(() => {
             reconnectTimer.current = null;
+            retryDeadline.current = null;
+            setRetryInSeconds(0);
             connect();
-          }, 1500);
+          }, delay);
         }
       };
 
@@ -206,14 +269,18 @@ export default function App() {
       ws.onmessage = (event) => {
         if (disposed || socketRef.current !== ws) return;
         const payload = JSON.parse(event.data) as ServerRequest;
+        activity.current.start(payload.requestId, null, Date.now());
+        bumpActivity();
         parent.postMessage({ pluginMessage: { type: "server-request", payload } }, "*");
       };
     };
 
+    connectNow.current = connect;
     connect();
 
     return () => {
       disposed = true;
+      connectNow.current = null;
       if (reconnectTimer.current !== null) {
         window.clearTimeout(reconnectTimer.current);
         reconnectTimer.current = null;
@@ -273,7 +340,15 @@ export default function App() {
             <AppIcon size={16} faded={!connected} />
             <Chip tone={chip.tone} text={chip.text} title={chipTitle} />
             <span className="grow" />
-            {DEV_SLOT ? <DevPill /> : <span className="version">v{VERSION}</span>}
+            {!connected ? (
+              <button type="button" className="button" onClick={retryNow}>
+                Retry now
+              </button>
+            ) : DEV_SLOT ? (
+              <DevPill />
+            ) : (
+              <span className="version">v{VERSION}</span>
+            )}
           </div>
         </div>
       )}
