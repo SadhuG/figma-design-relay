@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+
+# Install https://github.com/apps/coderabbitai for SadhuG/figma-design-relay.
+# Public-repository PR reviews are free: https://www.coderabbit.ai/oss
+# Billing is managed in CodeRabbit/GitHub, not by this configuration file.
+language: en-US
+enable_free_tier: true
+
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  auto_review:
+    enabled: true
+    auto_incremental_review: true
+    auto_pause_after_reviewed_commits: 0
+    drafts: false
+    # Review PRs into any branch, including the development branch.
+    base_branches:
+      - ".*"
+  path_filters:
+    - "!**/dist/**"
+    - "!**/node_modules/**"
+    - "!**/coverage/**"
+
+chat:
+  auto_reply: true
