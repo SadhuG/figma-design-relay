@@ -60,7 +60,17 @@ asking the user (proved 2026-09-27 for the cross-file search check):
 
 To close the plugin in a file, `run_script` `setTimeout(() => figma.closePlugin(), 300)`. To
 relaunch it, focus that file's tab as in step 4 and send `^%p` (Run last plugin); it reconnects with
-a new `unsaved-…` key.
+a new `unsaved-…` key. A file runs one plugin at a time, so launching the Dev plugin closes the
+stable one there: the stable relay then answers "No plugin connected" until it is relaunched.
+
+**Checking the plugin panel itself** (proved 2026-10-18 for the panel redesign): screenshot the
+Figma window with `CopyFromScreen` after `SetProcessDPIAware`, crop the panel and compare it with
+its Board 10 card. Click its controls with `SetCursorPos` + `mouse_event` at window-relative
+coordinates. Stop and restart `hold-leader.mjs` to drive the disconnected states. To see what a
+real client sends (the panel's agent name), run a headless one through the worktree's relay:
+`claude -p "Call the relaydev get_selection tool once" --mcp-config <json naming the worktree's
+server/dist/index.js as relaydev> --strict-mcp-config --allowedTools mcp__relaydev__get_selection`.
+Claude Code sends `claude-code`.
 
 ## Symptoms that cost real time
 

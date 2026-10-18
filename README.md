@@ -303,6 +303,7 @@ Figma-Design-Relay/
         ├── code-connect/ # Reads, suggests and writes local Code Connect mappings
         ├── mermaid/      # Parses the Mermaid subset and lays diagrams out for FigJam
         ├── search/       # Searches every open design file and merges the answers
+        ├── agent.ts      # Cleans the calling client's name for the plugin panel
         └── types.ts      # Shared types
 ```
 

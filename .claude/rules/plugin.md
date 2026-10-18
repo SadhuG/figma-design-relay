@@ -29,6 +29,11 @@ paths:
 ## Constraints
 
 - **Imports are extensionless** (`./serializer`); Vite resolves them.
+- **The panel's design source is Figma's "Board 10: Plugin UI, final states"**, but the iframe has
+  no Inter: text renders in the system font, which runs wider than the board's measurements. Fit
+  panel copy to the live panel, not the board. "Lost the relay · retrying in 25 s" cut off beside
+  Retry now and became "Relay lost · retry in 25 s". The panel's text and timing rules live in
+  `src/ui/panel-state.ts`, unit-tested; `App.tsx` only wires them up.
 - **Type-check stays at zero errors.** `vite build` strips types without checking them, so `build`
   runs `typecheck` first. If `tsc` complains, fix the code, not the tsconfig.
 - **`documentAccess: "dynamic-page"`** — synchronous accessors do not work. Use

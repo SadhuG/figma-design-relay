@@ -18,6 +18,31 @@ with its tag.
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-18
+
+### Changed
+
+- The plugin panel is redesigned (Figma "Board 10: Plugin UI, final states"): a light 320 × 113 panel
+  that collapses to a 36 px bar. Its rows show the file, the selection ("Nothing selected", "1 node",
+  "3 nodes") and the address it dials, with the connection type (`ws://localhost:1994`). The
+  footer shows a sun icon for Stable or a plane and an orange "Dev: <slot>" pill for a Dev build,
+  plus a status chip and the version.
+- One toggle collapses and expands the panel. Its chevron points up while open ("Collapse") and down
+  while collapsed ("Expand").
+- Reconnecting waits 1, 2, 5, 10, then 30 s between attempts, with a countdown in the chip
+  ("Relay lost · retry in 5 s") and a **Retry now** button. The app icon fades while disconnected.
+
+### Added
+
+- The status chip names the agent calling the plugin: "Claude Code is working", or "2 agents
+  working" with the names in its tooltip. The relay reads the name each MCP client sends when it
+  connects (`clientInfo.name`), forwards it from followers to the leader, and sends it with every
+  request to the plugin. It is used for display only.
+
+### Removed
+
+- The sponsor link and logo in the panel. The README keeps the Hopp credit.
+
 ## [0.7.8] - 2026-10-01
 
 ### Fixed

@@ -33,17 +33,17 @@ This file holds only what applies to every task. The rest loads when it is relev
 
 **Bun everywhere — never `npm` or `yarn`.**
 
-| Where     | Command                                   | Notes                                                                                                |
-| --------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| root      | `bun install`                             | installs Husky's pre-commit hook (Prettier via lint-staged)                                          |
-| root      | `bun run format` / `bun run format:check` | Prettier 3.9.6 over everything                                                                       |
-| root      | `bun scripts/check-version.mjs`           | server + plugin versions agree and have a changelog entry                                            |
-| root      | `bun scripts/dev-slot.mjs [name]`         | in a feature worktree: claim its dev plugin name and port (1995–2019)                                |
-| `server/` | `bun run build`                           | `tsc` → `dist/`; this is the server's type-check                                                     |
-| `server/` | `bun test`                                | 329 tests (2 Windows skips): schemas, transport, file safety, codegen, assets, Code Connect, Mermaid |
-| `plugin/` | `bun run typecheck`                       | `tsc --noEmit`; must stay at zero errors                                                             |
-| `plugin/` | `bun run build`                           | typecheck, then two Vite passes: UI, then `main`                                                     |
-| `plugin/` | `bun test`                                | 218 tests: scripts, serializer, capability table, library tools, diagrams, dispatch and HTML images  |
+| Where     | Command                                   | Notes                                                                                                   |
+| --------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| root      | `bun install`                             | installs Husky's pre-commit hook (Prettier via lint-staged)                                             |
+| root      | `bun run format` / `bun run format:check` | Prettier 3.9.6 over everything                                                                          |
+| root      | `bun scripts/check-version.mjs`           | server + plugin versions agree and have a changelog entry                                               |
+| root      | `bun scripts/dev-slot.mjs [name]`         | in a feature worktree: claim its dev plugin name and port (1995–2019)                                   |
+| `server/` | `bun run build`                           | `tsc` → `dist/`; this is the server's type-check                                                        |
+| `server/` | `bun test`                                | 339 tests (2 Windows skips): schemas, transport, file safety, codegen, assets, Code Connect, Mermaid    |
+| `plugin/` | `bun run typecheck`                       | `tsc --noEmit`; must stay at zero errors                                                                |
+| `plugin/` | `bun run build`                           | typecheck, then two Vite passes: UI, then `main`                                                        |
+| `plugin/` | `bun test`                                | 254 tests: scripts, serializer, capability table, library tools, diagrams, dispatch, HTML images, panel |
 
 Tests live beside the code as `*.test.ts` (excluded from both tsconfigs). CI (`.github/workflows/ci.yml`)
 runs all of the above on every push to every branch.
@@ -68,6 +68,7 @@ server/src/
   mermaid/      parse.ts (the strict Mermaid subset) + layout.ts (positions) for generate_diagram
   search/       search_design_system across open files: select-files.ts, merge.ts, index.ts (fan-out)
   types.ts      shared types; LOOPBACK_HOST lives here
+  agent.ts      cleans the MCP client name that rides on each request to the panel
 server/.smoke/  live harness: probe.mjs (run_script), call.mjs (any tool) — see its README
 plugin/dev-slot.ts        dev slot rules + the dev manifest both Vite configs emit into dist/
 plugin/src/
@@ -86,7 +87,7 @@ plugin/src/
   main/permissions.ts       permission and plan refusals → actionable errors
   main/search.ts            search_design_system's matcher and ranker
   html-figma/               vendored html-to-figma importer
-  ui/                       React panel
+  ui/                       React panel; panel-state.ts holds its text and timing rules
 scripts/        check-version.mjs; dev-slot.mjs claims a worktree's dev slot
 docs/           guides/ and reference/ for users; superpowers/ for specs and plans
 .claude/        this file, rules/ (path-scoped) and skills/ — the table above
