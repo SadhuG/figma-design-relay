@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { ChevronIcon, CursorIcon, LostIcon, PlaneIcon, SunIcon } from "./icons";
 import {
   ActivityLog,
+  agentDisplayName,
+  agentTooltip,
   chipState,
   formatSelection,
   relayAddress,
@@ -48,6 +50,8 @@ type ServerRequest = {
   requestId: string;
   nodeIds?: string[];
   params?: Record<string, unknown>;
+  /** The calling MCP client's name, when the relay knows it. Display-only. */
+  agent?: string;
 };
 
 type PluginResponse = {
@@ -128,10 +132,10 @@ export default function App() {
   const chip = chipState({
     connected,
     port: RELAY_PORT,
-    workingLabel: workingLabel(agents),
+    workingLabel: workingLabel(agents.map(agentDisplayName)),
     retryInSeconds,
   });
-  const chipTitle = WS_BASE_URL;
+  const chipTitle = (chip.tone === "working" && agentTooltip(agents)) || WS_BASE_URL;
 
   // Re-render once when the oldest finished request leaves the working window.
   useEffect(() => {
@@ -269,7 +273,8 @@ export default function App() {
       ws.onmessage = (event) => {
         if (disposed || socketRef.current !== ws) return;
         const payload = JSON.parse(event.data) as ServerRequest;
-        activity.current.start(payload.requestId, null, Date.now());
+        const agent = typeof payload.agent === "string" && payload.agent ? payload.agent : null;
+        activity.current.start(payload.requestId, agent, Date.now());
         bumpActivity();
         parent.postMessage({ pluginMessage: { type: "server-request", payload } }, "*");
       };

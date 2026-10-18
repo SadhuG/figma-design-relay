@@ -118,3 +118,28 @@ export function workingLabel(agents: (string | null)[]): string | null {
   if (agents.length > 1) return `${agents.length} agents working`;
   return agents[0] === null ? "Agent working" : `${agents[0]} is working`;
 }
+
+/**
+ * Readable names for the names MCP clients send in `initialize` (`clientInfo.name`). Any other
+ * name is shown as sent. Check a new entry against the "MCP client:" line the relay logs.
+ */
+export const AGENT_DISPLAY_NAMES: Record<string, string> = {
+  "claude-code": "Claude Code",
+  "cursor-vscode": "Cursor",
+  "Visual Studio Code": "VS Code",
+  "codex-mcp-client": "Codex",
+};
+
+export function agentDisplayName(raw: string | null): string | null {
+  if (raw === null) return null;
+  // hasOwn, so a client named "constructor" doesn't pick up Object.prototype's.
+  return Object.prototype.hasOwnProperty.call(AGENT_DISPLAY_NAMES, raw)
+    ? AGENT_DISPLAY_NAMES[raw]
+    : raw;
+}
+
+/** The working chip's tooltip when two or more agents are working, else null. */
+export function agentTooltip(agents: (string | null)[]): string | null {
+  if (agents.length < 2) return null;
+  return agents.map((agent) => agentDisplayName(agent) ?? "Unnamed agent").join(", ");
+}

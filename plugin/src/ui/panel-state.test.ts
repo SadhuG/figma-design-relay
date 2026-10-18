@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
   ActivityLog,
+  agentDisplayName,
+  agentTooltip,
   chipState,
   formatSelection,
   relayAddress,
@@ -119,4 +121,32 @@ describe("workingLabel", () => {
   test("unnamed", () => expect(workingLabel([null])).toBe("Agent working"));
   test("named", () => expect(workingLabel(["Claude Code"])).toBe("Claude Code is working"));
   test("two", () => expect(workingLabel(["Claude Code", null])).toBe("2 agents working"));
+});
+
+describe("agentDisplayName", () => {
+  test("known names", () => {
+    expect(agentDisplayName("claude-code")).toBe("Claude Code");
+    expect(agentDisplayName("cursor-vscode")).toBe("Cursor");
+    expect(agentDisplayName("Visual Studio Code")).toBe("VS Code");
+    expect(agentDisplayName("codex-mcp-client")).toBe("Codex");
+  });
+  test("an unknown name comes back as sent", () =>
+    expect(agentDisplayName("my-agent")).toBe("my-agent"));
+  test("no name stays null", () => expect(agentDisplayName(null)).toBeNull());
+  test("feeds workingLabel", () =>
+    expect(workingLabel(["claude-code"].map(agentDisplayName))).toBe("Claude Code is working"));
+});
+
+describe("agentTooltip", () => {
+  test("lists two or more agents by readable name", () =>
+    expect(agentTooltip(["claude-code", null])).toBe("Claude Code, Unnamed agent"));
+  test("nothing to list for one agent or none", () => {
+    expect(agentTooltip(["claude-code"])).toBeNull();
+    expect(agentTooltip([])).toBeNull();
+  });
+});
+
+test("a name that matches an Object property is shown as sent", () => {
+  expect(agentDisplayName("constructor")).toBe("constructor");
+  expect(agentDisplayName("toString")).toBe("toString");
 });
