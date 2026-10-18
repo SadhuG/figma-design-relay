@@ -7,15 +7,15 @@ Plan: [`../superpowers/plans/2026-10-18-upstream-relay.md`](../superpowers/plans
 
 The original candidate below used the then-next version 0.7.9. That version was never released.
 After incorporating the reviewed 0.8.0 panel and agent-name release and 0.8.1 DNS pinning fix, the integration candidate is
-0.8.2. Historical build hashes and results below describe their named commits; they do not verify
-the refreshed candidate. The refreshed candidate requires affected live checks before a PR.
+0.8.2. Historical build hashes and results below describe their named commits. The refreshed
+candidate's affected live checks are recorded in [Integrated 0.8.2 rerun](#integrated-082-rerun-baeb3dd).
 
 The unloaded-page-root gate was closed in the final section of this record. The remaining
 unavailable live cases are Conditional, Set Variable and Set Variable Mode actions on the Free
 plan. The user explicitly waived only those three live tests if the current Free plan prevents
 them. Their automated tests and all other live checks, independent review, CodeRabbit review and
-CI remain required. The refreshed candidate's affected live rerun is still pending; this narrow
-exception does not waive it. Historical statements below describe the approval state at the time.
+CI remain required. The refreshed candidate's affected live rerun passed as recorded below; this
+narrow exception did not waive it. Historical statements below describe the approval state at the time.
 
 ## Candidate
 
@@ -608,3 +608,95 @@ corrected call ran in that same sandbox.
 - Unchanged: Conditional / Set Variable / Set Variable Mode actions need a paid plan. Cross-page
   navigation, a missing destination, Dev Mode and injected faults stay unit-tested, as the round 3
   review accepts.
+
+## Integrated 0.8.2 rerun (baeb3dd)
+
+On 2026-10-18, after the reviewed panel/agent-name release and DNS pinning fix landed, the feature
+branch merged `origin/dev` `ad22b46` in `3977337` and `origin/main` `6e18047` in
+`baeb3dd1ca6dcfff943f00418c19a74560185f5e`. Both packages and this integration's changelog entry
+are now **0.8.2**. The earlier 0.7.9 and provisional 0.8.1 integration versions were not released.
+Upstream `2c37e6d` remains an ancestor. No runtime code changed during this live rerun.
+
+### Build and automated verification
+
+`bun run check` passed on the resolved integration: version 0.8.2; server **407 pass, 2 skip,
+0 fail**, 409 tests across 28 files; plugin **380 pass, 0 fail**, 380 tests across 23 files;
+server build, zero-error plugin typecheck, both plugin builds and repository formatting passed.
+The server conflicts retain both SVG filesystem tests and the reviewed DNS transport suite.
+The old `globalThis.fetch` body-timeout test was removed because DNS pinning now uses the native
+transport, whose deadline is tested in `image-fetch.test.ts`. `tools.ts` retains the reviewed
+`fetchImageBytes` import and call. Source for the panel, dev-slot UI definitions and agent-name
+cleaning is identical to released `origin/main`; the panel release's live evidence remains in
+[`../superpowers/plans/2026-10-18-panel-redesign/live-check.md`](../superpowers/plans/2026-10-18-panel-redesign/live-check.md).
+
+SHA-256 hashes, checked before and after the live calls:
+
+| Artifact                                      | SHA-256                                                            |
+| --------------------------------------------- | ------------------------------------------------------------------ |
+| `server/dist/index.js`                        | `fecccbd1edb82441e7aada4aeee40168ca26afa22b79eab2c3ca18636e12ad04` |
+| Sorted concatenation of `server/dist/**/*.js` | `f568e6b51ba027c834817255d4b066f04f66e0ec7dd361093a44938e0b1b0c13` |
+| `server/dist/image-fetch.js`                  | `96cce6832ff0acd7cc9682d9dde4325b69a0529cc28fc9a9cfb332b7a1723c96` |
+| `plugin/dist/code.js`                         | `f3a2ec802b696e51ccb369af346253e51d379cfc4149c3ec6517c51b65e614e1` |
+| `plugin/dist/manifest.json`                   | `1a061ff39e49a7d135152ad98d93e158ace969210832eed629b96afd28a8b9f3` |
+| `plugin/dist/index.html`                      | `3547fc127c3f968ba6f512ff8ee82d47c69c038e505b420f4959c4729e677a1f` |
+
+### Setup and results
+
+The old worktree-specific 1998 holder and child were identified by command line and replaced with
+the current build. Hidden holder PID 32512 runs `server/.smoke/hold-leader.mjs`, listening only on
+`127.0.0.1:1998`; its logs are `%TEMP%/relay-upstream-holder.out.log` and `.err.log`. The user
+launched the rebuilt **Figma Design Relay (Dev: upstream-relay-oct18, port 1998)** plugin in each
+editor after the final build. The stable relay and global MCP configuration were untouched.
+
+The temporary MCP harness `%TEMP%/upstream-integrated-live.mjs` starts this worktree's built server
+as a stdio client named `upstream-integrated-live` 0.8.2. Each editor run recorded `Became FOLLOWER`
+and `Starting MCP server (role: FOLLOWER)`. Every tool received its explicit `fileKey`, so all
+node-addressed families crossed the actual `/rpc` validation path. Raw results, fixture IDs,
+state snapshots and role lines are in `%TEMP%/upstream-integrated-live/`; command summaries are
+`%TEMP%/upstream-integrated-{design,figjam,slides}.log`.
+
+| Editor / session                                          | Results on this build                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Design, `Figma Design Relay`, `unsaved-mve1h35y-nus0llh6` | **27 calls passed**, including setup/inspection/cleanup. Two-node property batch; grid; horizontal/vertical distribution; below/right placement; duplicate offset preserving parent; rotated placement refusal; ordinary enriched `get_node`; prototype scan, bounded scan, `get_node includePrototype` and trace with resolved navigation destination; inline and workspace-file SVG with editable children, width-only resize and invalid-parent refusal; remote DNS-pinned `create_image` success (32 × 32), internal-loopback refusal; text edit; `get_design_context` with an actual image block; section creation and fitting.                           |
+| FigJam, `Untitled`, `unsaved-mve1nrxz-qxh46q8g`           | **34 calls passed**, including setup/inspection/cleanup. Property batch and all applicable layout helpers; rotated placement refusal; ordinary `get_node`; prototype/SVG editor refusals; wide sticky and styled shape aliases, label content and font size edits; omitted shape type observed as `SQUARE`; mixed node/free, free/free, attached node/node and self-loop labelled connectors; mixed connector retained its section parent and its free end used the section anchor; style/variable reads returned explicit availability notes; section fit; `generate_diagram` produced two shapes and one labelled connector with both attached endpoint IDs. |
+| Slides, `Untitled`, `unsaved-mve1nwcn-wu9oyecs`           | **22 calls passed** in the final complete run, including setup/inspection/cleanup. Property batch, grid, distribution, relative placement, duplicate offset, rotated placement refusal, ordinary `get_node` and text edit; prototype reads, SVG, text styling, section creation/fitting and FigJam shape creation returned the expected editor refusals.                                                                                                                                                                                                                                                                                                       |
+
+These are affected integration reruns, in addition to the detailed historical matrices above.
+Unchanged unloaded-page-root, cross-page/invalid-destination and injected-fault coverage retains
+the earlier evidence and round 3 review's scope; it is not newly claimed as replayed here.
+
+### Cleanup and harness corrections
+
+- Design scratch page `45:1240` and all descendants, including clone, SVGs, image and section,
+  were removed. An earlier harness assertion incorrectly expected grid snapping to refuse a
+  rotated node; the documented grid contract allows rotation. Its scratch page `45:1230` was
+  also removed in `finally`; the corrected final run tested the intended rotated **placement**
+  refusal. No product code changed. Current page `6:5437`, original empty selection and root
+  IDs were preserved. A later survey found no `zz upstream` pages or variable collections.
+- FigJam scratch section `23:2` and its descendants were removed; diagram nodes `23:42`,
+  `23:46` and `23:50` were separately inspected and removed. Original current page `0:1`,
+  empty selection and empty root list were restored.
+- Slides automatically names a new slide numerically, so the first cleanup's expected custom
+  name did not match. Read-only inspection confirmed recorded scratch slide `18:4`, type
+  `SLIDE`, parent `1:46` and its exact six marked scratch children. A guarded cleanup removed
+  that ID and restored selection `1:42` and viewport. The final complete rerun used the correct
+  slide identity guard and removed its scratch slide `18:12`. The original root list `0:3`
+  was preserved. No user slide or node was removed. Viewport centers can round by less than
+  0.001 canvas units when restored; zoom was unchanged.
+- The temporary workspace SVG was removed. No MCP configuration, plugin import or stable relay
+  was edited. The current 1998 holder remains running for review follow-up.
+
+### Narrow paid-action exception
+
+The user explicitly authorized skipping live success tests **only for Conditional, Set Variable
+and Set Variable Mode if the current Free plan prevents them**. Fresh individual
+`setReactionsAsync` attempts on this candidate returned, respectively, "You cannot use Conditional
+actions in Reactions with your current plan", "You cannot use Set Variable actions in Reactions
+with your current plan", and "You cannot use Set Variable Mode actions in Reactions with your
+current plan". The follower result is in `%TEMP%/upstream-paid-check.log`. Scratch page `45:1256`
+and collection `VariableCollectionId:45:1258` were removed in `finally`; the later survey confirms
+no matching scratch page or collection remains.
+
+That exception applies to those three live success paths alone. Their automated tests passed
+with the full suite. All other live checks, latest-head independent review, completed CodeRabbit
+review and successful CI remain required. This record does not approve or merge a PR.

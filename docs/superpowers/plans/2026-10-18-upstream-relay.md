@@ -525,7 +525,7 @@ Run: `git merge-base --is-ancestor 2c37e6d HEAD` and `git show --no-patch --form
 Expected: ancestor command exits 0 and merge has the prior relay/test commit and upstream as
 parents. This is only the feature-branch integration merge, never a dev/main merge.
 
-- [ ] **Step 4: Build/restart/relaunch the exact candidate for live Figma proof.**
+- [x] **Step 4: Build/restart/relaunch the exact candidate for live Figma proof.**
 
 Follow live-figma-check and `server/.smoke/README.md`. Use this worktree's slot. If no candidate
 leader exists, run `node .smoke/hold-leader.mjs` from server as a managed process; otherwise
@@ -562,7 +562,7 @@ the parent obtains a specific explicit exception. Dev Mode stays unit-tested; do
 the manifest to chase live coverage. If fixes change runtime code, rebuild, restart/relaunch and
 repeat affected checks before claiming the candidate verified.
 
-- [ ] **Step 5: Commit evidence and hand the exact candidate to the parent reviewer.**
+- [x] **Step 5: Commit evidence and hand the exact candidate to the parent reviewer.**
 
 Record actual commands/counts/build identities, live results and any specific blockers. Run
 formatting/diff checks on the evidence doc and commit only docs as
