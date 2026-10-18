@@ -116,6 +116,7 @@ const assertArrangeable = (type: string, nodes: Positioned[]): void => {
 /** -0 reads as a bug in results; positions never need it. */
 const clean = (value: number): number => (Object.is(value, -0) ? 0 : value);
 
+/** Equalizes gaps between validated siblings, moving only interior nodes and preserving endpoints. */
 async function distribute(
   type: "distribute_horizontally" | "distribute_vertically",
   ids: readonly string[],
@@ -153,6 +154,7 @@ async function distribute(
   };
 }
 
+/** Snaps freely positioned nodes in their own parent coordinates after validating the full list. */
 async function alignToGrid(ids: readonly string[], params: LayoutParams, api: LayoutApi) {
   const gridSize = params.gridSize;
   if (!isFiniteNumber(gridSize) || gridSize <= 0) {
@@ -172,6 +174,7 @@ async function alignToGrid(ids: readonly string[], params: LayoutParams, api: La
   return { gridSize: grid, updatedCount: results.length, results };
 }
 
+/** Places a target beside an unrotated sibling with optional centering and a nonnegative gap. */
 async function placeRelative(
   type: "place_below" | "place_right_of",
   ids: readonly string[],
@@ -205,6 +208,7 @@ type SectionLike = Positioned & {
   resizeWithoutConstraints(width: number, height: number): void;
 };
 
+/** Fits a section around unrotated children, repositioning them within padding without moving its origin. */
 async function fitToContent(ids: readonly string[], params: LayoutParams, api: LayoutApi) {
   const nodeId = ids[0];
   if (!nodeId) refuse("fit_to_content needs a section id.");
@@ -288,6 +292,7 @@ export function keepBesideOriginal(original: SceneNode, copy: SceneNode): void {
   parent.insertChild(index + 1, copy);
 }
 
+/** Duplicates validated nodes beside their originals and removes all recorded copies on failure. */
 async function duplicateWithOffset(ids: readonly string[], params: LayoutParams, api: LayoutApi) {
   const { offsetX, offsetY } = params;
   if (!isFiniteNumber(offsetX) || !isFiniteNumber(offsetY)) {

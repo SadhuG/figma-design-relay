@@ -144,6 +144,7 @@ function screenChain(node: BaseNode): BaseNode[] {
 
 const screenOf = (node: BaseNode): BaseNode | null => screenChain(node)[0] ?? null;
 
+/** Finds the owning page, including `node` itself when a scan starts at a page root. */
 function pageOf(node: BaseNode): PageNode | null {
   for (let current: BaseNode | null = node; current; current = current.parent) {
     if (current.type === "PAGE") return current;
@@ -154,6 +155,7 @@ function pageOf(node: BaseNode): PageNode | null {
 const isScreenNavigation = (action: LeafAction): action is Extract<LeafAction, { type: "NODE" }> =>
   action.type === "NODE" && SCREEN_NAVIGATIONS.has(action.navigation);
 
+/** Classifies a leaf action without treating scroll-to or variant changes as screen navigation. */
 function edgeKind(action: LeafAction): EdgeKind {
   switch (action.type) {
     case "NODE":
@@ -198,6 +200,7 @@ function* flattenActions(
 /** A lookup's outcome, so one unreadable reference never rejects the whole scan. */
 type Lookup<T> = { value: T | null; error?: string };
 
+/** Caches each lookup's pending promise and failure outcome so repeated IDs are read only once. */
 function memoize<T>(load: (id: string) => Promise<T | null>): (id: string) => Promise<Lookup<T>> {
   const cache = new Map<string, Promise<Lookup<T>>>();
   return (id) => {
@@ -221,6 +224,7 @@ class PrototypeReader {
   private readonly getCollection: (id: string) => Promise<Lookup<VariableCollection>>;
   private readonly pageLoads = new Map<string, Promise<void>>();
 
+  /** Creates request-local caches while keeping context methods bound to their supplied object. */
   constructor(context: PrototypeContext) {
     this.getNode = memoize((id) => context.getNodeByIdAsync(id));
     this.getVariable = memoize((id) => context.getVariableByIdAsync(id));
@@ -242,6 +246,7 @@ class PrototypeReader {
     return loading;
   }
 
+  /** Loads the root's page and scans in layer order, stopping before the node budget is exceeded. */
   async scan(
     root: BaseNode,
     { maxNodes = DEFAULT_MAX_NODES, includeEmpty = false }: ScanOptions = {}
@@ -277,6 +282,7 @@ class PrototypeReader {
     };
   }
 
+  /** Expands screens breadth-first within both budgets; conditional branches remain unevaluated. */
   async trace(
     start: SceneNode,
     { maxScreens = DEFAULT_MAX_SCREENS, maxNodesPerScreen = DEFAULT_MAX_NODES }: TraceOptions = {}
@@ -345,6 +351,7 @@ class PrototypeReader {
     return trace;
   }
 
+  /** Adds screen ancestry and resolved actions, accepting both current and legacy reaction forms. */
   private async describeNode(node: SceneNode & ReactionMixin): Promise<NodeConnections> {
     const chain = screenChain(node);
     return {
@@ -362,10 +369,12 @@ class PrototypeReader {
     };
   }
 
+  /** Resolves actions concurrently while retaining their original order for action-path reporting. */
   private resolveActions(actions: ReadonlyArray<Action>): Promise<ResolvedAction[]> {
     return Promise.all(actions.map((action) => this.resolveAction(action)));
   }
 
+  /** Enriches referenced IDs and nested branches without evaluating conditions or executing actions. */
   private async resolveAction(action: Action): Promise<ResolvedAction> {
     switch (action.type) {
       case "NODE":
@@ -414,6 +423,7 @@ class PrototypeReader {
     }
   }
 
+  /** Reports missing/unreadable targets independently and includes overlay settings where relevant. */
   private async resolveDestination(
     id: string | null | undefined,
     navigation?: Navigation
@@ -441,6 +451,7 @@ class PrototypeReader {
   }
 }
 
+/** Builds the common file/page header; an unavailable private-plugin file key is reported as null. */
 function describeFile(node: BaseNode, context: PrototypeContext): PrototypeFileInfo {
   const page = pageOf(node);
   return {
@@ -471,6 +482,7 @@ export async function scanPrototype(
   return new PrototypeReader(context).scan(root, options);
 }
 
+/** Returns a bounded subtree scan together with its owning page and flow starting points. */
 export async function getPrototypeConnections(
   root: PageNode | SceneNode,
   options: ScanOptions | undefined,

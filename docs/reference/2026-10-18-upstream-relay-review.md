@@ -487,3 +487,19 @@ A separate fresh reviewer approved exact runtime commit `99eeef3` with no findin
 independently reran the SVG suite (23 pass) and capability/dispatcher suites (79 pass). This code
 approval does not replace final evidence review, acceptance of CodeRabbit responses, or the new
 head's CI checks. The three-action paid-plan live exception remains the sole user waiver.
+
+### Docstring coverage follow-up
+
+CodeRabbit's completed review of `27df9cc` generated no further actionable code comments, but its
+pre-merge warning measured docstring coverage at 61.29% (19 of 31 functions), below 80%. A comment-only
+follow-up documents the 19 previously undocumented named functions in `prototype.ts`,
+`layout-actions.ts` and server `svg.ts`: scan/file metadata, request-local lookup caches and
+traversal, layout preflight/application contracts, and bounded SVG file reading. Other new public
+helpers already have JSDoc and were left unchanged. The next CodeRabbit run must recalculate its
+coverage; this note does not claim a new measured percentage.
+
+Comment-free TypeScript transpilation was compared byte for byte with the prior candidate for
+all six new helper modules and was identical. Plugin and server no-emit typechecks, changed-file
+formatting and `git diff --check` passed. Existing build artifacts were not rebuilt or modified;
+the `99eeef3` runtime and focused live evidence remain applicable. No plugin relaunch, relay
+restart or Figma write was performed for this documentation change.

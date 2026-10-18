@@ -79,6 +79,7 @@ const outside = (root: string) =>
     `SVG source must be inside the MCP server working directory (${root}). Copy the file into the workspace and pass a path relative to it.`
   );
 
+/** Removes only the leading BOM marker and spacing used before source classification. */
 function stripLeadingBomAndWhitespace(source: string): string {
   return source.replace(/^﻿/, "").trimStart();
 }
@@ -143,6 +144,7 @@ export async function readAtMost(
   return buffer.subarray(0, filled);
 }
 
+/** Reads one bounded descriptor after containment/identity checks and always closes it on failure. */
 async function readSvgFile(source: string, workspaceRoot: string, fs: SvgFs): Promise<string> {
   const resolvedRoot = await fs.realpath(path.resolve(workspaceRoot));
   const lexicalPath = path.resolve(resolvedRoot, source);
