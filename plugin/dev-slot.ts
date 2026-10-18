@@ -108,3 +108,23 @@ export function devManifestPlugin(base: Manifest, slot: DevSlot | null) {
     },
   };
 }
+
+/**
+ * The UI build's `define` map: the version always, and in a slotted checkout the slot's name and
+ * the relay it dials. The panel shows the Dev pill only when the slot name is present.
+ */
+export function uiDefine(slot: DevSlot | null, version: string): Record<string, string> {
+  const define: Record<string, string> = {
+    "import.meta.env.VITE_FIGMA_DESIGN_RELAY_VERSION": JSON.stringify(version),
+  };
+  if (slot) {
+    define["import.meta.env.VITE_FIGMA_DESIGN_RELAY_SLOT"] = JSON.stringify(slot.name);
+    define["import.meta.env.VITE_FIGMA_DESIGN_RELAY_WS"] = JSON.stringify(slotWsUrl(slot));
+  }
+  return define;
+}
+
+/** The relay a slotted UI dials. */
+export function slotWsUrl(slot: DevSlot): string {
+  return `ws://localhost:${slot.port}/ws`;
+}

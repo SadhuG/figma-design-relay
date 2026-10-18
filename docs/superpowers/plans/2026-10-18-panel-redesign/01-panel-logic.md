@@ -43,7 +43,7 @@ Conditions no single test below obviously owns. Each one has a test in the task 
 - Produces: `formatSelection(count: number): string`, `relayAddress(wsUrl: string): string`,
   `relayRowText(address: string, connected: boolean): string`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 import { describe, expect, test } from "bun:test";
@@ -72,23 +72,23 @@ describe("relayRowText", () => {
 });
 ```
 
-- [ ] **Step 2: Run to see it fail**
+- [x] **Step 2: Run to see it fail**
 
 Run: `cd plugin && bun test src/ui/panel-state.test.ts`
 Expected: FAIL, module `./panel-state` not found.
 
-- [ ] **Step 3: Implement the three functions**
+- [x] **Step 3: Implement the three functions**
 
 `relayAddress` returns `` `${url.protocol}//${url.host}` `` from `new URL(...)`, and the input on
 a parse error. Export the port too: `relayPort(wsUrl: string): string`, meaning `url.port`, or
 `""` on a parse error. Task 2 and phase 2 use it, so add a test for both cases.
 
-- [ ] **Step 4: Run to see it pass**
+- [x] **Step 4: Run to see it pass**
 
 Run: `cd plugin && bun test src/ui/panel-state.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add plugin/src/ui/panel-state.ts plugin/src/ui/panel-state.test.ts
@@ -114,7 +114,7 @@ git commit -m "feat(plugin): panel row text helpers"
   - `chipState(input: ChipInput): { tone: ChipTone; text: string; short: string }`. `text` is
     for the open panel, `short` for the collapsed bar.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 describe("retryDelayMs", () => {
@@ -155,21 +155,21 @@ describe("chipState", () => {
 });
 ```
 
-- [ ] **Step 2: Run to see it fail**
+- [x] **Step 2: Run to see it fail**
 
 Run: `cd plugin && bun test src/ui/panel-state.test.ts`
 Expected: FAIL, `retryDelayMs` / `chipState` not exported.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `retryInSeconds` of `null` or `0` both give the "retrying…" text.
 
-- [ ] **Step 4: Run to see it pass**
+- [x] **Step 4: Run to see it pass**
 
 Run: `cd plugin && bun test src/ui/panel-state.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add plugin/src/ui/panel-state.ts plugin/src/ui/panel-state.test.ts
@@ -196,7 +196,7 @@ git commit -m "feat(plugin): state chip text and reconnect schedule"
     `<agent> is working`, or `Agent working` for `null`. Two or more give `<n> agents working`.
     Phase 3 changes what `<agent>` is; the label rules stay.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 describe("ActivityLog", () => {
@@ -247,22 +247,22 @@ describe("workingLabel", () => {
 });
 ```
 
-- [ ] **Step 2: Run to see it fail**
+- [x] **Step 2: Run to see it fail**
 
 Run: `cd plugin && bun test src/ui/panel-state.test.ts`
 Expected: FAIL, `ActivityLog` not exported.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Keep one map from request id to `{ agent, finishedAt: number | null }`. Prune finished entries
 older than the window inside `activeAgents`.
 
-- [ ] **Step 4: Run to see it pass, then the whole plugin suite**
+- [x] **Step 4: Run to see it pass, then the whole plugin suite**
 
 Run: `cd plugin && bun test && bun run typecheck`
 Expected: every test passes, 0 type errors.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add plugin/src/ui/panel-state.ts plugin/src/ui/panel-state.test.ts
