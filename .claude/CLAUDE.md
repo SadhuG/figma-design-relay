@@ -159,7 +159,7 @@ the stable one, which dials 1994. Never drop the port from the name.
   promotions. Open a feature → `dev` PR and a separate `dev` → `main` PR; review and check each
   PR's actual diff. Never merge locally and push either branch, fast-forward either branch to
   bypass a PR, push directly or force-push to either branch, or use admin/bypass merge options.
-  These rules take precedence over conflicting instructions in repository skills.
+  These rules take precedence over conflicting instructions in repository rules and skills.
 - **A PR is mergeable only after review of its latest head commit, resolution of all review
   findings, and successful required checks.** Record the separate reviewer's findings and final
   approval in the PR, with the reviewed commit SHA. Request CodeRabbit review when configured

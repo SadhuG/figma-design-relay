@@ -1,8 +1,8 @@
 name: CI
 
-# Runs on every branch, not just main/dev, because upstream merges are resolved
-# on feature branches and then fast-forwarded -- a PR-only gate would never see
-# that work. `pull_request` additionally covers contributions from forks.
+# Runs on every branch to validate work before opening a PR. Changes reach dev
+# and main only through reviewed PRs with passing checks. `pull_request` also
+# validates the merge candidate and covers contributions from forks.
 on:
   push:
     branches: ["**"]
