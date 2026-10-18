@@ -41,5 +41,6 @@ inside moved files (`../reference/…`, `../../plugin/…`) need their depth fix
 
 ## After any docs change
 
-`bun run format`, then `bunx prettier --check "docs/**/*"`. Docs-only commits use `docs:` and do
+`bun run format`, then `bunx prettier --check --ignore-unknown "docs/**/*"` (screenshots are binary
+evidence). Docs-only commits use `docs:` and do
 not bump the version.
