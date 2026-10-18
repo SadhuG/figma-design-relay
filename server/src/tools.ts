@@ -1,7 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { lookup } from "node:dns/promises";
 import { mkdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
-import { isIP } from "node:net";
 import path from "node:path";
 import type { z } from "zod";
 import type { Node } from "./node.js";
@@ -60,11 +58,8 @@ import { findExportedComponents, scoreCandidates } from "./code-connect/suggest.
 import { writeMapping } from "./code-connect/write.js";
 import { layoutDiagram } from "./mermaid/layout.js";
 import { parseMermaid } from "./mermaid/parse.js";
+import { fetchImageBytes, MAX_IMAGE_BYTES } from "./image-fetch.js";
 import { isInsideWorkspace, resolveWorkspacePath } from "./workspace-path.js";
-
-const MAX_IMAGE_BYTES = 32 * 1024 * 1024;
-const IMAGE_FETCH_TIMEOUT_MS = 15_000;
-const MAX_IMAGE_REDIRECTS = 5;
 
 const RUN_SCRIPT_DESCRIPTION = `Execute JavaScript against the Figma Plugin API inside the connected file. This is the escape hatch: anything the Plugin API can do — components, variants, instances, variables and modes, styles, boolean operations, vector edits, prototyping, per-segment text styling, arbitrary reads — is reachable here, and nowhere else in this server.
 
@@ -1410,179 +1405,6 @@ async function loadImageSourceAsBase64(source: string, workspaceRoot: string): P
     throw new Error(`Image exceeds ${MAX_IMAGE_BYTES} bytes`);
   }
   return bytes.toString("base64");
-}
-
-/**
- * Fetches image bytes from a remote URL with redirect and timeout limits.
- * @param source - HTTP or HTTPS image URL.
- * @returns Raw image bytes.
- */
-async function fetchImageBytes(source: string): Promise<Buffer> {
-  let url = new URL(source);
-  let redirects = 0;
-
-  while (true) {
-    await assertSafeHttpUrl(url);
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), IMAGE_FETCH_TIMEOUT_MS);
-    try {
-      const resp = await fetch(url, {
-        signal: controller.signal,
-        redirect: "manual",
-      });
-
-      if (resp.status >= 300 && resp.status < 400) {
-        await resp.body?.cancel();
-        const location = resp.headers.get("location");
-        if (!location) {
-          throw new Error(`Image redirect missing Location header: ${resp.status}`);
-        }
-        redirects += 1;
-        if (redirects > MAX_IMAGE_REDIRECTS) {
-          throw new Error(`Image fetch exceeded ${MAX_IMAGE_REDIRECTS} redirects`);
-        }
-        url = new URL(location, url);
-        continue;
-      }
-
-      if (!resp.ok) {
-        await resp.body?.cancel();
-        throw new Error(`Failed to fetch image: ${resp.status} ${resp.statusText}`);
-      }
-
-      const contentLength = resp.headers.get("content-length");
-      if (contentLength !== null) {
-        const size = Number(contentLength);
-        if (!Number.isFinite(size) || size < 0 || size > MAX_IMAGE_BYTES) {
-          await resp.body?.cancel();
-          throw new Error(
-            size > MAX_IMAGE_BYTES
-              ? `Image exceeds ${MAX_IMAGE_BYTES} bytes`
-              : "Invalid image Content-Length header"
-          );
-        }
-      }
-
-      // Await the body here so the deadline and error handling cover the entire download.
-      return await readBoundedResponse(resp, MAX_IMAGE_BYTES);
-    } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") {
-        throw new Error(`Timed out fetching image after ${IMAGE_FETCH_TIMEOUT_MS}ms`);
-      }
-      throw err;
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
-}
-
-/**
- * Validates that an image URL uses a safe public HTTP(S) endpoint.
- * @param url - URL to validate.
- */
-async function assertSafeHttpUrl(url: URL): Promise<void> {
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new Error("Image URL must use http or https");
-  }
-  if (!url.hostname) {
-    throw new Error("Image URL must include a hostname");
-  }
-
-  const hostname = normalizeHostname(url.hostname);
-  const literalIp = isIP(hostname);
-  if (literalIp !== 0) {
-    if (isBlockedIp(hostname)) {
-      throw new Error("Image URL resolves to a blocked internal address");
-    }
-    return;
-  }
-
-  const addresses = await lookup(hostname, { all: true, verbatim: true });
-  if (addresses.length === 0) {
-    throw new Error("Image URL hostname did not resolve");
-  }
-  if (addresses.some((address) => isBlockedIp(address.address))) {
-    throw new Error("Image URL resolves to a blocked internal address");
-  }
-}
-
-/**
- * Checks whether an IP address is in a private, loopback, or otherwise blocked range.
- * @param address - IPv4 or IPv6 address string.
- * @returns True if the address is blocked for SSRF protection.
- */
-function isBlockedIp(address: string): boolean {
-  if (isIP(address) === 4) {
-    const [a, b] = address.split(".").map(Number);
-    return (
-      a === 0 ||
-      a === 10 ||
-      a === 127 ||
-      (a === 100 && b >= 64 && b <= 127) ||
-      (a === 169 && b === 254) ||
-      (a === 172 && b >= 16 && b <= 31) ||
-      (a === 192 && b === 168) ||
-      a >= 224
-    );
-  }
-
-  const normalized = address.toLowerCase();
-  if (normalized.startsWith("::ffff:")) {
-    const mapped = normalized.slice("::ffff:".length);
-    if (isIP(mapped) === 4) return isBlockedIp(mapped);
-    const words = mapped.split(":");
-    if (words.length === 2 && words.every((word) => /^[0-9a-f]{1,4}$/.test(word))) {
-      const [high, low] = words.map((word) => parseInt(word, 16));
-      return isBlockedIp(`${high >> 8}.${high & 255}.${low >> 8}.${low & 255}`);
-    }
-    return true;
-  }
-
-  return (
-    normalized === "::" ||
-    normalized === "::1" ||
-    normalized.startsWith("fc") ||
-    normalized.startsWith("fd") ||
-    /^fe[89ab][0-9a-f]:/.test(normalized) ||
-    normalized.startsWith("ff")
-  );
-}
-
-/**
- * Strips surrounding brackets from an IPv6 hostname so it can be parsed as an IP.
- * @param hostname - Hostname string, possibly bracketed.
- * @returns Normalized hostname without brackets.
- */
-function normalizeHostname(hostname: string): string {
-  if (hostname.startsWith("[") && hostname.endsWith("]")) {
-    return hostname.slice(1, -1);
-  }
-  return hostname;
-}
-
-/**
- * Reads a response body up to a maximum byte limit.
- * @param resp - Fetch response with a readable body.
- * @param maxBytes - Maximum number of bytes to accept.
- * @returns Concatenated response bytes.
- */
-async function readBoundedResponse(resp: Response, maxBytes: number): Promise<Buffer> {
-  if (!resp.body) {
-    return Buffer.alloc(0);
-  }
-
-  const chunks: Buffer[] = [];
-  let total = 0;
-  for await (const chunk of resp.body) {
-    const bytes = Buffer.from(chunk);
-    total += bytes.length;
-    if (total > maxBytes) {
-      throw new Error(`Image exceeds ${maxBytes} bytes`);
-    }
-    chunks.push(bytes);
-  }
-  return Buffer.concat(chunks, total);
 }
 
 /**

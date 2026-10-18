@@ -18,6 +18,13 @@ with its tag.
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-10-18
+
+### Fixed
+
+- Pin remote image connections to their validated DNS answers, check connected peers, and
+  revalidate every redirect while preserving HTTPS certificate and hostname verification.
+
 ## [0.8.0] - 2026-10-18
 
 ### Changed
