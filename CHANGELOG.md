@@ -18,6 +18,14 @@ with its tag.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-18
+
+### Added
+
+- A read-only relay dashboard at `http://localhost:<port>/`: connected files, recent tool calls
+  and follower processes. The status page follows the relay's dev slot, polls every two seconds,
+  and ships with release archives.
+
 ## [0.8.0] - 2026-10-18
 
 ### Changed

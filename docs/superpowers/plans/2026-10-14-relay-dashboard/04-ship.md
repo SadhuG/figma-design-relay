@@ -8,7 +8,7 @@ Get the dashboard into the release zip, document it, prove it against real Figma
 through `finish-task`.
 
 **In:** `.github/workflows/release.yml`, `server/package.json` `files`, README, `.claude/` rules
-and CLAUDE.md layout, the design-history index, a live-check record, version 0.8.0 and the
+and CLAUDE.md layout, the design-history index, a live-check record, version 0.9.0 and the
 changelog. **Out:** any new behaviour.
 
 ## Requirements
@@ -36,7 +36,7 @@ Phases 1–3 complete; `bun run check` green.
 
 - Modify: `.github/workflows/release.yml` (Package release step), `server/package.json` (`files`)
 
-- [ ] **Step 1: Copy the dashboard into the zip and check it is there**
+- [x] **Step 1: Copy the dashboard into the zip and check it is there**
 
 In the "Package release" step, after `cp server/bun.lock release/server/`:
 
@@ -50,13 +50,13 @@ In the "Package release" step, after `cp server/bun.lock release/server/`:
 
 In `server/package.json`, change `"files": ["dist"]` to `"files": ["dist", "dashboard"]`.
 
-- [ ] **Step 2: Dry-run the copy locally**
+- [x] **Step 2: Dry-run the copy locally**
 
 Run (Git Bash, root):
 `rm -rf /tmp/rel && mkdir -p /tmp/rel/server/dashboard && cp server/dashboard/*.html server/dashboard/*.css server/dashboard/*.js /tmp/rel/server/dashboard/ && ls /tmp/rel/server/dashboard`
 Expected: `dashboard.css  dashboard.js  index.html  render.js`, and no `render.test.ts`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add .github/workflows/release.yml server/package.json
@@ -69,7 +69,7 @@ git commit -m "chore: ship the dashboard files in the release zip"
 
 - Modify: `README.md`, `.claude/rules/server.md`, `.claude/CLAUDE.md`, `docs/superpowers/README.md`
 
-- [ ] **Step 1: README** — after the "### 4. Start using it 🎉" section, add:
+- [x] **Step 1: README** — after the "### 4. Start using it 🎉" section, add:
 
 ```markdown
 ### 5. Watch it work (optional)
@@ -81,7 +81,7 @@ the other relay processes sharing the connection. It is read-only, and it answer
 machine. A dev plugin's relay shows its own on its dev port.
 ```
 
-- [ ] **Step 2: `.claude/rules/server.md`** — under Constraints, add:
+- [x] **Step 2: `.claude/rules/server.md`** — under Constraints, add:
 
 ```markdown
 - **The dashboard is read-only and same-origin.** `GET /` and `/api/status` (`src/dashboard-http.ts`)
@@ -91,13 +91,13 @@ machine. A dev plugin's relay shows its own on its dev port.
   files live in `server/dashboard/` and are copied into the release by `release.yml`.
 ```
 
-- [ ] **Step 3: `.claude/CLAUDE.md` layout** — under `server/src/`, add
+- [x] **Step 3: `.claude/CLAUDE.md` layout** — under `server/src/`, add
       `activity.ts   call log + follower registry the dashboard reads` and
       `dashboard-http.ts guard, headers and file table for the status page`; add a line
       `server/dashboard/  the leader's status page: index.html, render.js (tested), dashboard.js/.css`.
       Update the leader line to `leader.ts     HTTP + WebSocket host, and the dashboard`.
 
-- [ ] **Step 4: `docs/superpowers/README.md`** — under "Other specs", add:
+- [x] **Step 4: `docs/superpowers/README.md`** — under "Other specs", add:
 
 ```markdown
 - [`specs/2026-10-14-relay-dashboard-design.md`](specs/2026-10-14-relay-dashboard-design.md) — the
@@ -105,7 +105,7 @@ machine. A dev plugin's relay shows its own on its dev port.
   [`plans/2026-10-14-relay-dashboard/00-overview.md`](plans/2026-10-14-relay-dashboard/00-overview.md).
 ```
 
-- [ ] **Step 5: Format and commit**
+- [x] **Step 5: Format and commit**
 
 ```bash
 bun run format && bunx prettier --check "docs/**/*"
@@ -142,7 +142,7 @@ with an "unverified" note.
 ### Task 4: Finish
 
 - [ ] **Step 1:** Run the `finish-task` skill. This is a finished feature, so it bumps the
-      **minor** version to **0.8.0** (server and plugin) with a changelog entry under "Added": "A
+      **minor** version to **0.9.0** (server and plugin) with a changelog entry under "Added": "A
       read-only relay dashboard at `http://localhost:<port>/`: connected files, recent tool calls and
       follower processes." The skill also refreshes the test counts in CLAUDE.md, gets a separate agent
       to review the full diff, and merges into `dev`, then `main`.
@@ -152,4 +152,4 @@ with an "unverified" note.
 
 - A release dry run (or the CI artifact) lists `server/dashboard/index.html`.
 - The live-check record exists, with all eight cases passing on the merged commit's build.
-- `bun scripts/check-version.mjs` reports 0.8.0 with a changelog entry.
+- `bun scripts/check-version.mjs` reports 0.9.0 with a changelog entry.
