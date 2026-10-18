@@ -1,5 +1,13 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import hoppLogo from "./assets/hopp-logo.png";
+import React, { useEffect, useRef, useState } from "react";
+import { ChevronIcon, CursorIcon, LostIcon, PlaneIcon, SunIcon } from "./icons";
+import {
+  chipState,
+  formatSelection,
+  relayAddress,
+  relayPort,
+  relayRowText,
+  type ChipTone,
+} from "./panel-state";
 
 type RequestType =
   | "get_document"
@@ -61,13 +69,35 @@ const WS_BASE_URL = import.meta.env.VITE_FIGMA_DESIGN_RELAY_WS || "ws://localhos
 
 // Shown in the panel so a running plugin says which relay it dials. The port is
 // baked in at build time, and a build for another port looks identical otherwise.
-const RELAY_ADDRESS = (() => {
-  try {
-    return new URL(WS_BASE_URL).host;
-  } catch {
-    return WS_BASE_URL;
-  }
-})();
+const RELAY_ADDRESS = relayAddress(WS_BASE_URL);
+const RELAY_PORT = relayPort(WS_BASE_URL);
+
+const VERSION = import.meta.env.VITE_FIGMA_DESIGN_RELAY_VERSION ?? "";
+/** Set only in a dev slot's build; it switches on the plane icon and the Dev pill. */
+const DEV_SLOT = import.meta.env.VITE_FIGMA_DESIGN_RELAY_SLOT;
+
+function AppIcon({ size, faded }: { size: number; faded: boolean }) {
+  return (
+    <span className={`app-icon${faded ? " faded" : ""}`}>
+      {DEV_SLOT ? <PlaneIcon size={size} /> : <SunIcon size={size} />}
+    </span>
+  );
+}
+
+function Chip({ tone, text, title }: { tone: ChipTone; text: string; title: string }) {
+  return (
+    <span className={`chip ${tone}${tone === "live" ? "" : " has-icon"}`} title={title}>
+      {tone === "live" && <span className="dot" />}
+      {tone === "working" && <CursorIcon size={14} />}
+      {tone === "lost" && <LostIcon size={14} />}
+      <span className="chip-text">{text}</span>
+    </span>
+  );
+}
+
+function DevPill() {
+  return DEV_SLOT ? <span className="dev-pill">Dev: {DEV_SLOT}</span> : null;
+}
 
 export default function App() {
   const [connected, setConnected] = useState(false);
@@ -80,19 +110,13 @@ export default function App() {
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<number | null>(null);
 
-  const statusLabel = useMemo(
-    () => (connected ? "WebSocket Connected" : "Disconnected"),
-    [connected]
-  );
-
-  // One definition, rendered either in the collapsed bar or in the footer --
-  // never both at once, since .body is hidden while collapsed.
-  const statusBadge = (
-    <div className={`badge ${connected ? "connected" : "disconnected"}`} title={WS_BASE_URL}>
-      <span className="dot" />
-      <span className="badge-text">{statusLabel}</span>
-    </div>
-  );
+  const chip = chipState({
+    connected,
+    port: RELAY_PORT,
+    workingLabel: null,
+    retryInSeconds: null,
+  });
+  const chipTitle = WS_BASE_URL;
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -207,64 +231,52 @@ export default function App() {
   }, [status.fileKey, status.fileName, status.editorType]);
 
   return (
-    <div className={`container ${collapsed ? "collapsed" : ""}`}>
-      {collapsed && <div className="titlebar">{statusBadge}</div>}
-
+    <div className={`container${collapsed ? " collapsed" : ""}`}>
       <button
         type="button"
-        className="collapse-toggle"
+        className="toggle"
         onClick={toggleCollapsed}
-        title={collapsed ? "Restore" : "Minimize"}
-        aria-label={collapsed ? "Restore" : "Minimize"}
+        title={collapsed ? "Expand" : "Collapse"}
+        aria-label={collapsed ? "Expand" : "Collapse"}
         aria-expanded={!collapsed}
       >
-        <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
-          <path
-            d="M1 3.5 L5 7 L9 3.5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+        <ChevronIcon size={9} direction={collapsed ? "down" : "up"} />
       </button>
 
-      <div className="body">
-        <div className="info-section">
-          <div className="info-row">
-            <span className="info-label">File:</span>
-            <span className="info-value">{status.fileName}</span>
-          </div>
-          <div className="info-row">
-            <span className="info-label">Selection:</span>
-            <span className="info-value">{status.selectionCount} node(s)</span>
-          </div>
-          <div className="info-row">
-            <span className="info-label">Relay:</span>
-            <span className="info-value">{RELAY_ADDRESS}</span>
-          </div>
+      {collapsed ? (
+        <div className="bar">
+          <AppIcon size={20} faded={!connected} />
+          <span className="grow" />
+          <DevPill />
+          <Chip tone={chip.tone} text={chip.short} title={chipTitle} />
         </div>
+      ) : (
+        <div className="panel">
+          <div className="rows">
+            <div className="row">
+              <span className="row-label">File</span>
+              <span className="row-value" title={status.fileName}>
+                {status.fileName}
+              </span>
+            </div>
+            <div className="row">
+              <span className="row-label">Selection</span>
+              <span className="row-value">{formatSelection(status.selectionCount)}</span>
+            </div>
+            <div className="row">
+              <span className="row-label">Relay</span>
+              <span className="row-value">{relayRowText(RELAY_ADDRESS, connected)}</span>
+            </div>
+          </div>
 
-        <div className="footer">
-          {statusBadge}
-          <a
-            href="https://www.gethopp.app/?ref=figma-design-relay"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="branding"
-          >
-            <img src={hoppLogo} alt="Hopp" className="logo" />
-            <span className="sponsored-text">
-              Sponsored by Hopp
-              <br />
-              The best open-source
-              <br />
-              pair-programming app
-            </span>
-          </a>
+          <div className="footer">
+            <AppIcon size={16} faded={!connected} />
+            <Chip tone={chip.tone} text={chip.text} title={chipTitle} />
+            <span className="grow" />
+            {DEV_SLOT ? <DevPill /> : <span className="version">v{VERSION}</span>}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
