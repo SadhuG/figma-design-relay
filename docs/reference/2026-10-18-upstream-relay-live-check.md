@@ -41,8 +41,9 @@ The review fixes after this run were rechecked live on their own build; see
 
 **Status: design editor passed (28/28). FigJam and Slides were run later on the 6881bc0 build —
 see [FigJam and Slides run](#figjam-and-slides-run-6881bc0). It found one FigJam defect
-(`create_connector` drops `parentId` when one end is attached and the other is free), so the live
-gate is still not satisfied for FigJam until that is fixed and rechecked.**
+(`create_connector` drops `parentId` when one end is attached and the other is free). It was fixed
+test-first with the `create_shape_with_text` default and rechecked live on its own build — see
+[Mixed-end connector and shape default fix](#mixed-end-connector-and-shape-default-fix-3b91bed).**
 
 ### Tested build
 
@@ -356,7 +357,9 @@ appending to the section and then setting `connectorStart` to a node endpoint mo
 the page as soon as that end is set. Setting both ends first and then calling `appendChild` keeps it
 in the section. Free–free and node–node connectors stay in the section. This candidate is the first
 version to accept mixed ends, so this is a candidate defect. It goes back to the parent for a
-test-first fix and fresh review. The fix needs the mixed case rerun live.
+test-first fix and fresh review. The fix needs the mixed case rerun live. (Fixed and rerun: see
+[the fix section](#mixed-end-connector-and-shape-default-fix-3b91bed). Setting both ends before
+`appendChild` keeps the parent but not the geometry, so the fix anchors the free end instead.)
 
 ### Observations, not defects
 
@@ -364,7 +367,8 @@ test-first fix and fresh review. The fix needs the mixed case rerun live.
   on the same board also gives ELLIPSE, so the default comes from Figma (likely the board's last
   shape), not from the relay. The candidate's tool description says "SQUARE (default)", and the
   schema has said "default SQUARE" since `3d97e2e`. The wording overstates what happens. It is
-  passed to the parent with the defect above.
+  passed to the parent with the defect above. (Treated as a defect and fixed: the tool now always
+  sets `shapeType`.)
 - The free end of a connector serializes as `connector.from` / `to` = the page id (`0:1`), because
   Figma reports the page as a free end's `endpointNodeId`. That serializer is unchanged from
   `main`.
@@ -397,7 +401,124 @@ test-first fix and fresh review. The fix needs the mixed case rerun live.
 ### Still open after this run
 
 - **The mixed-end connector defect** above. FigJam's live gate waits on its fix and a rerun of the
-  connector cases.
+  connector cases. (Closed by the next section.)
 - Unchanged from earlier and not constructible here: Conditional / Set Variable actions (Free
   plan), cross-page navigation, a missing destination, Dev Mode, a throwing lookup, and an insert
   failure after a clone.
+
+## Mixed-end connector and shape default fix (3b91bed)
+
+Two live findings from the run above, fixed test-first: `367920e` (`create_shape_with_text`
+default), `750ee6e` (mixed-end connector parent) and `3b91bed` (error wording found by this rerun).
+
+### Root cause
+
+Probed in raw Plugin API on the board before any code changed (scratch nodes removed):
+
+- **Each endpoint assignment can reparent a connector.** Once an end names a node, Figma moves the
+  connector into the closest container its ends share; a bare `{ position }` counts as the page.
+  Node + bare point in a section → page. Two nodes in a nested section, with the connector in the
+  outer one → the nested section. Two bare points → no move.
+- **Setting both ends, then `appendChild`, is not a fix.** It keeps the parent, but the connector
+  keeps its old geometry shifted by the parent's offset: a both-free connector was drawn 1000 px
+  off, and a mixed one stayed off until its sticky was moved. Re-appending after the ends does the
+  same.
+- **`{ endpointNodeId: parent, position }` works.** Figma reads the position in the parent's own
+  coordinates (checked with a section at an offset, a nested section, a frame rotated −90° and a
+  group), the connector stays in the parent, and the end moves with it.
+- Both free ends keep `100adcb`'s canvas mapping; only a free end beside a node end is anchored.
+  So no point is mapped twice. After the ends, stroke and label, the tool checks the parent and
+  removes a connector Figma put elsewhere.
+- `figma.createShapeWithText()` gave ELLIPSE (the toolbar's last shape) before and during the run.
+
+### Automated, on 3b91bed
+
+| Check                                       | Result                                                     |
+| ------------------------------------------- | ---------------------------------------------------------- |
+| `bun run check` (root)                      | exit 0                                                     |
+| server `bun test`                           | 384 pass, 2 skipped on Windows, 0 fail                     |
+| plugin `bun test`                           | 341 pass, 0 fail (4 new tests; 6 seen failing before)      |
+| plugin `bun run typecheck`, both builds     | pass                                                       |
+| `bun run format:check`, `check-version.mjs` | pass, `0.7.9`                                              |
+| `git diff --check 66fd2b7 HEAD`             | clean                                                      |
+| `367920e` alone                             | dispatcher tests 47 pass (shape default without the other) |
+
+The test fake now reparents a connector on each assignment the way Figma did, and draws a free end
+shifted when the connector is appended after its ends are set. Red before the fix: the shape came
+out ELLIPSE, and every mixed case reported parent `8:0` (the page).
+
+### Tested build
+
+| Item                        | sha256                                                                                    |
+| --------------------------- | ----------------------------------------------------------------------------------------- |
+| `server/dist/index.js`      | `61b5361b440e3bc4ee33b1a436543e00f3728d9b669f08336e35d3d92687bcc5`                        |
+| `server/dist/**/*.js`       | `21afcc90047a7e9aa5dcf5b347012ebc08f797b4f3c816096c858a9a73095719` (sorted concatenation) |
+| `plugin/dist/code.js`       | `ec9bdaf3d7645eabe1e27422246681bc639650e87e12613956afb2c6892aac3a`                        |
+| `plugin/dist/manifest.json` | `1a061ff39e49a7d135152ad98d93e158ace969210832eed629b96afd28a8b9f3`                        |
+| `plugin/dist/index.html`    | `5f32c50a019670112571bcf3449ba5e29caae671a9f5e23060ac8fbbacf8bad4`                        |
+
+Only `server/dist/tools.js` (the `create_connector` description) changed on the server, so the
+1998 leader (PID 7028) was not restarted: its schema, routing and validation are unchanged, and
+each call's follower ran the new `dist`. Manifest and UI are unchanged.
+
+### Setup
+
+- Figma desktop, Windows 11, Free plan, FigJam board `Untitled`. After the rebuild the Dev plugin
+  hot-reloaded in all four files. On the board it was then closed (`figma.closePlugin()`) and run
+  again with Run last plugin, after clicking the board's tab; its panel read **Relay:
+  localhost:1998** and **WebSocket Connected**. Key `unsaved-mvdfqnmv-gx6c1q2z`. An earlier pass
+  on the `750ee6e` build (code.js `b645f0e5…`, key `unsaved-mvdfnpc5-ideajt6k`) found only the
+  wording fixed in `3b91bed`; its fixtures were removed and every case below was rerun on `3b91bed`.
+- Every call came from `server/.smoke/call.mjs` with that `fileKey`; the spawned server printed
+  `Became FOLLOWER` / `Starting MCP server (role: FOLLOWER)`. Raw output is in
+  `%TEMP%/relay-mixfix/`, outside the repository.
+- Fixtures (`run_script`): section A `21:324` at (1000, 1000); inside it stickies S `21:326` and
+  V `21:330`, nested section B `21:325` at A (800, 100) with stickies T `21:334` and T2 `21:338`,
+  and frame F `21:342` at A (200, 1600) rotated −90° with sticky U `21:343`. Sticky P `21:347` on
+  the page.
+
+### FigJam results (all through the follower)
+
+Free points are given relative to the parent; canvas positions are read back from
+`absoluteBoundingBox`.
+
+| Case                                                                                                                                                                                               | Result |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| Mixed, node start S `bottom`, free end A (150, 1000), label "zz go", `#AA00AA`, weight 3 → parent A; free end at canvas (1150, 2000); magnet BOTTOM, label, stroke and weight read back            | pass   |
+| Mixed, free start A (600, 1200), node end S `right` → parent A; free start at (1600, 2200); magnet RIGHT                                                                                           | pass   |
+| Mixed in nested section B: node T, free end B (100, 500) → parent B; free end at (1900, 1600)                                                                                                      | pass   |
+| Mixed, node T in B, free end A (1400, 1500), parent A → parent A; free end at (2400, 2500)                                                                                                         | pass   |
+| Mixed in rotated frame F: node U `bottom`, free end F (450, 450) → parent F; free end at (750, 3050), F's transform                                                                                | pass   |
+| Regression: both free in A, (100, 1400)→(300, 1450), label → parent A; box (1100, 2400) 200×50                                                                                                     | pass   |
+| Regression: both attached S→V, `left`/`left` → parent A, magnets LEFT/LEFT; self-loop on V with label → RIGHT/TOP                                                                                  | pass   |
+| Node–node T→T2 with parent A → refused: "Figma put the connector in zz mixfix live B (21:325), not in … (21:324) … Pass parentId 21:325, or move the endpoint nodes so 21:324 is …"                | pass   |
+| Node P on the page + free end, parent A → refused, naming Page 1 (0:1)                                                                                                                             | pass   |
+| Both refusals left no connector: 9 connectors on the board, none named c09 or c10                                                                                                                  | pass   |
+| No parent, node S + free (900, −200) → parent `0:1`, free end at (900, −200)                                                                                                                       | pass   |
+| Section A moved (+200, +100) → every measured connector in A, B and F (c01–c04, c06, c07, F's second) moves by (+200, +100); parents unchanged; the page connector's free end stays at (900, −200) | pass   |
+| Sticky S moved +30 → attached ends follow (S's connectors widen or shift by 30), free ends stay put                                                                                                | pass   |
+| `get_node` on the first mixed connector → `connector.from` S, `to` A (the anchor), text "zz go"                                                                                                    | pass   |
+| `create_shape_with_text` without `shapeType`, in A and on the page → SQUARE both times (bare `createShapeWithText()` gave ELLIPSE just before)                                                     | pass   |
+| `create_shape_with_text` `DIAMOND` → DIAMOND                                                                                                                                                       | pass   |
+| Design file `DS`: `create_connector` refused, naming FigJam; Slides: `create_shape_with_text` refused, naming FigJam                                                                               | pass   |
+
+The first mixed case's free point in F (100, 200) landed inside sticky U; the F case above was added
+with a point clear of it.
+
+### Cleanup
+
+- Board: removed exactly the recorded scratch ids — the page connector `21:391`, the page shape
+  `21:403`, sticky P `21:347` and section A `21:324` with everything inside it. The probe nodes
+  from the root-cause step and the `750ee6e` pass were removed the same way. The board is back to 0
+  children, no `zz ` node, empty selection, viewport centre (0, −0.71) at zoom 0.707 as first found.
+- Design files and the deck: no writes. All four files are connected to the 1998 leader (PID 7028),
+  which is still listening. The stable relay on 1994 was not touched.
+
+### Still open
+
+- The `create_connector` parent check refuses a node–node connector whose nodes sit deeper than
+  `parentId`. Before this fix such a call succeeded (per the raw probe) with the connector in the deeper container and
+  that id in `parentId`.
+- Unchanged and not constructible here: Conditional / Set Variable actions (Free plan), cross-page
+  navigation, a missing destination, Dev Mode, a throwing lookup, and an insert failure after a
+  clone.
