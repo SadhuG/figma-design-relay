@@ -93,8 +93,11 @@ function AppIcon({ size, faded }: { size: number; faded: boolean }) {
 
 function Chip({ tone, text, title }: { tone: ChipTone; text: string; title: string }) {
   return (
-    <span className={`chip ${tone}${tone === "live" ? "" : " has-icon"}`} title={title}>
-      {tone === "live" && <span className="dot" />}
+    <span
+      className={`chip ${tone}${tone === "working" || tone === "lost" ? " has-icon" : ""}`}
+      title={title}
+    >
+      {(tone === "live" || tone === "connecting") && <span className="dot" />}
       {tone === "working" && <CursorIcon size={14} />}
       {tone === "lost" && <LostIcon size={14} />}
       <span className="chip-text">{text}</span>
@@ -108,6 +111,9 @@ function DevPill() {
 
 export default function App() {
   const [connected, setConnected] = useState(false);
+  /** An attempt has failed or a connection dropped; until then the panel is just connecting. */
+  const [hasFailed, setHasFailed] = useState(false);
+  const lost = !connected && hasFailed;
   const [collapsed, setCollapsed] = useState(false);
   const [status, setStatus] = useState<PluginStatus>({
     fileName: "Unknown file",
@@ -131,6 +137,7 @@ export default function App() {
   const agents = activity.current.activeAgents(Date.now());
   const chip = chipState({
     connected,
+    connecting: !hasFailed,
     port: RELAY_PORT,
     workingLabel: workingLabel(agents.map(agentDisplayName)),
     retryInSeconds,
@@ -252,6 +259,7 @@ export default function App() {
         activity.current.clear();
         bumpActivity();
         setConnected(false);
+        setHasFailed(true);
         if (reconnectTimer.current === null) {
           const delay = retryDelayMs(retryAttempt.current++);
           retryDeadline.current = Date.now() + delay;
@@ -290,6 +298,10 @@ export default function App() {
         window.clearTimeout(reconnectTimer.current);
         reconnectTimer.current = null;
       }
+      // The next run dials at once, so drop the old countdown and schedule with the timer.
+      retryAttempt.current = 0;
+      retryDeadline.current = null;
+      setRetryInSeconds(0);
       if (socketRef.current) {
         const ws = socketRef.current;
         ws.onopen = null;
@@ -317,7 +329,7 @@ export default function App() {
 
       {collapsed ? (
         <div className="bar">
-          <AppIcon size={20} faded={!connected} />
+          <AppIcon size={20} faded={lost} />
           <span className="grow" />
           <DevPill />
           <Chip tone={chip.tone} text={chip.short} title={chipTitle} />
@@ -337,15 +349,15 @@ export default function App() {
             </div>
             <div className="row">
               <span className="row-label">Relay</span>
-              <span className="row-value">{relayRowText(RELAY_ADDRESS, connected)}</span>
+              <span className="row-value">{relayRowText(RELAY_ADDRESS, !lost)}</span>
             </div>
           </div>
 
           <div className="footer">
-            <AppIcon size={16} faded={!connected} />
+            <AppIcon size={16} faded={lost} />
             <Chip tone={chip.tone} text={chip.text} title={chipTitle} />
             <span className="grow" />
-            {!connected ? (
+            {lost ? (
               <button type="button" className="button" onClick={retryNow}>
                 Retry now
               </button>

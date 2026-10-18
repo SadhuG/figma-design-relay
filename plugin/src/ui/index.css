@@ -181,6 +181,11 @@ body {
   flex-shrink: 0;
 }
 
+.chip.connecting {
+  color: var(--text-label);
+  background: rgba(0, 0, 0, 0.06);
+}
+
 .chip.live {
   color: var(--live);
   background: var(--live-bg);

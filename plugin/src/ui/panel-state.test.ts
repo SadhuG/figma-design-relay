@@ -150,3 +150,19 @@ test("a name that matches an Object property is shown as sent", () => {
   expect(agentDisplayName("constructor")).toBe("constructor");
   expect(agentDisplayName("toString")).toBe("toString");
 });
+
+describe("chipState edge cases", () => {
+  const base = { connected: true, port: "1994", workingLabel: null, retryInSeconds: null };
+  test("no readable port says just Live", () =>
+    expect(chipState({ ...base, port: "" })).toEqual({
+      tone: "live",
+      text: "Live",
+      short: "Live",
+    }));
+  test("before the first attempt fails, the panel is connecting, not lost", () =>
+    expect(chipState({ ...base, connected: false, connecting: true })).toEqual({
+      tone: "connecting",
+      text: "Connecting…",
+      short: "Connecting…",
+    }));
+});

@@ -39,10 +39,13 @@ export function retryDelayMs(attempt: number): number {
   return RETRY_DELAYS_MS[Math.min(attempt, RETRY_DELAYS_MS.length - 1)];
 }
 
-export type ChipTone = "live" | "working" | "lost";
+export type ChipTone = "connecting" | "live" | "working" | "lost";
 
 export type ChipInput = {
   connected: boolean;
+  /** Not connected yet, but no attempt has failed either: the first dial after launch. */
+  connecting?: boolean;
+  /** "" when the relay URL can't be read. */
   port: string;
   /** From workingLabel; null when no agent is working. */
   workingLabel: string | null;
@@ -50,8 +53,14 @@ export type ChipInput = {
   retryInSeconds: number | null;
 };
 
-/** `text` is for the open panel, `short` for the collapsed bar. Lost beats working beats live. */
+/**
+ * `text` is for the open panel, `short` for the collapsed bar. Connecting beats lost, so a launch
+ * doesn't flash "Relay lost"; then lost beats working beats live.
+ */
 export function chipState(input: ChipInput): { tone: ChipTone; text: string; short: string } {
+  if (!input.connected && input.connecting) {
+    return { tone: "connecting", text: "Connecting…", short: "Connecting…" };
+  }
   if (!input.connected) {
     // Short enough to sit beside Retry now in the system font; Inter isn't available in the iframe.
     const text = input.retryInSeconds
@@ -62,6 +71,7 @@ export function chipState(input: ChipInput): { tone: ChipTone; text: string; sho
   if (input.workingLabel) {
     return { tone: "working", text: input.workingLabel, short: input.workingLabel };
   }
+  if (!input.port) return { tone: "live", text: "Live", short: "Live" };
   return { tone: "live", text: `Live on port ${input.port}`, short: `Live · ${input.port}` };
 }
 
