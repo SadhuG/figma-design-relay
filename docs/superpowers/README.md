@@ -114,3 +114,9 @@ Drive it with `superpowers:subagent-driven-development` or `superpowers:executin
 - [`specs/2026-09-27-cross-file-design-search-design.md`](specs/2026-09-27-cross-file-design-search-design.md)
   — `search_design_system` across every open design file (R40's last gap). Delivered in 0.7.5 by
   [`plans/2026-09-27-cross-file-design-search.md`](plans/2026-09-27-cross-file-design-search.md).
+
+## Other plans
+
+- [`plans/2026-10-18-panel-redesign/`](plans/2026-10-18-panel-redesign/00-overview.md): the light
+  plugin panel, its connection states and named agents. The spec is the Figma frame "Board 10:
+  Plugin UI, final states". This plan is a folder: an overview plus one file per phase.
