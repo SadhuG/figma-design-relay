@@ -273,7 +273,7 @@ packages (including type-checking), and checks formatting. `bun run test` runs o
 cd server && bun test       # schemas, /rpc guards, codegen, content blocks, asset export, Code Connect,
                             # the Mermaid parser and diagram layout, the startup port and dev slots,
                             # cross-file search: file selection, result merging and fan-out,
-                            # bridge response ownership, leader cleanup and filesystem/URL safety,
+                            # bridge response ownership, leader cleanup and filesystem/URL safety and DNS pinning,
                             # the SVG loader, and every new tool's follower round trip
 cd plugin && bun test       # run_script, serializer and its helpers (FigJam nodes too), Code Connect context,
                             # the editor capability table and its regression guard, diagram payloads,
@@ -317,6 +317,7 @@ Figma-Design-Relay/
         ├── tools.ts      # MCP tool definitions
         ├── svg.ts        # create_svg's bounded, workspace-contained source loader
         ├── workspace-path.ts # Shared filesystem containment checks
+        ├── image-fetch.ts # DNS-pinned remote image downloads and address checks
         ├── content.ts    # Text and image blocks for tool results
         ├── assets.ts     # Exports design assets into the workspace
         ├── codegen/      # Tokens and React / HTML / CSS reference code

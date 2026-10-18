@@ -129,48 +129,13 @@ test.skipIf(process.platform === "win32")(
 test.each(["[::ffff:127.0.0.1]", "[::ffff:10.0.0.1]", "[::ffff:192.168.1.1]", "[fe80::1]"])(
   "image URLs refuse mapped internal IPv4 %s",
   async (host) => {
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async () => new Response("image")) as typeof fetch;
-    try {
-      const result = await handlers.get("create_image")!({ source: `http://${host}/image.png` });
-      expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain("blocked internal");
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
+    const result = await handlers.get("create_image")!({ source: `http://${host}/image.png` });
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("blocked internal");
   }
 );
 
-test("image download deadline includes a stalled response body", async () => {
-  const originalFetch = globalThis.fetch;
-  let stream: ReadableStreamDefaultController<Uint8Array>;
-  globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
-    const body = new ReadableStream<Uint8Array>({
-      start(controller) {
-        stream = controller;
-      },
-    });
-    init?.signal?.addEventListener("abort", () =>
-      stream.error(new DOMException("Aborted", "AbortError"))
-    );
-    return new Response(body);
-  }) as typeof fetch;
-  let guard: ReturnType<typeof setTimeout> | undefined;
-  try {
-    const result = await Promise.race([
-      handlers.get("create_image")!({ source: "https://8.8.8.8/image.png" }),
-      new Promise<never>((_resolve, reject) => {
-        guard = setTimeout(() => reject(new Error("Image body outlived its deadline")), 16_000);
-      }),
-    ]);
-    expect(result.isError).toBe(true);
-    expect(result.content[0].text).toContain("Timed out fetching image");
-  } finally {
-    clearTimeout(guard);
-    stream!.error(new Error("test cleanup"));
-    globalThis.fetch = originalFetch;
-  }
-}, 20_000);
+// Transport behaviour (pinning, redirects, deadlines, size limits) is covered in image-fetch.test.ts.
 
 test("create_svg refuses an external directory link without contacting the plugin", async () => {
   await writeFile(path.join(outside, "a.svg"), "<svg/>");

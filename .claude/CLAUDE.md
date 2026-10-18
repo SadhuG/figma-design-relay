@@ -40,7 +40,7 @@ This file holds only what applies to every task. The rest loads when it is relev
 | root      | `bun scripts/check-version.mjs`           | server + plugin versions agree and have a changelog entry                                                                               |
 | root      | `bun scripts/dev-slot.mjs [name]`         | in a feature worktree: claim its dev plugin name and port (1995–2019)                                                                   |
 | `server/` | `bun run build`                           | `tsc` → `dist/`; this is the server's type-check                                                                                        |
-| `server/` | `bun test`                                | 402 tests (2 Windows skips): schemas, transport, file safety, SVG loader, follower round trips, codegen, assets, Code Connect, Mermaid  |
+| `server/` | `bun test`                                | 409 tests (2 Windows skips): schemas, transport, file safety, SVG loader, follower round trips, codegen, assets, Code Connect, Mermaid  |
 | `plugin/` | `bun run typecheck`                       | `tsc --noEmit`; must stay at zero errors                                                                                                |
 | `plugin/` | `bun run build`                           | typecheck, then two Vite passes: UI, then `main`                                                                                        |
 | `plugin/` | `bun test`                                | 380 tests: scripts, serializer, capability table, library tools, diagrams, prototypes, layout, batches, dispatch, HTML images and panel |
@@ -64,6 +64,7 @@ server/src/
   assets.ts     writes exported design assets inside the working directory
   workspace-path.ts shared filesystem containment checks for file tools and assets
   svg.ts        create_svg's source loader: inline markup or one bounded, contained file read
+  image-fetch.ts DNS-pinned remote image downloads with redirect and address checks
   codegen/      tokens, then React / HTML / CSS reference code behind index.ts's dispatcher
   code-connect/ discovers, parses, indexes, suggests and writes local *.figma.tsx mappings
   mermaid/      parse.ts (the strict Mermaid subset) + layout.ts (positions) for generate_diagram

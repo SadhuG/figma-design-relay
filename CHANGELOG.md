@@ -18,7 +18,7 @@ with its tag.
 
 ## [Unreleased]
 
-## [0.8.1] - 2026-10-18
+## [0.8.2] - 2026-10-18
 
 Merges upstream `gethopp/figma-mcp-bridge` through v0.0.24 (`2c37e6d`), adapted to the relay's
 editor gates, follower validation and file safety. Ten new tools: 64 in all.
@@ -56,6 +56,13 @@ editor gates, follower validation and file safety. Ten new tools: 64 in all.
 ### Verification
 
 - See [the integration record](docs/reference/2026-10-18-upstream-relay-live-check.md) for the tested build, automated results and live Figma checks.
+
+## [0.8.1] - 2026-10-18
+
+### Fixed
+
+- Pin remote image connections to their validated DNS answers, check connected peers, and
+  revalidate every redirect while preserving HTTPS certificate and hostname verification.
 
 ## [0.8.0] - 2026-10-18
 

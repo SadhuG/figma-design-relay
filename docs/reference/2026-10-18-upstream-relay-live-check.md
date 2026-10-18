@@ -6,8 +6,8 @@ merged, how it was checked automatically, and what was checked against real Figm
 Plan: [`../superpowers/plans/2026-10-18-upstream-relay.md`](../superpowers/plans/2026-10-18-upstream-relay.md).
 
 The original candidate below used the then-next version 0.7.9. That version was never released.
-After incorporating the reviewed 0.8.0 panel and agent-name release, the integration candidate is
-0.8.1. Historical build hashes and results below describe their named commits; they do not verify
+After incorporating the reviewed 0.8.0 panel and agent-name release and 0.8.1 DNS pinning fix, the integration candidate is
+0.8.2. Historical build hashes and results below describe their named commits; they do not verify
 the refreshed candidate. The refreshed candidate requires affected live checks before a PR.
 
 The unloaded-page-root gate was closed in the final section of this record. The remaining

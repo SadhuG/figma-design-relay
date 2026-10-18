@@ -49,6 +49,8 @@ validation and resolved independently again by `fetch`. A hostname could return 
 for the validation lookup and an internal address for the subsequent fetch. Literal-IP checks
 and redirect checks are now stronger, but this gap requires a transport that pins the validated
 DNS address while preserving the HTTP Host and TLS hostname. It remains unresolved in this cleanup.
+**Follow-up:** fixed on `fix/image-fetch-dns-pinning`; see
+[the live check](2026-10-02-image-fetch-dns-pinning-live-check.md).
 
 ## Verification and handoff
 
