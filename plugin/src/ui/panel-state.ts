@@ -53,9 +53,10 @@ export type ChipInput = {
 /** `text` is for the open panel, `short` for the collapsed bar. Lost beats working beats live. */
 export function chipState(input: ChipInput): { tone: ChipTone; text: string; short: string } {
   if (!input.connected) {
+    // Short enough to sit beside Retry now in the system font; Inter isn't available in the iframe.
     const text = input.retryInSeconds
-      ? `Lost the relay · retrying in ${input.retryInSeconds} s`
-      : "Lost the relay · retrying…";
+      ? `Relay lost · retry in ${input.retryInSeconds} s`
+      : "Relay lost · retrying…";
     return { tone: "lost", text, short: "Retrying…" };
   }
   if (input.workingLabel) {

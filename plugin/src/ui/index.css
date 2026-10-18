@@ -136,11 +136,14 @@ body {
   opacity: 0.4;
 }
 
+/* The state is what the panel is for: the chip keeps its width (up to a cap, then truncates) and the
+   Dev pill gives way instead. */
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  min-width: 0;
+  flex-shrink: 0;
+  max-width: 200px;
   height: 17px;
   padding: 0 7px 0 6px;
   border-radius: 999px;
@@ -149,6 +152,7 @@ body {
 }
 
 .chip-text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -158,6 +162,7 @@ body {
 }
 
 .bar .chip {
+  max-width: 170px;
   height: 16px;
   padding: 0 6px;
   font-size: 10px;
@@ -198,10 +203,10 @@ body {
   color: var(--text-label);
 }
 
+/* Shrinks before the state chip does, so the state stays readable next to a long slot name. */
 .dev-pill {
-  flex-shrink: 1;
-  min-width: 0;
-  max-width: 120px;
+  flex-shrink: 100;
+  min-width: 48px;
   height: 17px;
   padding: 0 6px;
   border-radius: 4px;

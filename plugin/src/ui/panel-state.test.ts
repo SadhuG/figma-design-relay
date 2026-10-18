@@ -62,12 +62,12 @@ describe("chipState", () => {
   test("lost with countdown", () =>
     expect(chipState({ ...base, connected: false, retryInSeconds: 5 })).toEqual({
       tone: "lost",
-      text: "Lost the relay · retrying in 5 s",
+      text: "Relay lost · retry in 5 s",
       short: "Retrying…",
     }));
   test("lost mid-attempt", () =>
     expect(chipState({ ...base, connected: false, retryInSeconds: 0 }).text).toBe(
-      "Lost the relay · retrying…"
+      "Relay lost · retrying…"
     ));
   test("lost beats working", () =>
     expect(
