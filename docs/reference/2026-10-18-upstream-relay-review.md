@@ -435,7 +435,7 @@ restriction was not applied because live API behavior contradicted its premise.
 | ----------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [4307838162](https://github.com/SadhuG/figma-design-relay/pull/19#discussion_r4307838162), prototype guide              | Valid. It now says design files only and explains that the latent Dev Mode capability remains for a future manifest change.                                                                                                                          |
 | [4307838171](https://github.com/SadhuG/figma-design-relay/pull/19#discussion_r4307838171), refusal guidance             | Valid. Only the three prototype entries override their advertised guidance editors to design. Both the `requires` clause and retry instruction use that list. Actual Dev Mode capability entries and regression coverage remain intact.              |
-| [4307838176](https://github.com/SadhuG/figma-design-relay/pull/19#discussion_r4307838176), proposed 0.01 resize minimum | Not reproduced; technical response asks the reviewer to confirm this disposition. No new lower bound was introduced. See investigation below.                                                                                                        |
+| [4307838176](https://github.com/SadhuG/figma-design-relay/pull/19#discussion_r4307838176), proposed 0.01 resize minimum | Not reproduced; CodeRabbit accepted the technical response, withdrew the finding and resolved the thread. No new lower bound was introduced. See investigation below.                                                                                |
 | [4307838183](https://github.com/SadhuG/figma-design-relay/pull/19#discussion_r4307838183), README scope                 | Valid. The `get_node includePrototype` row now matches the two other prototype rows and the shipped manifest.                                                                                                                                        |
 | [4307838188](https://github.com/SadhuG/figma-design-relay/pull/19#discussion_r4307838188), DOCTYPE subset               | Valid. The bounded root preflight scans quoted values, comments and bracket depth before ending a DOCTYPE; it does not resolve entities or replace Figma's XML parser. Valid and malformed regression cases were written and observed failing first. |
 | [4307838194](https://github.com/SadhuG/figma-design-relay/pull/19#discussion_r4307838194), three tool descriptions      | Valid. Each now advertises design files only; plain `get_node` still works across editors. Fresh live `listTools` assertions checked all three descriptions.                                                                                         |
@@ -461,7 +461,9 @@ earlier nodes written; the tool is not transactional. Raw follower evidence is i
 `%TEMP%/upstream-resize-investigation.log`. Scratch frame `45:1260` and both child nodes were
 removed in `finally`; user content was not targeted.
 
-The technical pushback was posted inline in reply
+CodeRabbit explicitly accepted this disposition, withdrew the resize finding and resolved its
+thread in [reply 4307862357](https://github.com/SadhuG/figma-design-relay/pull/19#discussion_r4307862357).
+The resize preflight stays unchanged. The technical pushback was posted inline in reply
 [4307847552](https://github.com/SadhuG/figma-design-relay/pull/19#discussion_r4307847552).
 The five verified fixes were answered inline with their runtime commit, tests and focused live
 evidence in replies `4307862276`, `4307862368`, `4307862451`, `4307862500` and `4307862565`,
