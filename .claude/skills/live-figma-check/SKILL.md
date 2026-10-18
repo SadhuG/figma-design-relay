@@ -60,13 +60,23 @@ asking the user (proved 2026-09-27 for the cross-file search check):
 
 To close the plugin in a file, `run_script` `setTimeout(() => figma.closePlugin(), 300)`. To
 relaunch it, focus that file's tab as in step 4 and send `^%p` (Run last plugin); it reconnects with
-a new `unsaved-…` key.
+a new `unsaved-…` key. A file runs one plugin at a time, so launching the Dev plugin closes the
+stable one there: the stable relay then answers "No plugin connected" until it is relaunched.
+
+**Checking the plugin panel itself** (proved 2026-10-18 for the panel redesign): screenshot the
+Figma window with `CopyFromScreen` after `SetProcessDPIAware`, crop the panel and compare it with
+its Board 10 card. Click its controls with `SetCursorPos` + `mouse_event` at window-relative
+coordinates. Stop and restart `hold-leader.mjs` to drive the disconnected states. To see what a
+real client sends (the panel's agent name), run a headless one through the worktree's relay:
+`claude -p "Call the relaydev get_selection tool once" --mcp-config <json naming the worktree's
+server/dist/index.js as relaydev> --strict-mcp-config --allowedTools mcp__relaydev__get_selection`.
+Claude Code sends `claude-code`.
 
 ## Symptoms that cost real time
 
 | Symptom                                                                              | Cause and fix                                                                                                                                                                                                                                                                                                                            |
 | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Plugin "running but not connected", no socket in `netstat`                           | Nothing listens on the port it dials — usually a Dev plugin whose worktree has no MCP entry or relay running. Its panel's **Relay:** row says which port.                                                                                                                                                                                |
+| Plugin "running but not connected", no socket in `netstat`                           | Nothing listens on the port it dials — usually a Dev plugin whose worktree has no MCP entry or relay running. Its panel's **Relay** row says which port.                                                                                                                                                                                 |
 | Several imports all named plain "Figma Design Relay"; a worktree's one won't connect | A worktree was imported from its `plugin/manifest.json` — the stable manifest, which allows only 1994 while the worktree's build dials its slot — instead of `plugin/dist/manifest.json`. Remove it and re-import the `dist` one. Figma's `%APPDATA%\Figma\settings.json` (`localFileExtensions[].manifestPath`) shows what is imported. |
 | Library tokens come back as bare ids; each lookup takes ~11 s                        | The plugin was hot-reloaded after a rebuild, and a hot-reloaded sandbox cannot fetch library assets. Close the panel and run it again (~300 ms per lookup).                                                                                                                                                                              |
 | A probe ignores a schema, leader or bridge change                                    | The leader still runs the `dist` it started from. Restart the client's relay; probe from a feature worktree, whose relay is its own.                                                                                                                                                                                                     |

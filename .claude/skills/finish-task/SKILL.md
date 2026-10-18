@@ -1,11 +1,13 @@
 ---
 name: finish-task
-description: Use before the last commit of any task in figma-design-relay — refreshes the facts in CLAUDE.md, README and the plans that drift with the code, bumps the version, verifies, has a separate agent review the diff, merges the branch into dev and main, then tears down its dev slot.
+description: Use before the last commit of any task in figma-design-relay — refresh facts, bump the version, verify, and land changes through reviewed GitHub PRs into dev and main before tearing down the dev slot.
 ---
 
 # Finishing a task
 
-Nobody has to ask for any of this. A finished branch left stale or unmerged is unfinished work.
+Prepare this workflow without waiting to be asked. CLAUDE.md's reviewed-PR gate applies to every
+change. If review or checks are pending or blocked, leave the PR open and report its status;
+finishing a task never authorizes bypassing that gate.
 
 ## 1. Verify
 
@@ -63,8 +65,8 @@ itself — one merge at a time, so a conflict arrives alone:
 
 ```bash
 git fetch origin
-git merge --no-edit origin/dev    # anything that landed on dev directly
-git merge --no-edit origin/main   # ...or on main
+git merge --no-edit origin/dev    # changes previously merged through PRs
+git merge --no-edit origin/main   # changes previously merged through PRs
 git rev-parse origin/dev origin/main   # note these: they are what the review covers
 ```
 
@@ -81,25 +83,34 @@ Then act on it:
   review by a separate agent (scoped to those commits) before merging — the author does not get to
   judge a fix too small to need one.
 - Push back on a finding that is wrong, with the reason — do not change code just to satisfy it.
-- Tell the user what the review found and what happened to each item, then carry on to step 5. The
-  user does not need to approve the merge unless a finding needs their decision.
+- Record the review, reviewed head SHA, findings, responses and final approval in the GitHub PR.
+  Tell the user what the review found and what happened to each item, then carry on to step 5.
+  A local review alone does not satisfy the PR gate.
 
-## 5. Merge: feature → dev → main
+## 5. Land through reviewed PRs: feature → dev → main
 
-Real merges only — no rebase, no squash — so the branches keep sharing history. Each push runs CI.
-Run this step **from the main checkout**, not the feature worktree: `main` is checked out there, and
-git will not switch a second worktree to it. Worktrees share branches, so `<branch>` is there
-already. Start with `git fetch origin`: if `origin/dev` or `origin/main` is not at the commit noted in step
-4, go back to step 4 — what arrived has not been reviewed. Likewise if local `dev` or `main` holds
-commits the remote does not (`git log origin/dev..dev`, `git log origin/main..main` must be empty).
+Never merge locally and push `dev` or `main`, push directly or force-push to either branch, or use
+admin/bypass options. Use GitHub merge commits, not squash or rebase, to preserve shared history.
 
-```bash
-git switch dev && git pull --ff-only && git merge --no-edit <branch> && git push origin dev
-git switch main && git pull --ff-only && git merge --no-edit dev && git push origin main
-```
+1. Push only the feature branch and open a GitHub PR targeting `dev`. Include the purpose,
+   validation evidence, live Figma results when applicable, and step 4's review record.
+2. Request CodeRabbit review when configured and wait for its completed review. Obtain the
+   separate reviewer's approval for the latest head SHA, address every finding with fixes or
+   documented responses accepted by the reviewer, and wait for required checks to pass. Review
+   fix commits and rerun checks. Pending, failed or unavailable review/checks block merging.
+3. Fetch again before merging. If the head or target changed, review the resulting diff and
+   repeat affected verification, including live checks when applicable. Merge the PR through
+   GitHub only when CLAUDE.md's PR gate passes.
+4. Open a separate `dev` → `main` GitHub PR. Repeat the same review, findings and checks gate for
+   its actual diff and latest head SHA; the feature PR's approval does not approve this promotion.
+   Merge through GitHub only after that gate passes.
+5. Update local checkouts with `git pull --ff-only` after the remote PR merges. The branches may
+   have different merge commit SHAs; do not push to make their tips identical. If the task bumped
+   the version, tag the merged `origin/main` commit and push that tag **by name** only. Never tag
+   or release a candidate that has not passed the `main` PR gate.
 
-`dev` and `main` now point at the same commit. If the task bumped the version, tag that commit and
-push the tag **by name**: `git tag vX.Y.Z && git push origin vX.Y.Z` — never `git push --tags`.
+If any gate cannot pass, leave the PR open and report the blocker. Do not replace a missing PR or
+review with a local merge, test results, a tag, or permission inferred from the task request.
 
 ## 6. Tear down the dev slot
 

@@ -196,7 +196,8 @@ export class Bridge {
     requestType: string,
     nodeIds?: string[],
     params?: Record<string, unknown>,
-    fileKey?: string
+    fileKey?: string,
+    agent?: string
   ): Promise<BridgeResponse> {
     return new Promise((resolve, reject) => {
       let conn: WebSocket;
@@ -219,6 +220,9 @@ export class Bridge {
       };
       if (nodeIds && nodeIds.length > 0) {
         request.nodeIds = nodeIds;
+      }
+      if (agent) {
+        request.agent = agent;
       }
       if (params && Object.keys(params).length > 0) {
         request.params = params;

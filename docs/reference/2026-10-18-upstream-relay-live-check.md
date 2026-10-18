@@ -1,9 +1,18 @@
-# Upstream relay integration — verification record (0.7.9)
+# Upstream relay integration — verification record
 
-The 0.7.9 integration of upstream `gethopp/figma-mcp-bridge` through v0.0.24 (`2c37e6d`): what was
+The integration of upstream `gethopp/figma-mcp-bridge` through v0.0.24 (`2c37e6d`): what was
 merged, how it was checked automatically, and what was checked against real Figma. Spec:
 [`../superpowers/specs/2026-10-18-upstream-relay-audit-design.md`](../superpowers/specs/2026-10-18-upstream-relay-audit-design.md).
 Plan: [`../superpowers/plans/2026-10-18-upstream-relay.md`](../superpowers/plans/2026-10-18-upstream-relay.md).
+
+The original candidate below used the then-next version 0.7.9. That version was never released.
+After incorporating the reviewed 0.8.0 panel and agent-name release, the integration candidate is
+0.8.1. Historical build hashes and results below describe their named commits; they do not verify
+the refreshed candidate. The refreshed candidate requires affected live checks before a PR.
+
+The unloaded-page-root gate was closed in the final section of this record. The remaining
+unavailable live cases are Conditional, Set Variable and Set Variable Mode actions on the Free
+plan. No explicit user exception has been granted for those cases.
 
 ## Candidate
 

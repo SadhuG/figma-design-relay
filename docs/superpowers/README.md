@@ -117,7 +117,14 @@ Drive it with `superpowers:subagent-driven-development` or `superpowers:executin
 - [`specs/2026-10-18-upstream-relay-audit-design.md`](specs/2026-10-18-upstream-relay-audit-design.md)
   — audit of upstream through v0.0.24 and the contracts for adopting it (U1–U7, D1–D4): prototype
   reads, `create_svg`, property batches, seven layout helpers, FigJam text editing, creator
-  extensions and resilient FigJam reads. Integrated in 0.7.9 by
+  extensions and resilient FigJam reads. Integration candidate 0.8.1 by
   [`plans/2026-10-18-upstream-relay.md`](plans/2026-10-18-upstream-relay.md) (markdown only; an
   execution record, not a generated page). Live evidence:
   [`../reference/2026-10-18-upstream-relay-live-check.md`](../reference/2026-10-18-upstream-relay-live-check.md).
+
+## Other plans
+
+- [`plans/2026-10-18-panel-redesign/`](plans/2026-10-18-panel-redesign/00-overview.md): the light
+  plugin panel, its connection states and named agents. The spec is the Figma frame "Board 10:
+  Plugin UI, final states". This plan is a folder: an overview plus one file per phase. Delivered
+  in 0.8.0; its live check is in `live-check.md` beside the plan.

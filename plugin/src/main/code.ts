@@ -2462,8 +2462,9 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
 };
 
 const UI_WIDTH = 320;
-const UI_EXPANDED_HEIGHT = 180;
-/** Just the status bar: the collapsed ("minimized") window. */
+/** The open panel: three rows and the footer. Every state fits it, so the window never jumps. */
+const UI_EXPANDED_HEIGHT = 113;
+/** Just the status bar: the collapsed window. */
 const UI_COLLAPSED_HEIGHT = 36;
 const UI_COLLAPSED_KEY = "ui-collapsed";
 
