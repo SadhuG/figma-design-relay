@@ -12,6 +12,8 @@ export interface BridgeRequest {
   requestId: string;
   nodeIds?: string[];
   params?: Record<string, unknown>;
+  /** The calling MCP client's name, for the plugin panel only (see agent.ts). */
+  agent?: string;
 }
 
 export interface BridgeResponse {
@@ -26,6 +28,8 @@ export interface RPCRequest {
   nodeIds?: string[];
   params?: Record<string, unknown>;
   fileKey?: string;
+  /** The follower's MCP client name. Untrusted: the leader cleans it with cleanAgentName. */
+  agent?: unknown;
 }
 
 export interface RPCResponse {
