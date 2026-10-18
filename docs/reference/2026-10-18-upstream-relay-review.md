@@ -281,3 +281,146 @@ limits. Any further runtime change needs affected verification and another indep
 
 Only this review appendix was changed in the repository. No product edit, commit, merge, push,
 PR, Figma mutation, rebuild, subdelegation or change to unrelated local main/dev work was made.
+
+## Independent review round 3 - af7f24e
+
+**Code verdict: approved. No verified actionable code findings. PR readiness remains separate:
+the required paid prototype-action checks and unloaded-page-root evidence below are not closed
+by this review, and no user exception is recorded.**
+
+Fresh independent GPT-6.1-Sol review at
+`af7f24ebc05faa656d2a00385cbc4b4fe1999b70`, starting from a clean
+`feat/upstream-relay-oct18` worktree. Primary diff: `66fd2b7..af7f24e`, checked against
+the earlier integration from `55bd5ea`, its two prior reviews, the audit design, implementation
+plan, repository rules and complete live-check record. Original reports and responses above
+are retained unchanged. This round did not delegate work.
+
+### New fix dispositions
+
+- **`367920e`, shape default: approved** (`plugin/src/main/code.ts:2156`). The dispatcher
+  explicitly assigns SQUARE when `shapeType` is omitted, before any label/style/placement work.
+  An explicit shape still wins. This corrects the advertised default despite Figma's toolbar
+  state. The committed fake starts at ELLIPSE, making the default test meaningful. Independent
+  dispatcher checks covered omitted, SQUARE, DIAMOND and ELLIPSE values and cleanup after a
+  font failure. The live record verifies SQUARE with and without a parent, and explicit DIAMOND.
+- **`750ee6e`, mixed connector parent: approved** (`code.ts:484`, `:2253`). Only a free end
+  beside a node end and inside an explicit non-page parent receives
+  `{ endpointNodeId: parent.id, position: parentLocalPoint }`. It is not transformed twice.
+  This is the supported node-relative endpoint variant in the
+  [Figma endpoint contract](https://developers.figma.com/docs/plugins/api/ConnectorEndpoint/).
+  Both-free endpoints keep `100adcb`'s full canvas transform; explicit PAGE and omitted parents
+  retain canvas points. Node IDs, chosen magnets, ELBOWED initialization, labels, stroke and
+  self-loop sides survive. No endpoint or schema/transport field was removed.
+- **Parent enforcement and cleanup: approved** (`code.ts:2279`). An explicit requested parent
+  must match Figma's final parent. A mismatch throws within `removeOnFailure`, removing the
+  connector from wherever Figma placed it. Two attached nodes below the requested container
+  now receive a refusal rather than a successful result in a different container. This is an
+  intentional tightening of the parent contract, documented in the tool and guide, with a
+  usable next step. Without `parentId`, attached connectors retain Figma's existing closest
+  container behavior. Missing/off-page endpoints still fail before creation.
+- **`3b91bed`, mismatch advice: approved** (`code.ts:2282`). The error names both actual and
+  requested containers, offers the actual `parentId`, and describes moving the nodes so the
+  requested parent is their closest shared container. It works when the nodes are already
+  descendants of the requested parent. Both the test and raw live refusal confirm that case.
+- **`af7f24e`, evidence/docs: consistent.** The last commit changes documentation only.
+  The guides now acknowledge page/parent anchor IDs for floating ends instead of promising
+  `null`. The serializer itself is unchanged. Creator results still omit a node ID for a free
+  input end, while a subsequent `get_node` truthfully reports Figma's parent anchor.
+
+The original duplicate preflight/cleanup, lazy prototype traversal, synchronous lookup isolation
+and SECTION trace refusal remain resolved. No interaction in the latest diff changes their
+code. The real upstream merge is still `6636f5e`, with `e23100b` and pinned upstream `2c37e6d`
+as parents; the upstream ancestor check passes. The stable manifest, enriched serializer,
+layout-tree implementation, loopback/transport/filesystem helpers and release workflow checked
+against `55bd5ea` remain unchanged.
+
+### Independent checks and evidence
+
+Fresh commands, without emitting or rebuilding either package:
+
+- Server `bun test`: **384 pass, 2 Windows skips, 0 fail**, 640 assertions, 26 files.
+- Plugin `bun test`: **341 pass, 0 fail**, 885 assertions, 22 files. A second captured run
+  confirms the complete summary in `%TEMP%/relay-review3-plugin-test.log`.
+- Server `bunx --no-install tsc --noEmit -p tsconfig.json`: exit 0.
+- Plugin `bun run typecheck`: exit 0, zero errors.
+- Root `bun run format:check`, `bun scripts/check-version.mjs` (`0.7.9`),
+  `git diff --check 55bd5ea..HEAD` and `git merge-base --is-ancestor 2c37e6d HEAD`: pass.
+- `bun C:/Users/sadhu/AppData/Local/Temp/relay-review3-af7f24e.ts`: exit 0. This independent
+  API-double script imports the real dispatcher, input/RPC schemas and FigJam serializer;
+  it does not contact Figma. It made **405 dispatcher calls**, including **360 mixed-end
+  cases** (both directions; all six default/explicit anchor choices; SECTION/FRAME/GROUP;
+  direct/deeper endpoint nodes; nested translation, both right-angle rotations and affine
+  scale/shear), plus **15 both-free transform cases**. It checks endpoint representations,
+  parent identity, absence of append-after-endpoint writes, labels and stroke weight.
+  It also checks explicit PAGE/default parents, no-parent attached behavior, self-loops,
+  deeper/outside-parent refusals, five injected connector failures (append, either endpoint,
+  stroke, font), missing/off-page IDs before creation, editor refusals, shape defaults and
+  explicit values, shape-font cleanup, invalid schema combinations and RPC ID preservation.
+  Serializer output includes the mixed free end's parent anchor. No created fake node survived.
+
+The committed test double now models per-assignment closest-container reparenting and the
+observed append-after-endpoint geometry drift. It no longer assumes that appending first is
+sufficient. Its geometry model is deliberately narrower than Figma's layout engine; the real
+translated/nested/rotated parent and movement assertions come from the recorded live run,
+not from treating doubles as live evidence.
+
+Read-only artifact hashes independently match the `3b91bed` live run:
+
+- `server/dist/index.js`: `61b5361b440e3bc4ee33b1a436543e00f3728d9b669f08336e35d3d92687bcc5`.
+- Sorted concatenation of 31 server JavaScript files:
+  `21afcc90047a7e9aa5dcf5b347012ebc08f797b4f3c816096c858a9a73095719`.
+- `plugin/dist/code.js`: `ec9bdaf3d7645eabe1e27422246681bc639650e87e12613956afb2c6892aac3a`.
+- `plugin/dist/manifest.json`: `1a061ff39e49a7d135152ad98d93e158ace969210832eed629b96afd28a8b9f3`.
+- `plugin/dist/index.html`: `5f32c50a019670112571bcf3449ba5e29caae671a9f5e23060ac8fbbacf8bad4`.
+
+The latest raw `%TEMP%/relay-mixfix/final-01.log`, `final-02.log`, `final-05b.log`,
+`final-09.log`, `final-10.log`, `readf.log` and `movef.log` corroborate the recorded results:
+both mixed orientations, rotated placement, actionable parent refusals, no surviving refused
+connectors, real parent anchor IDs, parent movement and attached-node movement. These are
+inspected prior-run artifacts; no live assertion was replayed by this reviewer. The old leader
+does not need a restart for the new tool-description text: routing/schema code did not change,
+and the recorded calls used followers running the updated handler build.
+
+### Remaining PR gates versus unit-only limits
+
+The earlier **FigJam, Slides and UI collapse/relaunch/reconnect gaps are closed** by the
+`66fd2b7` evidence and the affected `3b91bed` FigJam rerun. The final-parent refusal was itself
+tested live, including cleanup. The older matrices remain applicable to unchanged paths;
+the final source changes are limited to the FigJam shape/connector implementations and the
+connector description. The untested Disconnected badge is not an additional requirement of
+the plan's collapse/reconnect-after-relaunch regression.
+
+Two concrete items remain before the parent can claim the full planned live matrix:
+
+- **Conditional / Set Variable / Set Variable Mode actions.** These are supported inputs and
+  explicitly planned live cases, unavailable on the current Free plan. Unit tests pass, but
+  [the repository rule](../../.claude/CLAUDE.md#workflow) says: "If Figma, a required editor,
+  plan or permission is unavailable, stop before opening the PR or merging" and requires a
+  specific explicit user exception. This review cannot supply one. Obtain the paid-path live
+  evidence or the user's exception for those exact cases.
+- **A genuinely unloaded non-current page root.** The live record says its scratch pages were
+  already loaded, while Task 8 explicitly asks for an unloaded second-page root/target.
+  Unloaded-page scans are valid supported inputs, and the tests at `prototype.test.ts:470`
+  and `:478` pass. Cross-page navigation being invalid does not make a scan rooted on another
+  page invalid. Close this distinct live evidence gap on an unloaded page where available;
+  if that state cannot be obtained in the available files, document that blocker and include
+  it in a specific user exception. An already-loaded off-page scan is not proof of this case.
+
+The following do **not** independently require new impossible-fixture live work or a waiver:
+
+- **Dev Mode:** the spec, plan and plugin rules explicitly choose unit coverage because it is
+  excluded from the shipped manifest and the seat is unavailable. Enabling it is out of scope.
+- **Cross-page navigation and deleted destinations:** Figma rejects the former and removes
+  the reaction for the latter. Their defensive reader behavior is covered by tests; there is
+  no valid remaining live action fixture to exercise in the documented API setup. The plan
+  already qualifies a missing-destination check with "where constructible".
+- **Synchronous/rejected reference loaders and insertion failure after a successful clone:**
+  these require injected faults once the known instance restriction is preflighted. Relevant
+  successful paths and actual instance refusals were checked live; failure isolation and
+  cleanup are covered by tests. No evidence supports demanding a valid-document live
+  reproduction of those injected faults.
+
+The parent owns closure of the two evidence gates, any requested exception, and subsequent PR
+work. This review approves code; it does not authorize bypassing the repository's live gate.
+Only this appendix was added in the worktree. No product edit, build, relay stop/restart,
+Figma mutation, commit, push, PR, merge or subdelegation was performed.

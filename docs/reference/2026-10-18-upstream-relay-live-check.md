@@ -120,7 +120,8 @@ opacity to 18%; it was undone with two Ctrl+Z steps and confirmed back at 100% b
   ("You cannot use … with your current plan"), so their live resolution is unit-tested only.
 - **Cross-page navigation** is refused by Figma ("destinations must be a different top-level frame
   on the same page"), so the cross-page trace path is unit-tested only. Pages created in this
-  session are loaded, so the unloaded-page path is unit-tested only too.
+  session are loaded, so the unloaded-page path is unit-tested only too. (Closed later: see
+  [Unloaded non-current page roots](#unloaded-non-current-page-roots-af7f24e).)
 - **A missing destination**: Figma drops a reaction when its destination is deleted, so
   `status: "missing"` could not be produced live.
 - **Dev Mode** needs a paid seat and is absent from the manifest; its gates are unit-tested.
@@ -522,3 +523,76 @@ with a point clear of it.
 - Unchanged and not constructible here: Conditional / Set Variable actions (Free plan), cross-page
   navigation, a missing destination, Dev Mode, a throwing lookup, and an insert failure after a
   clone.
+
+## Unloaded non-current page roots (af7f24e)
+
+Closes the review's round 3 gap: a scan, trace or `get_node` that starts on a page the plugin has
+not loaded yet, while the user stays on another page. No code changed: `af7f24e` is docs-only on
+top of `3b91bed`.
+
+### Tested build
+
+The `3b91bed` build recorded above, unchanged: `plugin/dist/code.js` `ec9bdaf3…`,
+`manifest.json` `1a061ff3…`, `index.html` `5f32c50a…`, `server/dist` `21afcc90…`, rehashed
+before the run. The 1998 leader is now PID 11152 (`server/dist/index.js`), held by
+`node .smoke/hold-leader.mjs` (PID 4176) from this worktree since 12:05 IST. It was left
+running. The stable relay on 1994 was not touched.
+
+### Setup
+
+- Figma desktop, Windows 11, Free plan, design file `Screen`, with `DS`, a board and a deck also
+  connected. The plugin's `dynamic-page` access means a page's children cannot be read until it is
+  loaded.
+- Fixture page `zz unloaded-root live check 2026-10-18` `21:5`, created with `run_script`. Frames
+  A `21:6`, B `21:7`, C `21:8`; in A, rectangle `22:12` (On click → Navigate to B) and `22:13`
+  (On click → URL `https://example.com/zz-unloaded`); in B, rectangle `22:14` (On click → Navigate
+  to C); C itself has On click → Back. The first creation call ran in a hot-reloaded sandbox. It
+  failed with "Unable to establish connection to Figma after 10 seconds" after the page, frames
+  and rectangles `21:9`–`21:11` had already landed without reactions. After a relaunch, a second
+  `run_script` removed those three rectangles and created `22:12`–`22:14` with their reactions.
+- **A fresh sandbox per entrypoint.** Before each case the Dev plugin was closed in `Screen`
+  (`figma.closePlugin()`), the Screen tab clicked and Run last plugin (Ctrl+Alt+P) sent. In the
+  last two cycles, focus was checked first: Figma had to be the foreground window with the title
+  `Screen - Figma`, or the helper stopped without sending keys. Each case used the new `unsaved-…`
+  key from `list_files`.
+- Every call went through a follower: a scratch MCP stdio client spawned this worktree's
+  `server/dist/index.js` with `FIGMA_DESIGN_RELAY_PORT=1998` and an explicit `fileKey`. Each spawned
+  server printed `Became FOLLOWER`. Raw output is in `%TEMP%/relay-unloaded/`, outside the
+  repository.
+- **Before each call**, a `run_script` survey read every page's children in the fresh sandbox.
+  `Page 1` was readable. Reading `21:5`'s children threw "Cannot access property `children` on a
+  page that has not been explicitly loaded". So the plugin's startup does not load every page.
+  The current page was `0:1` `Page 1`.
+
+### Results (all through the follower)
+
+| Fresh key                   | Call                                                 | Result                                                                                                                                                                                                       |
+| --------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `unsaved-mvdgd464-e9apq3hx` | `get_prototype_connections` `nodeId` `21:5` (page)   | pass: `page` and `root` are `21:5` PAGE, flow start `21:6` "Flow 1", 7 nodes scanned, not truncated; `22:12` → `21:7` resolved (screen and page `21:5`), `22:13` URL, `22:14` → `21:8` resolved, `21:8` Back |
+| `unsaved-mvdgfoz5-lgqzqgvj` | `get_prototype_connections` `nodeId` `21:6` (frame)  | pass: `page` `21:5`, `root` `21:6`, 3 nodes scanned; `22:12` → `21:7` resolved on page `21:5`, `22:13` URL                                                                                                   |
+| `unsaved-mvdgpgsh-joj0xy83` | `trace_prototype_flow` `nodeId` `21:6`               | pass: screens `21:6` (depth 0), `21:7` (1, via `22:12`), `21:8` (2, via `22:14`); edges screen, url, screen, back; `unresolved` empty, not truncated                                                         |
+| `unsaved-mvdhbu87-11z0dcyx` | `get_node` `nodeId` `21:6`, `includePrototype: true` | pass: frame A with children `22:12`, `22:13` and their reactions; `prototype` root `21:6`, 3 scanned, `22:12` → `21:7` resolved on page `21:5`, `22:13` URL                                                  |
+| `unsaved-mvdhcfpp-qgg83mng` | `get_node` `nodeId` `21:5`, `includePrototype: true` | pass: PAGE with children `21:6`–`21:8`; `prototype` root `21:5`, 7 scanned, the same four connections as the page scan                                                                                       |
+
+**After each call**, the survey found `21:5` loaded (children readable). The current page was still
+`0:1` `Page 1`, the selection empty and the viewport unchanged at centre (−44.04, 233.49), zoom
+0.829. So the tools load the root's page themselves and never switch the user's page. A first
+`get_node` attempt in the fourth sandbox sent `nodeIds` and was refused by the MCP schema
+(`nodeId` required) before reaching the plugin. The page was still unloaded afterwards, and the
+corrected call ran in that same sandbox.
+
+### Cleanup
+
+- `Screen`: one `run_script` checked that `21:5` had the recorded name and was not the current
+  page, then removed it with its descendants `21:6`, `22:12`, `22:13`, `21:7`, `22:14`, `21:8`. A
+  scan of every page found no `zz ` page or node. Only `0:1` `Page 1` is left, with its original
+  children. Current page, empty selection and viewport match the values first found.
+- `DS`: read-only scan, no `zz ` node. The board and deck were not written to.
+- All four files are connected to the 1998 leader (PID 11152). The `Screen` key at the end is
+  `unsaved-mvdhcfpp-qgg83mng`. No helper process from this run is still running.
+
+### Still open
+
+- Unchanged: Conditional / Set Variable / Set Variable Mode actions need a paid plan. Cross-page
+  navigation, a missing destination, Dev Mode and injected faults stay unit-tested, as the round 3
+  review accepts.
