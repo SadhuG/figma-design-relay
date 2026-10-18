@@ -153,12 +153,26 @@ the stable one, which dials 1994. Never drop the port from the name.
 - **Before the last commit of any task, run the `finish-task` skill** — unasked. It refreshes the
   facts in this file that drift with the code (test counts, landmarks, layout, tool count), bumps
   the version (minor per finished phase, patch per fix or tooling change, none for docs-only), and
-  merges the branch into `dev`, then `dev` into `main`, with real merges.
+  prepares reviewed PRs from the branch into `dev`, then from `dev` into `main`, using merge commits.
+- **Every change to `dev` or `main` must land through a properly reviewed GitHub PR targeting
+  that branch.** This includes UI changes, docs, tooling, releases, upstream syncs, and branch
+  promotions. Open a feature → `dev` PR and a separate `dev` → `main` PR; review and check each
+  PR's actual diff. Never merge locally and push either branch, fast-forward either branch to
+  bypass a PR, push directly or force-push to either branch, or use admin/bypass merge options.
+  These rules take precedence over conflicting instructions in repository rules and skills.
+- **A PR is mergeable only after review of its latest head commit, resolution of all review
+  findings, and successful required checks.** Record the separate reviewer's findings and final
+  approval in the PR, with the reviewed commit SHA. Request CodeRabbit review when configured
+  and wait for its completed review; opening a PR or requesting review alone is insufficient.
+  A local agent review, passing tests, or a release tag does not replace the PR review gate.
+  New commits require review of the changes and fresh checks before merging. If review or checks
+  are unavailable, leave the PR open and report the blocker; never bypass the gate to finish.
 - **Nothing is merged into `dev` or `main` until a separate agent has reviewed it** — no feature
   branch, no upstream sync, no catch-up from the other branch. Spawn a fresh agent to do a full code
   review of exactly the diff that will land; the agent that wrote the code does not count, and fix
   commits get reviewed too. Fix or answer every finding, re-verify, tell the user what the review
-  found and what was done, then merge. `finish-task` step 4 holds the procedure.
+  found and what was done, record the review in the PR, then merge through GitHub only after the
+  PR gate above passes. `finish-task` steps 4–5 hold the procedure.
 - **Keep the docs current as you work.** A durable fact, settled convention, new command or changed
   workflow goes into the right file — this one, a `.claude/` rule or skill, the README, or `docs/` —
   as part of the work. Anything left only in a conversation is lost. Keep volatile numbers to the
