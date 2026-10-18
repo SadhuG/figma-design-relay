@@ -1,11 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import {
+  ActivityLog,
   chipState,
   formatSelection,
   relayAddress,
   relayPort,
   relayRowText,
   retryDelayMs,
+  workingLabel,
 } from "./panel-state";
 
 describe("formatSelection", () => {
@@ -70,4 +72,51 @@ describe("chipState", () => {
       chipState({ ...base, connected: false, workingLabel: "Agent working", retryInSeconds: null })
         .tone
     ).toBe("lost"));
+});
+
+describe("ActivityLog", () => {
+  test("in-flight request counts however long it runs", () => {
+    const log = new ActivityLog();
+    log.start("1", null, 0);
+    expect(log.activeAgents(60_000)).toEqual([null]);
+  });
+  test("finished request counts for 10 s, then drops", () => {
+    const log = new ActivityLog();
+    log.start("1", null, 0);
+    log.finish("1", 1_000);
+    expect(log.activeAgents(10_999)).toEqual([null]);
+    expect(log.activeAgents(11_000)).toEqual([]);
+  });
+  test("distinct agents", () => {
+    const log = new ActivityLog();
+    log.start("1", "claude-code", 0);
+    log.start("2", "claude-code", 0);
+    log.start("3", "cursor-vscode", 0);
+    expect(log.activeAgents(1)).toEqual(["claude-code", "cursor-vscode"]);
+  });
+  test("unknown request id is ignored", () => {
+    const log = new ActivityLog();
+    log.finish("nope", 0);
+    expect(log.activeAgents(0)).toEqual([]);
+  });
+  test("clear drops in-flight requests", () => {
+    const log = new ActivityLog();
+    log.start("1", null, 0);
+    log.clear();
+    expect(log.activeAgents(1)).toEqual([]);
+  });
+  test("nextExpiry", () => {
+    const log = new ActivityLog();
+    log.start("1", null, 0);
+    expect(log.nextExpiry(0)).toBeNull();
+    log.finish("1", 2_000);
+    expect(log.nextExpiry(5_000)).toBe(7_000);
+  });
+});
+
+describe("workingLabel", () => {
+  test("idle", () => expect(workingLabel([])).toBeNull());
+  test("unnamed", () => expect(workingLabel([null])).toBe("Agent working"));
+  test("named", () => expect(workingLabel(["Claude Code"])).toBe("Claude Code is working"));
+  test("two", () => expect(workingLabel(["Claude Code", null])).toBe("2 agents working"));
 });

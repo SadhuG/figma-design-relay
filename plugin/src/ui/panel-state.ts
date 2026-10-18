@@ -63,3 +63,58 @@ export function chipState(input: ChipInput): { tone: ChipTone; text: string; sho
   }
   return { tone: "live", text: `Live on port ${input.port}`, short: `Live · ${input.port}` };
 }
+
+/** An agent counts as working while a request runs and for this long after it ends. */
+export const WORKING_WINDOW_MS = 10_000;
+
+type Activity = { agent: string | null; finishedAt: number | null };
+
+/** Which agents are working: requests in flight, or finished within WORKING_WINDOW_MS. */
+export class ActivityLog {
+  private entries = new Map<string, Activity>();
+
+  start(requestId: string, agent: string | null, _now: number): void {
+    this.entries.set(requestId, { agent, finishedAt: null });
+  }
+
+  finish(requestId: string, now: number): void {
+    const entry = this.entries.get(requestId);
+    if (entry) entry.finishedAt = now;
+  }
+
+  /** The socket closed: responses for in-flight requests will never arrive. */
+  clear(): void {
+    this.entries.clear();
+  }
+
+  /** Distinct agents, in first-seen order. `null` is an agent whose name is unknown. */
+  activeAgents(now: number): (string | null)[] {
+    this.prune(now);
+    return [...new Set([...this.entries.values()].map((entry) => entry.agent))];
+  }
+
+  /** Milliseconds until the oldest finished request leaves the window, or null if none will. */
+  nextExpiry(now: number): number | null {
+    this.prune(now);
+    let next: number | null = null;
+    for (const { finishedAt } of this.entries.values()) {
+      if (finishedAt === null) continue;
+      const left = finishedAt + WORKING_WINDOW_MS - now;
+      if (next === null || left < next) next = left;
+    }
+    return next;
+  }
+
+  private prune(now: number): void {
+    for (const [id, { finishedAt }] of this.entries) {
+      if (finishedAt !== null && now - finishedAt >= WORKING_WINDOW_MS) this.entries.delete(id);
+    }
+  }
+}
+
+/** The chip text for the working agents, or null when none is working. */
+export function workingLabel(agents: (string | null)[]): string | null {
+  if (agents.length === 0) return null;
+  if (agents.length > 1) return `${agents.length} agents working`;
+  return agents[0] === null ? "Agent working" : `${agents[0]} is working`;
+}
