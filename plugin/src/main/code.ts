@@ -474,6 +474,16 @@ const toCanvasPoint = (parent: BaseNode | undefined, { x, y }: Vector): Vector =
   return { x: a * x + b * y + tx, y: c * x + d * y + ty };
 };
 
+/**
+ * The free end of a connector whose other end is a node. Figma keeps such a
+ * connector in the closest container its two ends share, and a bare position
+ * belongs to the page, so in a section it would move to the page. Anchored to
+ * the parent instead, the point stays in it, and Figma reads the position in
+ * the parent's own coordinates — no canvas mapping.
+ */
+const freeEndBesideNode = (parent: BaseNode | undefined, position: Vector): ConnectorEndpoint =>
+  parent && parent.type !== "PAGE" ? { endpointNodeId: parent.id, position } : { position };
+
 /** Caps, stroke and label shared by node-to-node edges and free segments. */
 const styleConnector = async (
   connector: ConnectorNode,
@@ -2240,14 +2250,20 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
             // A connector takes the toolbar's line type, and a straight one
             // refuses side magnets: set it before any node end.
             connector.connectorLineType = "ELBOWED";
-            connector.connectorStart =
-              start.kind === "node"
-                ? { endpointNodeId: start.nodeId, magnet: magnetFor(start.anchor) }
-                : { position: toCanvasPoint(parent, start.position) };
-            connector.connectorEnd =
-              end.kind === "node"
-                ? { endpointNodeId: end.nodeId, magnet: magnetFor(end.anchor) }
-                : { position: toCanvasPoint(parent, end.position) };
+            const mixed = start.kind !== end.kind;
+            const endpoint = (connectorEnd: ConnectorEnd): ConnectorEndpoint => {
+              if (connectorEnd.kind === "node") {
+                return {
+                  endpointNodeId: connectorEnd.nodeId,
+                  magnet: magnetFor(connectorEnd.anchor),
+                };
+              }
+              return mixed
+                ? freeEndBesideNode(parent, connectorEnd.position)
+                : { position: toCanvasPoint(parent, connectorEnd.position) };
+            };
+            connector.connectorStart = endpoint(start);
+            connector.connectorEnd = endpoint(end);
           }
           if (typeof params.strokeHex === "string") {
             setSolidFill(connector, params.strokeHex, undefined, "stroke");
@@ -2256,6 +2272,15 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
           if (typeof params.text === "string" && params.text !== "") {
             await figma.loadFontAsync(labelFont(connector.text.fontName as FontName));
             connector.text.characters = params.text;
+          }
+          // Figma moves a connector with a node end into the closest container
+          // its ends share; one that ended up elsewhere is removed, not
+          // returned under a parent nobody asked for.
+          const placed = connector.parent;
+          if (parent && placed?.id !== parent.id) {
+            throw new Error(
+              `Figma put the connector in ${placed?.name ?? "nothing"} (${placed?.id ?? "no parent"}), not in ${parent.name} (${parent.id}): a connector stays in the closest container its node ends share. Move the endpoint nodes into ${parent.id} first, or pass parentId ${placed?.id ?? "of that container"}.`
+            );
           }
           return connector;
         });

@@ -84,5 +84,15 @@ paths:
 - **An unattached `ConnectorEndpoint.position` is a canvas location,** whatever the connector's
   parent. `create_connector` takes free ends relative to the parent and maps them through its
   `absoluteTransform` (`toCanvasPoint`).
+- **Each endpoint assignment can reparent a connector** — seen live on 2026-10-18. Once an end
+  names a node, Figma moves the connector into the closest container its ends share, and a bare
+  `{ position }` counts as the page, so a node end plus a bare free end in a section lands on the
+  page. A free end beside a node end is therefore `{ endpointNodeId: parent.id, position }`
+  (`freeEndBesideNode`), read in the parent's own coordinates — not mapped to the canvas.
+  Appending after the ends are set is no fix: the connector keeps its old geometry shifted by the
+  move until something lays it out again. `create_connector` checks the final parent and removes a
+  connector that landed elsewhere.
+- **A new FigJam shape takes the toolbar's last shape,** not `SQUARE`; `create_shape_with_text`
+  always sets `shapeType`.
 - **Relaunch the plugin after every plugin rebuild** before trusting a live check — see the
   `live-figma-check` skill.

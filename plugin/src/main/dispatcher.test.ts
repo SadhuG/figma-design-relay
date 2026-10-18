@@ -537,9 +537,11 @@ const board = () => {
   const container = (node: any) => {
     node.children = [];
     node.appendChild = (child: any) => {
-      child.parent?.children?.splice(child.parent.children.indexOf(child), 1);
+      const from = child.parent;
+      from?.children?.splice(from.children.indexOf(child), 1);
       node.children.push(child);
       child.parent = node;
+      child.moved?.(from, node);
     };
     return node;
   };
@@ -617,13 +619,31 @@ const board = () => {
     return node;
   });
   stub("createConnector", () => {
-    // A connector as FigJam makes it: the line type last used, and no label font.
+    // A connector as FigJam makes it: the line type last used, no label font,
+    // and two free ends, which Figma reports as positions on the page.
+    const unset = () => ({ endpointNodeId: page.id, position: { x: 0, y: 0 } });
     const connector = base("CONNECTOR", {
       connectorLineType: "STRAIGHT",
       text: { characters: "", fontName: { family: "", style: "" } },
       ends: [] as any[],
+      state: [unset(), unset()],
+      endsSet: false,
+      drift: { x: 0, y: 0 },
     });
-    const assign = (end: any) => {
+    const anchored = (end: any) =>
+      typeof end.endpointNodeId === "string" && end.endpointNodeId !== page.id;
+    // The container an end belongs to: an attached node's parent, the node a
+    // positioned end is anchored to, or the page for a bare position.
+    const holder = (end: any) => {
+      if ("magnet" in end) return nodes.get(end.endpointNodeId).parent;
+      return anchored(end) ? nodes.get(end.endpointNodeId) : page;
+    };
+    const ancestors = (node: any) => {
+      const chain: any[] = [];
+      for (let current = node; current; current = current.parent) chain.push(current);
+      return chain;
+    };
+    const assign = (index: number) => (end: any) => {
       if (
         "magnet" in end &&
         connector.connectorLineType === "STRAIGHT" &&
@@ -632,12 +652,49 @@ const board = () => {
         throw new Error("Straight connector endpoints may only use the CENTER or NONE magnets.");
       }
       connector.ends.push({ ...end, parentAtAssignment: connector.parent?.id });
+      connector.state[index] = end;
+      connector.endsSet = true;
+      // As seen live: once an end is anchored to a node, Figma moves the
+      // connector into the closest container both ends share — and a bare
+      // position counts as the page. Two bare positions move nothing.
+      if (connector.state.some(anchored)) {
+        const [a, b] = connector.state.map((e: any) => ancestors(holder(e)));
+        const shared = a.find((node: any) => b.includes(node));
+        if (shared !== connector.parent) {
+          connector.parent?.children?.splice(connector.parent.children.indexOf(connector), 1);
+          shared.children.push(connector);
+          connector.parent = shared;
+        }
+      }
     };
-    Object.defineProperty(connector, "connectorStart", { set: assign });
-    Object.defineProperty(connector, "connectorEnd", { set: assign });
+    Object.defineProperty(connector, "connectorStart", { set: assign(0) });
+    Object.defineProperty(connector, "connectorEnd", { set: assign(1) });
+    // Also seen live: appended after its ends are set, a connector keeps its
+    // old geometry shifted by the move, so its free ends are drawn off target.
+    const origin = (node: any): [number, number] =>
+      node?.absoluteTransform
+        ? [node.absoluteTransform[0][2], node.absoluteTransform[1][2]]
+        : [0, 0];
+    connector.moved = (from: any, to: any) => {
+      if (!connector.endsSet) return;
+      const [[fx, fy], [tx, ty]] = [origin(from), origin(to)];
+      connector.drift = { x: connector.drift.x + tx - fx, y: connector.drift.y + ty - fy };
+    };
+    // Where each end is drawn now: the node it is attached to, or a canvas point.
+    // A position anchored to a node is read in that node's own coordinates.
+    connector.drawn = () =>
+      connector.state.map((end: any) => {
+        if ("magnet" in end) return { node: end.endpointNodeId, magnet: end.magnet };
+        if (anchored(end)) {
+          const [[a, b, tx], [c, d, ty]] = nodes.get(end.endpointNodeId).absoluteTransform;
+          const { x, y } = end.position;
+          return { x: a * x + b * y + tx, y: c * x + d * y + ty };
+        }
+        return { x: end.position.x + connector.drift.x, y: end.position.y + connector.drift.y };
+      });
     return connector;
   });
-  return { page, section, created, fonts, base };
+  return { page, section, created, fonts, base, container };
 };
 let restoreCurrentPage = () => {};
 afterEach(() => {
@@ -788,7 +845,7 @@ test("a self-loop keeps its two distinct sides; chosen anchors override them", a
   expect(nodes.get(sides.data.nodeId).ends.map((e: any) => e.magnet)).toEqual(["TOP", "BOTTOM"]);
 });
 
-test("a floating start meets a node end; the free point is given to Figma on the canvas", async () => {
+test("a free start and a node end stay in the section, the free point where it was asked", async () => {
   const { section, base } = board();
   const target = base("STICKY");
   section.appendChild(target);
@@ -806,11 +863,13 @@ test("a floating start meets a node end; the free point is given to Figma on the
   expect(response.data).toMatchObject({ parentId: "8:1", endNodeId: target.id, nodeName: "Flow" });
   expect(response.data.startNodeId).toBeUndefined();
   const connector = nodes.get(response.data.nodeId);
-  // An unattached endpoint is a canvas location; the section sits at (100, 100).
-  expect(connector.ends).toEqual([
-    { position: { x: 103, y: 104 }, parentAtAssignment: "8:1" },
-    { endpointNodeId: target.id, magnet: "LEFT", parentAtAssignment: "8:1" },
+  expect(connector.parent).toBe(section);
+  // The section sits at (100, 100) on the canvas.
+  expect(connector.drawn()).toEqual([
+    { x: 103, y: 104 },
+    { node: target.id, magnet: "LEFT" },
   ]);
+  expect(connector.connectorLineType).toBe("ELBOWED");
   expect(connector.strokeWeight).toBe(4);
   expect(connector.strokes[0].color.r).toBeCloseTo(0x12 / 255);
 });
@@ -861,22 +920,193 @@ test("free connector ends follow a nested, rotated parent's transform; a page pa
   ]);
 });
 
-test("a node start and a free end in a section: only the free end moves to the canvas", async () => {
+test("a node end and a free end stay in the section, in either order", async () => {
   const { section, base } = board();
   const source = base("STICKY");
   section.appendChild(source);
-  const response = await dispatch("create_connector", undefined, {
+  const nodeFirst = await dispatch("create_connector", undefined, {
     startNodeId: source.id,
     startAnchor: "bottom",
     endX: -20,
     endY: 30,
     parentId: "8:1",
   });
-  expect(response.error).toBeUndefined();
-  expect(nodes.get(response.data.nodeId).ends).toEqual([
-    { endpointNodeId: source.id, magnet: "BOTTOM", parentAtAssignment: "8:1" },
-    { position: { x: 80, y: 130 }, parentAtAssignment: "8:1" },
+  expect(nodeFirst.error).toBeUndefined();
+  expect(nodeFirst.data.parentId).toBe("8:1");
+  const first = nodes.get(nodeFirst.data.nodeId);
+  expect(first.parent).toBe(section);
+  expect(first.drawn()).toEqual([
+    { node: source.id, magnet: "BOTTOM" },
+    { x: 80, y: 130 },
   ]);
+
+  const freeFirst = await dispatch("create_connector", undefined, {
+    startX: 50,
+    startY: 60,
+    endNodeId: source.id,
+    parentId: "8:1",
+  });
+  expect(freeFirst.error).toBeUndefined();
+  expect(freeFirst.data.parentId).toBe("8:1");
+  const second = nodes.get(freeFirst.data.nodeId);
+  expect(second.parent).toBe(section);
+  expect(second.drawn()).toEqual([
+    { x: 150, y: 160 },
+    { node: source.id, magnet: "AUTO" },
+  ]);
+  // Neither connector was moved after its ends were set.
+  expect([first.drift, second.drift]).toEqual([
+    { x: 0, y: 0 },
+    { x: 0, y: 0 },
+  ]);
+});
+
+test("without a parent, a node end and a free end go on the page with the point as given", async () => {
+  const { section, page, base } = board();
+  const source = base("STICKY");
+  section.appendChild(source);
+  const response = await dispatch("create_connector", undefined, {
+    startNodeId: source.id,
+    endX: 7,
+    endY: 8,
+  });
+  expect(response.error).toBeUndefined();
+  expect(response.data.parentId).toBe(page.id);
+  expect(nodes.get(response.data.nodeId).drawn()[1]).toEqual({ x: 7, y: 8 });
+});
+
+test("a mixed connector in a nested, rotated parent keeps it, and its free end moves with it", async () => {
+  const { section, base, container } = board();
+  // A frame inside the section, turned 90° and placed at (300, 50) on the canvas.
+  const inner = container({
+    id: "8:2",
+    name: "Turned",
+    type: "FRAME",
+    absoluteTransform: [
+      [0, -1, 300],
+      [1, 0, 50],
+    ],
+  });
+  section.appendChild(inner);
+  nodes.set(inner.id, inner);
+  const sticky = base("STICKY");
+  inner.appendChild(sticky);
+  const response = await dispatch("create_connector", undefined, {
+    startNodeId: sticky.id,
+    endX: 10,
+    endY: 0,
+    parentId: "8:2",
+    text: "go",
+  });
+  expect(response.error).toBeUndefined();
+  expect(response.data.parentId).toBe("8:2");
+  const connector = nodes.get(response.data.nodeId);
+  expect(connector.parent).toBe(inner);
+  expect(connector.drawn()).toEqual([
+    { node: sticky.id, magnet: "AUTO" },
+    { x: 300, y: 60 },
+  ]);
+  expect(connector.text.characters).toBe("go");
+  // Moving the frame moves the free end with it; the attached end stays on the sticky.
+  inner.absoluteTransform = [
+    [0, -1, 350],
+    [1, 0, 70],
+  ];
+  expect(connector.drawn()).toEqual([
+    { node: sticky.id, magnet: "AUTO" },
+    { x: 350, y: 80 },
+  ]);
+
+  // The outer section as parent, with the node one level deeper, is kept too.
+  const outer = await dispatch("create_connector", undefined, {
+    startX: 1,
+    startY: 2,
+    endNodeId: sticky.id,
+    endAnchor: "top",
+    parentId: "8:1",
+  });
+  expect(outer.error).toBeUndefined();
+  expect(outer.data.parentId).toBe("8:1");
+  expect(nodes.get(outer.data.nodeId).drawn()).toEqual([
+    { x: 101, y: 102 },
+    { node: sticky.id, magnet: "TOP" },
+  ]);
+});
+
+test("a labelled mixed connector keeps its anchor; a self-loop in a section keeps both sides", async () => {
+  const { section, base, fonts } = board();
+  const shape = base("SHAPE_WITH_TEXT");
+  section.appendChild(shape);
+  const labelled = await dispatch("create_connector", undefined, {
+    startNodeId: shape.id,
+    startAnchor: "top",
+    endX: 0,
+    endY: -100,
+    text: "up",
+    parentId: "8:1",
+  });
+  expect(labelled.error).toBeUndefined();
+  const connector = nodes.get(labelled.data.nodeId);
+  expect([connector.parent.id, connector.text.characters]).toEqual(["8:1", "up"]);
+  expect(connector.drawn()).toEqual([
+    { node: shape.id, magnet: "TOP" },
+    { x: 100, y: 0 },
+  ]);
+  expect(fonts).toEqual(["Inter Medium"]);
+
+  const loop = await dispatch("create_connector", undefined, {
+    startNodeId: shape.id,
+    endNodeId: shape.id,
+    parentId: "8:1",
+  });
+  expect(loop.error).toBeUndefined();
+  expect(loop.data.parentId).toBe("8:1");
+  expect(nodes.get(loop.data.nodeId).drawn()).toEqual([
+    { node: shape.id, magnet: "RIGHT" },
+    { node: shape.id, magnet: "TOP" },
+  ]);
+});
+
+test("a connector Figma keeps out of the requested parent is refused and removed", async () => {
+  const { section, page, base, container } = board();
+  const inner = container({
+    id: "8:2",
+    name: "Inner",
+    type: "SECTION",
+    absoluteTransform: [
+      [1, 0, 150],
+      [0, 1, 150],
+    ],
+  });
+  section.appendChild(inner);
+  nodes.set(inner.id, inner);
+  const a = base("STICKY");
+  const b = base("STICKY");
+  inner.appendChild(a);
+  inner.appendChild(b);
+  // Two nodes in the inner section: Figma puts their connector in it, not in 8:1.
+  const deeper = await dispatch("create_connector", undefined, {
+    startNodeId: a.id,
+    endNodeId: b.id,
+    parentId: "8:1",
+  });
+  expect(deeper.error).toMatch(/8:2/);
+  expect(deeper.error).toMatch(/8:1/);
+  // A node on the page and a free end in the section: Figma puts it on the page.
+  const onPage = base("STICKY");
+  const outside = await dispatch("create_connector", undefined, {
+    startNodeId: onPage.id,
+    endX: 5,
+    endY: 5,
+    parentId: "8:1",
+  });
+  expect(outside.error).toMatch(/8:0/);
+  const connectors = [...nodes.values()].filter((node) => node?.type === "CONNECTOR");
+  expect(connectors).toHaveLength(2);
+  expect(connectors.map((node) => node.removed)).toEqual([true, true]);
+  for (const holder of [page, section, inner]) {
+    expect(holder.children.some((node: any) => node.type === "CONNECTOR")).toBe(false);
+  }
 });
 
 test("a missing or off-page endpoint creates nothing", async () => {

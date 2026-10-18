@@ -42,7 +42,8 @@ meaning (full table in [serialized-nodes.md](../reference/serialized-nodes.md#fi
 
 **Connector endpoints are the point.** A diagram's meaning is its topology — what leads to what — and
 without `connector.from` and `connector.to` a board reads as a pile of unrelated shapes. An end that
-floats free on the canvas is `null`. Code blocks carry their `text` and `codeLanguage`, tables their
+floats free names what Figma anchors it to: the page, or, for a free end that `create_connector`
+drew beside a node end, the connector's parent section or frame. Code blocks carry their `text` and `codeLanguage`, tables their
 cell text as `table[row][column]`, and sections serialize as containers with their children.
 
 ## Writing to a board
@@ -66,8 +67,11 @@ strokeWeight?, textFillHex?, textFillOpacity? }`. `shapeType` is any FigJam shap
   (`startX` + `startY` / `endX` + `endY`, relative to the connector's parent) — exactly one of the
   two per end. Plus `text?`, `name?`, `parentId?`, `strokeHex?` and `strokeWeight?`. A node end
   attaches, so the connector follows the node when it moves; endpoint nodes must sit on the page the
-  connector is drawn on. A self-loop without chosen sides leaves from the right and returns at the
-  top, so it never collapses to a point.
+  connector is drawn on. Figma keeps a connector with a node end in the closest container its ends
+  share, so with a `parentId` the endpoint nodes must sit inside that parent; a connector Figma puts
+  anywhere else is removed and the error says where it went. A free end beside a node end is
+  anchored to the parent, so it moves with it. A self-loop without chosen sides leaves from the
+  right and returns at the top, so it never collapses to a point.
 - `create_section` — `{ name?, parentId?, x?, y?, width?, height?, fillHex?, fillOpacity?,
 sectionContentsHidden? }`. Also works in design files. `fit_to_content` later wraps it around what
   you put inside ([layout guide](layout.md)).
