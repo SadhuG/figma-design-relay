@@ -7,20 +7,28 @@ paths:
 
 ## Landmarks
 
-- `plugin/src/main/code.ts:404` — the dispatcher calls `assertEditorSupports` before any tool runs.
-- `plugin/src/main/capabilities.ts:58` — `CAPABILITIES`; `:113` — `assertEditorSupports`, which
+- `plugin/src/main/code.ts:509` — the dispatcher calls `assertEditorSupports` before any tool runs.
+- `plugin/src/main/capabilities.ts:64` — `CAPABILITIES`; `:148` — `assertEditorSupports`, which
   takes the editor as a parameter rather than reading `figma.editorType`, so the gate is
   unit-testable. **The table is keyed by the request type the plugin receives, not the MCP tool
   name** — `generate_diagram` arrives as `render_diagram`, and an entry under the tool name never
   matches; `tool` on an entry sets the name the refusal shows. Tools absent from the table run
   everywhere. `capabilities.regression.test.ts` fails if a tool turns design-only without being
-  listed.
+  listed, or if anything but the three prototype reads (`get_prototype_connections`,
+  `trace_prototype_flow`, `get_node_prototype`) allows Dev Mode. `get_node_prototype` is not a
+  request type: `get_node` checks it only when `includePrototype` is set, so plain `get_node` runs
+  everywhere.
+- The upstream-synced tools keep their Figma-free logic in modules that take lookups as
+  parameters: `prototype.ts` (`PrototypeContext`), `svg.ts`, `node-properties.ts` (preflight, then
+  apply), `layout-actions.ts` and `text-target.ts`. Batches and layout helpers check every input
+  before the first write; the creators resolve `parentId` before creating and `removeOnFailure`
+  after.
 - `plugin/src/main/serializer.ts:484` — `serializeNode`, `async` and awaited at four call sites in
   `code.ts`. Only `get_design_context` type-errors if you forget an `await` — the other three type
   `data` as `unknown` and will happily ship an unresolved promise. The `figma` lookups it hands to
   `references.ts` live at `:412`; the helper modules never name the global.
   `docs/reference/serialized-nodes.md` documents the emitted shape — update it with the serializer.
-- `plugin/src/main/code.ts:2143` — the UI-collapse block that closes the file: window sizing, the
+- `plugin/src/main/code.ts:2464` — the UI-collapse block that closes the file: window sizing, the
   `ui-collapsed` `figma.clientStorage` key, and the `request-ui-state` / `set-ui-collapsed`
   messages. `figma.showUI` runs with `visible: false` and the panel is shown only once the stored
   state resolves, so anything that returns early before `figma.ui.show()` leaves the window
@@ -73,5 +81,23 @@ paths:
   worktree the build derives the Dev manifest from it (`dev-slot.ts`: name, id, `main`/`ui` paths,
   and `allowedDomains` narrowed to the slot's port) and writes it to `dist/`. Any other manifest
   change — permissions, `editorType` — reaches both builds.
+- **`clone()` of a node on another page lands on the current page,** not beside the original —
+  seen live on 2026-10-18. Put copies back with `keepBesideOriginal` (`layout-actions.ts`), as
+  `duplicate_nodes` and `duplicate_with_offset` do. Figma refuses new children anywhere inside an
+  instance, so both refuse instance layers first (`assertDuplicableInPlace`) and remove their
+  copies if a later one fails.
+- **An unattached `ConnectorEndpoint.position` is a canvas location,** whatever the connector's
+  parent. `create_connector` takes free ends relative to the parent and maps them through its
+  `absoluteTransform` (`toCanvasPoint`).
+- **Each endpoint assignment can reparent a connector** — seen live on 2026-10-18. Once an end
+  names a node, Figma moves the connector into the closest container its ends share, and a bare
+  `{ position }` counts as the page, so a node end plus a bare free end in a section lands on the
+  page. A free end beside a node end is therefore `{ endpointNodeId: parent.id, position }`
+  (`freeEndBesideNode`), read in the parent's own coordinates — not mapped to the canvas.
+  Appending after the ends are set is no fix: the connector keeps its old geometry shifted by the
+  move until something lays it out again. `create_connector` checks the final parent and removes a
+  connector that landed elsewhere.
+- **A new FigJam shape takes the toolbar's last shape,** not `SQUARE`; `create_shape_with_text`
+  always sets `shapeType`.
 - **Relaunch the plugin after every plugin rebuild** before trusting a live check — see the
   `live-figma-check` skill.

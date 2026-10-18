@@ -9,7 +9,6 @@ import { assertEditorSupports, CAPABILITIES } from "./capabilities";
 
 /** Tools that are legitimately design-only. Adding to this list is a decision. */
 const DESIGN_ONLY_BY_DESIGN = new Set([
-  "set_text_properties",
   "set_gradient_fill",
   "set_effects",
   "set_stroke_properties",
@@ -18,6 +17,7 @@ const DESIGN_ONLY_BY_DESIGN = new Set([
   "create_frame",
   "create_shape",
   "create_image",
+  "create_svg",
   "import_html_layers",
   "import_library_asset",
   "apply_animation_style",
@@ -25,6 +25,13 @@ const DESIGN_ONLY_BY_DESIGN = new Set([
   "apply_manual_keyframe_track",
   "remove_manual_keyframe_track",
   "set_timeline_duration",
+]);
+
+/** Gated reads that Dev Mode may run. Every other entry in the table is a write. */
+const DEV_MODE_READS = new Set([
+  "get_prototype_connections",
+  "trace_prototype_flow",
+  "get_node_prototype",
 ]);
 
 describe("capability regression", () => {
@@ -44,8 +51,17 @@ describe("capability regression", () => {
 
   test("no tool is allowed in Dev Mode by accident", () => {
     for (const [tool, capability] of Object.entries(CAPABILITIES)) {
+      if (DEV_MODE_READS.has(tool)) continue;
       expect(capability.editors.includes("dev"), `${tool} allows writes in Dev Mode`).toBe(false);
     }
+  });
+
+  test("the Dev Mode reads are exactly the prototype reads", () => {
+    const allowed = Object.entries(CAPABILITIES)
+      .filter(([, capability]) => capability.editors.includes("dev"))
+      .map(([tool]) => tool)
+      .sort();
+    expect(allowed).toEqual([...DEV_MODE_READS].sort());
   });
 
   test("every FigJam-only tool refuses the design editor with a FigJam message", () => {

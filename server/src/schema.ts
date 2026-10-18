@@ -1,4 +1,7 @@
 import { z } from "zod";
+import type { ShapeWithTextNode } from "@figma/plugin-typings/plugin-api-standalone.js";
+
+export const MAX_SVG_BYTES = 2 * 1024 * 1024;
 
 /**
  * Figma node IDs:
@@ -39,6 +42,47 @@ const textAlignHorizontal = z.enum(["LEFT", "CENTER", "RIGHT", "JUSTIFIED"]);
 const textAlignVertical = z.enum(["TOP", "CENTER", "BOTTOM"]);
 const textAutoResize = z.enum(["NONE", "WIDTH_AND_HEIGHT", "HEIGHT", "TRUNCATE"]);
 const shapeType = z.enum(["RECTANGLE", "ELLIPSE", "LINE"]);
+
+type FigJamShapeType = ShapeWithTextNode["shapeType"];
+
+const FIGJAM_SHAPE_TYPES = [
+  "SQUARE",
+  "ELLIPSE",
+  "ROUNDED_RECTANGLE",
+  "DIAMOND",
+  "TRIANGLE_UP",
+  "TRIANGLE_DOWN",
+  "PARALLELOGRAM_RIGHT",
+  "PARALLELOGRAM_LEFT",
+  "ENG_DATABASE",
+  "ENG_QUEUE",
+  "ENG_FILE",
+  "ENG_FOLDER",
+  "TRAPEZOID",
+  "PREDEFINED_PROCESS",
+  "SHIELD",
+  "DOCUMENT_SINGLE",
+  "DOCUMENT_MULTIPLE",
+  "MANUAL_INPUT",
+  "HEXAGON",
+  "CHEVRON",
+  "PENTAGON",
+  "OCTAGON",
+  "STAR",
+  "PLUS",
+  "ARROW_LEFT",
+  "ARROW_RIGHT",
+  "SUMMING_JUNCTION",
+  "OR",
+  "SPEECH_BUBBLE",
+  "INTERNAL_STORAGE",
+] as const satisfies readonly FigJamShapeType[];
+
+/* Type gymnastics to ensure all shape types are listed on transpile time */
+type UnlistedShapeType = Exclude<FigJamShapeType, (typeof FIGJAM_SHAPE_TYPES)[number]>;
+const allShapeTypesListed: [UnlistedShapeType] extends [never] ? true : UnlistedShapeType = true;
+
+const figJamShapeType = z.enum(FIGJAM_SHAPE_TYPES);
 const imageScaleMode = z.enum(["FILL", "FIT"]);
 
 const fileKeyField = z
@@ -84,8 +128,17 @@ export const setGradientFillInput = z.object({
   fileKey: fileKeyField,
 });
 
-export const setNodePropertiesInput = z.object({
-  nodeId: createFigmaNodeIdSchema().describe("The node ID to update"),
+export const setNodePropertiesShape = z.object({
+  nodeId: createFigmaNodeIdSchema()
+    .optional()
+    .describe("The node ID to update. Required unless nodeIds is given."),
+  nodeIds: z
+    .array(createFigmaNodeIdSchema())
+    .min(1)
+    .optional()
+    .describe(
+      "Batch: apply the same property changes to multiple nodes. Required unless nodeId is given."
+    ),
   name: z.string().optional().describe("Optional new node name"),
   x: z.number().optional().describe("Optional x position"),
   y: z.number().optional().describe("Optional y position"),
@@ -97,6 +150,25 @@ export const setNodePropertiesInput = z.object({
   cornerRadius: z.number().min(0).optional().describe("Optional corner radius"),
   fileKey: fileKeyField,
 });
+
+export const setNodePropertiesInput = setNodePropertiesShape
+  .refine(
+    (value) => value.nodeId !== undefined || value.nodeIds !== undefined,
+    "Either nodeId or nodeIds is required"
+  )
+  .refine(
+    (value) =>
+      value.name !== undefined ||
+      value.x !== undefined ||
+      value.y !== undefined ||
+      value.width !== undefined ||
+      value.height !== undefined ||
+      value.rotation !== undefined ||
+      value.opacity !== undefined ||
+      value.visible !== undefined ||
+      value.cornerRadius !== undefined,
+    "At least one property must be provided"
+  );
 
 const solidFillTarget = z
   .enum(["fill", "stroke"])
@@ -490,88 +562,201 @@ export const createTextInput = createTextShape.refine(
   "fillHex is required when fillOpacity is provided"
 );
 
-/** FigJam's shape-with-text shapes, verbatim from `ShapeWithTextNode.shapeType`. */
-const figJamShapeType = z.enum([
-  "SQUARE",
-  "ELLIPSE",
-  "ROUNDED_RECTANGLE",
-  "DIAMOND",
-  "TRIANGLE_UP",
-  "TRIANGLE_DOWN",
-  "PARALLELOGRAM_RIGHT",
-  "PARALLELOGRAM_LEFT",
-  "ENG_DATABASE",
-  "ENG_QUEUE",
-  "ENG_FILE",
-  "ENG_FOLDER",
-  "TRAPEZOID",
-  "PREDEFINED_PROCESS",
-  "SHIELD",
-  "DOCUMENT_SINGLE",
-  "DOCUMENT_MULTIPLE",
-  "MANUAL_INPUT",
-  "HEXAGON",
-  "CHEVRON",
-  "PENTAGON",
-  "OCTAGON",
-  "STAR",
-  "PLUS",
-  "ARROW_LEFT",
-  "ARROW_RIGHT",
-  "SUMMING_JUNCTION",
-  "OR",
-  "SPEECH_BUBBLE",
-  "INTERNAL_STORAGE",
-]);
-
 /** A size is applied with one resize call, so it needs both halves or neither. */
 const bothOrNeitherSize = (value: { width?: number; height?: number }) =>
   (value.width === undefined) === (value.height === undefined);
 const SIZE_PAIR_MESSAGE = "width and height must be given together";
 
-export const createStickyInput = z.object({
-  text: z.string().describe("Sticky note text."),
-  x: z.number().optional().describe("Optional x position"),
-  y: z.number().optional().describe("Optional y position"),
+/** Adds an issue when an opacity arrives without the colour it belongs to. */
+const requireColorFor = (
+  value: Record<string, unknown>,
+  ctx: z.RefinementCtx,
+  pairs: ReadonlyArray<readonly [opacity: string, color: string]>
+) => {
+  for (const [opacity, color] of pairs) {
+    if (value[opacity] !== undefined && value[color] === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [opacity],
+        message: `${color} is required when ${opacity} is provided`,
+      });
+    }
+  }
+};
+
+/** `text` is canonical; `characters` (upstream's and create_text's spelling) is an alias. */
+const labelFields = {
+  text: z
+    .string()
+    .optional()
+    .describe("Label text (default empty). `characters` is accepted as an alias."),
+  characters: z.string().optional().describe("Alias for text, matching create_text."),
+};
+
+/** Folds `characters` into `text`; `text` wins, and no label at all means an empty one. */
+const normaliseLabel = <T extends { text?: string; characters?: string }>({
+  characters,
+  ...rest
+}: T): Omit<T, "characters"> & { text: string } => ({
+  ...rest,
+  text: rest.text ?? characters ?? "",
+});
+
+const optionalParentId = (what: string) =>
+  createFigmaNodeIdSchema()
+    .optional()
+    .describe(`Optional parent node ID (a section or frame) to append the ${what} into`);
+
+/**
+ * Advertised shape. `characters` is declared so the MCP SDK keeps it;
+ * `createStickyInput` normalises it onto `text` before the request is sent.
+ */
+export const createStickyShape = z.object({
+  ...labelFields,
+  name: z.string().optional().describe("Optional sticky name"),
+  parentId: optionalParentId("sticky"),
+  isWideWidth: z.boolean().optional().describe("true for the wide sticky shape (default false)"),
+  x: z.number().optional().describe("Optional x position, relative to the parent"),
+  y: z.number().optional().describe("Optional y position, relative to the parent"),
   fileKey: fileKeyField,
 });
 
+export const createStickyInput = createStickyShape.transform(normaliseLabel);
+
 export const createShapeWithTextShape = z.object({
-  text: z.string().describe("Text inside the shape."),
+  ...labelFields,
   shapeType: figJamShapeType
     .optional()
     .describe(
       "FigJam shape (default SQUARE). Includes flowchart shapes such as DIAMOND, ENG_DATABASE and PREDEFINED_PROCESS."
     ),
-  x: z.number().optional().describe("Optional x position"),
-  y: z.number().optional().describe("Optional y position"),
+  name: z.string().optional().describe("Optional shape name"),
+  parentId: optionalParentId("shape"),
+  x: z.number().optional().describe("Optional x position, relative to the parent"),
+  y: z.number().optional().describe("Optional y position, relative to the parent"),
   width: z.number().positive().optional().describe("Optional width; give height too"),
   height: z.number().positive().optional().describe("Optional height; give width too"),
+  rotation: z.number().optional().describe("Optional rotation in degrees"),
+  fontFamily: z
+    .string()
+    .optional()
+    .describe("Label font family (default: the shape's own, Inter Medium)"),
+  fontStyle: z.string().optional().describe("Label font style, used with fontFamily"),
+  fontSize: z.number().positive().optional().describe("Optional label font size"),
+  fillHex: createHexColorSchema().optional().describe("Optional fill color as hex"),
+  fillOpacity: z.number().min(0).max(1).optional().describe("Optional fill opacity from 0 to 1"),
+  strokeHex: createHexColorSchema().optional().describe("Optional stroke color as hex"),
+  strokeOpacity: z
+    .number()
+    .min(0)
+    .max(1)
+    .optional()
+    .describe("Optional stroke opacity from 0 to 1"),
+  strokeWeight: z.number().positive().optional().describe("Optional stroke weight"),
+  textFillHex: createHexColorSchema().optional().describe("Optional label text color as hex"),
+  textFillOpacity: z
+    .number()
+    .min(0)
+    .max(1)
+    .optional()
+    .describe("Optional label text opacity from 0 to 1"),
   fileKey: fileKeyField,
 });
 
-export const createShapeWithTextInput = createShapeWithTextShape.refine(
-  bothOrNeitherSize,
-  SIZE_PAIR_MESSAGE
-);
+export const createShapeWithTextInput = createShapeWithTextShape
+  .superRefine((value, ctx) => {
+    if (!bothOrNeitherSize(value)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: SIZE_PAIR_MESSAGE });
+    }
+    requireColorFor(value, ctx, [
+      ["fillOpacity", "fillHex"],
+      ["strokeOpacity", "strokeHex"],
+      ["textFillOpacity", "textFillHex"],
+    ]);
+  })
+  .transform(normaliseLabel);
 
-export const createConnectorInput = z.object({
-  startNodeId: createFigmaNodeIdSchema().describe("Node the connector starts at."),
-  endNodeId: createFigmaNodeIdSchema().describe("Node the connector ends at."),
+const connectorAnchor = z
+  .enum(["top", "bottom", "left", "right", "auto"])
+  .describe("Which side of the node the end attaches to (default auto)");
+
+export const createConnectorShape = z.object({
+  startNodeId: createFigmaNodeIdSchema()
+    .optional()
+    .describe("Node the connector starts at. Give this or startX and startY."),
+  startX: z.number().optional().describe("Free start x, relative to the parent"),
+  startY: z.number().optional().describe("Free start y, relative to the parent"),
+  startAnchor: connectorAnchor.optional().describe("Side of the start node (needs startNodeId)"),
+  endNodeId: createFigmaNodeIdSchema()
+    .optional()
+    .describe("Node the connector ends at. Give this or endX and endY."),
+  endX: z.number().optional().describe("Free end x, relative to the parent"),
+  endY: z.number().optional().describe("Free end y, relative to the parent"),
+  endAnchor: connectorAnchor.optional().describe("Side of the end node (needs endNodeId)"),
   text: z.string().optional().describe("Optional label on the connector."),
+  name: z.string().optional().describe("Optional connector name"),
+  parentId: optionalParentId("connector"),
+  strokeWeight: z.number().positive().optional().describe("Optional stroke weight"),
+  strokeHex: createHexColorSchema().optional().describe("Optional stroke color as hex"),
   fileKey: fileKeyField,
+});
+
+export const createConnectorInput = createConnectorShape.superRefine((value, ctx) => {
+  for (const end of ["start", "end"] as const) {
+    const id = value[`${end}NodeId`];
+    const x = value[`${end}X`];
+    const y = value[`${end}Y`];
+    const coordinates = x !== undefined || y !== undefined;
+    if (id !== undefined && coordinates) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [`${end}NodeId`],
+        message: `Give the ${end} as ${end}NodeId or as ${end}X and ${end}Y, not both`,
+      });
+    } else if (id === undefined && (x === undefined || y === undefined)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [`${end}NodeId`],
+        message: `The ${end} needs ${end}NodeId, or both ${end}X and ${end}Y`,
+      });
+    }
+    if (value[`${end}Anchor`] !== undefined && id === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [`${end}Anchor`],
+        message: `${end}Anchor requires ${end}NodeId: a free end has no side to attach to`,
+      });
+    }
+  }
 });
 
 export const createSectionShape = z.object({
   name: z.string().optional().describe("Optional section name"),
-  x: z.number().optional().describe("Optional x position"),
-  y: z.number().optional().describe("Optional y position"),
+  parentId: optionalParentId("section"),
+  x: z.number().optional().describe("Optional x position, relative to the parent"),
+  y: z.number().optional().describe("Optional y position, relative to the parent"),
   width: z.number().positive().optional().describe("Optional width; give height too"),
   height: z.number().positive().optional().describe("Optional height; give width too"),
+  fillHex: createHexColorSchema().optional().describe("Optional background color as hex"),
+  fillOpacity: z
+    .number()
+    .min(0)
+    .max(1)
+    .optional()
+    .describe("Optional background opacity from 0 to 1"),
+  sectionContentsHidden: z
+    .boolean()
+    .optional()
+    .describe("true to hide the section's contents in the canvas (default false)"),
   fileKey: fileKeyField,
 });
 
-export const createSectionInput = createSectionShape.refine(bothOrNeitherSize, SIZE_PAIR_MESSAGE);
+export const createSectionInput = createSectionShape.superRefine((value, ctx) => {
+  if (!bothOrNeitherSize(value)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: SIZE_PAIR_MESSAGE });
+  }
+  requireColorFor(value, ctx, [["fillOpacity", "fillHex"]]);
+});
 
 export const createShapeShape = z.object({
   shapeType: shapeType.describe("Shape type to create"),
@@ -642,6 +827,24 @@ export const createImageInput = z.object({
   fileKey: fileKeyField,
 });
 
+export const createSvgInput = z.object({
+  source: z
+    .string()
+    .min(1)
+    .describe(
+      "SVG source: raw <svg> markup, or a .svg file path relative to the MCP server working directory (it must stay inside it). URLs and data URIs are not fetched. At most 2097152 UTF-8 bytes."
+    ),
+  name: z.string().optional().describe("Optional SVG node name"),
+  parentId: createFigmaNodeIdSchema()
+    .optional()
+    .describe("Optional parent node ID to append the editable SVG into"),
+  x: z.number().optional().describe("Optional x position"),
+  y: z.number().optional().describe("Optional y position"),
+  width: z.number().positive().optional().describe("Optional width"),
+  height: z.number().positive().optional().describe("Optional height"),
+  fileKey: fileKeyField,
+});
+
 /**
  * A serialized layer tree produced by html-figma's browser `htmlToFigma()`.
  * The tree is validated loosely here (root must at least carry a node type);
@@ -673,6 +876,54 @@ export const importHtmlLayersInput = z.object({
   fileKey: fileKeyField,
 });
 
+export const fitToContentInput = z.object({
+  nodeId: createFigmaNodeIdSchema().describe(
+    "Section node ID to resize around its children (SECTION nodes only)"
+  ),
+  padding: z
+    .number()
+    .min(0)
+    .optional()
+    .describe("Whitespace to leave around the content bounding box (default 0)"),
+  fileKey: fileKeyField,
+});
+
+export const distributeInput = z.object({
+  nodeIds: z
+    .array(createFigmaNodeIdSchema())
+    .min(3)
+    .describe("List of node IDs to distribute (at least 3)"),
+  fileKey: fileKeyField,
+});
+
+export const alignToGridInput = z.object({
+  nodeIds: z.array(createFigmaNodeIdSchema()).min(1).describe("List of node IDs to align"),
+  gridSize: z.number().positive().describe("Grid spacing to snap positions to"),
+  fileKey: fileKeyField,
+});
+
+const placeRelativeInput = z.object({
+  nodeId: createFigmaNodeIdSchema().describe("Node to move"),
+  relativeToId: createFigmaNodeIdSchema().describe("Reference node to place against"),
+  gap: z.number().min(0).optional().describe("Gap between the two nodes' edges (default 0)"),
+  align: z
+    .enum(["start", "center"])
+    .optional()
+    .describe("Alignment of the moved node against the reference edge (default start)"),
+  fileKey: fileKeyField,
+});
+
+export const placeBelowInput = placeRelativeInput;
+
+export const placeRightOfInput = placeRelativeInput;
+
+export const duplicateWithOffsetInput = z.object({
+  nodeIds: z.array(createFigmaNodeIdSchema()).min(1).describe("List of node IDs to duplicate"),
+  offsetX: z.number().describe("Horizontal offset applied to each duplicate"),
+  offsetY: z.number().describe("Vertical offset applied to each duplicate"),
+  fileKey: fileKeyField,
+});
+
 export const toolInputSchemas = {
   get_document: z.object({
     fileKey: fileKeyField,
@@ -692,6 +943,53 @@ export const toolInputSchemas = {
     nodeId: createFigmaNodeIdSchema().describe(
       "The node ID to fetch. Accepts top-level IDs like '4029:12345' and instance-child IDs like 'I12740:17806;12740:17793'."
     ),
+    includePrototype: z
+      .boolean()
+      .optional()
+      .describe(
+        "When true, adds a `prototype` field with the reactions on this node and its descendants (the scan get_prototype_connections returns). Design files and Dev Mode only."
+      ),
+    fileKey: fileKeyField,
+  }),
+
+  get_prototype_connections: z.object({
+    nodeId: createFigmaNodeIdSchema()
+      .optional()
+      .describe(
+        "Root to scan (a page, screen, button, or instance). The node and all descendants, including instance sublayers, are inspected. Omit to scan the current page."
+      ),
+    maxNodes: z
+      .number()
+      .int()
+      .min(1)
+      .max(50000)
+      .optional()
+      .describe("Stop after inspecting this many nodes (default 5000); `truncated` reports it."),
+    includeEmpty: z
+      .boolean()
+      .optional()
+      .describe("Also list nodes that support reactions but have none (default false)."),
+    fileKey: fileKeyField,
+  }),
+
+  trace_prototype_flow: z.object({
+    nodeId: createFigmaNodeIdSchema().describe(
+      "Screen (or any node inside one) to start from. Screen-to-screen navigation is followed breadth-first."
+    ),
+    maxScreens: z
+      .number()
+      .int()
+      .min(1)
+      .max(500)
+      .optional()
+      .describe("Maximum screens to expand (default 25); the rest are listed in `pending`."),
+    maxNodesPerScreen: z
+      .number()
+      .int()
+      .min(1)
+      .max(50000)
+      .optional()
+      .describe("Maximum nodes to inspect on each screen (default 5000)."),
     fileKey: fileKeyField,
   }),
 
@@ -800,19 +1098,7 @@ export const toolInputSchemas = {
     "At least one auto-layout property must be provided"
   ),
 
-  set_node_properties: setNodePropertiesInput.refine(
-    (value) =>
-      value.name !== undefined ||
-      value.x !== undefined ||
-      value.y !== undefined ||
-      value.width !== undefined ||
-      value.height !== undefined ||
-      value.rotation !== undefined ||
-      value.opacity !== undefined ||
-      value.visible !== undefined ||
-      value.cornerRadius !== undefined,
-    "At least one property must be provided"
-  ),
+  set_node_properties: setNodePropertiesInput,
 
   create_page: createPageInput,
 
@@ -827,12 +1113,28 @@ export const toolInputSchemas = {
 
   create_image: createImageInput,
 
+  create_svg: createSvgInput,
+
   import_html_layers: importHtmlLayersInput,
 
   duplicate_nodes: z.object({
     nodeIds: z.array(createFigmaNodeIdSchema()).min(1).describe("List of node IDs to duplicate"),
     fileKey: fileKeyField,
   }),
+
+  fit_to_content: fitToContentInput,
+
+  distribute_horizontally: distributeInput,
+
+  distribute_vertically: distributeInput,
+
+  align_to_grid: alignToGridInput,
+
+  place_below: placeBelowInput,
+
+  place_right_of: placeRightOfInput,
+
+  duplicate_with_offset: duplicateWithOffsetInput,
 
   reparent_nodes: z.object({
     nodeIds: z.array(createFigmaNodeIdSchema()).min(1).describe("List of node IDs to move"),
@@ -1133,6 +1435,17 @@ const createImageRpcInput = createImageInput.omit({ source: true, fileKey: true 
     .describe("Base64-encoded image bytes, resolved from `source` by the tool handler"),
 });
 
+const createSvgRpcInput = createSvgInput.omit({ source: true, fileKey: true }).extend({
+  svgText: z
+    .string()
+    .min(1)
+    .refine(
+      (value) => Buffer.byteLength(value, "utf8") <= MAX_SVG_BYTES,
+      `SVG source exceeds the ${MAX_SVG_BYTES} byte bridge limit`
+    )
+    .describe("SVG markup resolved from source by the tool handler"),
+});
+
 /**
  * Schemas the RPC path validates against. Tools whose handlers rewrite the
  * payload before forwarding validate their wire shape here; every other tool
@@ -1152,6 +1465,7 @@ const importHtmlLayersRpcInput = importHtmlLayersInput
 const rpcInputSchemas = {
   ...toolInputSchemas,
   create_image: createImageRpcInput,
+  create_svg: createSvgRpcInput,
   import_html_layers: importHtmlLayersRpcInput,
 } as const;
 
@@ -1168,6 +1482,8 @@ const rpcToArgs: Record<
   get_selection: (_nodeIds, params) => ({ ...params }),
   get_layout_tree: (nodeIds, params) => ({ ...params, rootId: nodeIds?.[0] }),
   get_node: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
+  get_prototype_connections: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
+  trace_prototype_flow: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
   get_styles: (_nodeIds, params) => ({ ...params }),
   get_metadata: (_nodeIds, params) => ({ ...params }),
   get_design_context: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
@@ -1179,10 +1495,7 @@ const rpcToArgs: Record<
     ...params,
     nodeId: nodeIds?.[0],
   }),
-  set_node_properties: (nodeIds, params) => ({
-    ...params,
-    nodeId: nodeIds?.[0],
-  }),
+  set_node_properties: (nodeIds, params) => ({ nodeIds, ...params }),
   set_gradient_fill: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
   set_solid_fill: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
   set_effects: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
@@ -1196,8 +1509,16 @@ const rpcToArgs: Record<
   create_text: (_nodeIds, params) => ({ ...params }),
   create_shape: (_nodeIds, params) => ({ ...params }),
   create_image: (_nodeIds, params) => ({ ...params }),
+  create_svg: (_nodeIds, params) => ({ ...params }),
   import_html_layers: (_nodeIds, params) => ({ ...params }),
   duplicate_nodes: (nodeIds, params) => ({ nodeIds, ...params }),
+  fit_to_content: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
+  distribute_horizontally: (nodeIds, params) => ({ nodeIds, ...params }),
+  distribute_vertically: (nodeIds, params) => ({ nodeIds, ...params }),
+  align_to_grid: (nodeIds, params) => ({ nodeIds, ...params }),
+  place_below: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
+  place_right_of: (nodeIds, params) => ({ ...params, nodeId: nodeIds?.[0] }),
+  duplicate_with_offset: (nodeIds, params) => ({ nodeIds, ...params }),
   reparent_nodes: (nodeIds, params) => ({ nodeIds, ...params }),
   group_nodes: (nodeIds, params) => ({ nodeIds, ...params }),
   ungroup_node: (nodeIds, params) => ({ nodeId: nodeIds?.[0], ...params }),
@@ -1267,10 +1588,17 @@ export function validateRpc(
     return { error: result.error.issues[0].message };
   }
 
-  // `rpcToArgs` folds the transport-level `nodeIds` into a `nodeId` field so the
-  // tool schema can validate it. The plugin reads node ids off `request.nodeIds`
-  // instead, so drop it again — along with `fileKey`, which travels beside the
-  // params rather than inside them.
-  const { nodeId: _nodeId, fileKey: _fileKey, ...rest } = result.data as Record<string, unknown>;
+  // `rpcToArgs` folds the transport-level `nodeIds` into the tool schema's own
+  // id fields so validation can see them. The plugin reads node ids off
+  // `request.nodeIds` instead — which the leader re-attaches from the wire — so
+  // drop them again, along with `fileKey`, which travels beside the params
+  // rather than inside them. Leaving `nodeIds` in the params would leak into
+  // per-tool param handling (e.g. set_node_properties' "has updates" check).
+  const {
+    nodeId: _nodeId,
+    nodeIds: _nodeIds,
+    fileKey: _fileKey,
+    ...rest
+  } = result.data as Record<string, unknown>;
   return { error: null, params: rest };
 }

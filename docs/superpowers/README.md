@@ -118,6 +118,14 @@ Drive it with `superpowers:subagent-driven-development` or `superpowers:executin
   leader's read-only status page (D1–D11). Built by
   [`plans/2026-10-14-relay-dashboard/00-overview.md`](plans/2026-10-14-relay-dashboard/00-overview.md).
 
+- [`specs/2026-10-18-upstream-relay-audit-design.md`](specs/2026-10-18-upstream-relay-audit-design.md)
+  — audit of upstream through v0.0.24 and the contracts for adopting it (U1–U7, D1–D4): prototype
+  reads, `create_svg`, property batches, seven layout helpers, FigJam text editing, creator
+  extensions and resilient FigJam reads. Integration candidate 0.8.2 by
+  [`plans/2026-10-18-upstream-relay.md`](plans/2026-10-18-upstream-relay.md) (markdown only; an
+  execution record, not a generated page). Live evidence:
+  [`../reference/2026-10-18-upstream-relay-live-check.md`](../reference/2026-10-18-upstream-relay-live-check.md).
+
 ## Other plans
 
 - [`plans/2026-10-18-panel-redesign/`](plans/2026-10-18-panel-redesign/00-overview.md): the light

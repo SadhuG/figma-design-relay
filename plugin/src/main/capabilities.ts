@@ -22,6 +22,8 @@ export interface Capability {
   reason?: string;
   /** The MCP tool to name in the refusal, when it differs from the request type. */
   tool?: string;
+  /** Reachable editors to advertise when latent support is absent from the manifest. */
+  guidanceEditors?: EditorType[];
 }
 
 const EDITOR_LABEL: Record<EditorType, string> = {
@@ -55,12 +57,17 @@ const FIGJAM_ONLY: EditorType[] = ["figjam"];
 
 const designWrite = (reason?: string): Capability => ({ editors: DESIGN_ONLY, reason });
 
+/** Prototypes live in design files; Dev Mode can read them too. */
+const PROTOTYPE_READ: EditorType[] = ["figma", "dev"];
+const NO_PROTOTYPES = "FigJam boards and Slides decks have no prototypes";
+
 export const CAPABILITIES: Record<string, Capability> = {
   // Design writes. Every one of these existed before phase 6 and must keep
   // behaving identically in `figma` — see the regression test.
   set_node_visibility: { editors: EDITABLE },
   set_text_content: { editors: EDITABLE },
-  set_text_properties: designWrite(),
+  // TEXT nodes and FigJam text sublayers; Slides keeps its text styling to itself.
+  set_text_properties: { editors: ["figma", "figjam"] },
   set_node_properties: { editors: EDITABLE },
   set_solid_fill: { editors: EDITABLE },
   set_gradient_fill: designWrite(),
@@ -72,8 +79,17 @@ export const CAPABILITIES: Record<string, Capability> = {
   create_text: { editors: EDITABLE },
   create_shape: designWrite(),
   create_image: designWrite(),
+  create_svg: designWrite(),
   import_html_layers: designWrite(),
   duplicate_nodes: { editors: EDITABLE },
+  duplicate_with_offset: { editors: EDITABLE },
+  distribute_horizontally: { editors: EDITABLE },
+  distribute_vertically: { editors: EDITABLE },
+  align_to_grid: { editors: EDITABLE },
+  place_below: { editors: EDITABLE },
+  place_right_of: { editors: EDITABLE },
+  // Sections exist in design files and FigJam only.
+  fit_to_content: { editors: ["figma", "figjam"] },
   reparent_nodes: { editors: EDITABLE },
   group_nodes: { editors: EDITABLE },
   ungroup_node: { editors: EDITABLE },
@@ -87,6 +103,25 @@ export const CAPABILITIES: Record<string, Capability> = {
   apply_manual_keyframe_track: designWrite(),
   remove_manual_keyframe_track: designWrite(),
   set_timeline_duration: designWrite(),
+
+  // Prototype reads. Reads, so Dev Mode is allowed — the only entries that list it.
+  get_prototype_connections: {
+    editors: PROTOTYPE_READ,
+    reason: NO_PROTOTYPES,
+    guidanceEditors: DESIGN_ONLY,
+  },
+  trace_prototype_flow: {
+    editors: PROTOTYPE_READ,
+    reason: NO_PROTOTYPES,
+    guidanceEditors: DESIGN_ONLY,
+  },
+  // Checked only when get_node is called with includePrototype; plain get_node runs everywhere.
+  get_node_prototype: {
+    editors: PROTOTYPE_READ,
+    reason: NO_PROTOTYPES,
+    tool: "get_node includePrototype",
+    guidanceEditors: DESIGN_ONLY,
+  },
 
   // FigJam only.
   create_sticky: { editors: FIGJAM_ONLY, reason: "sticky notes exist only in FigJam" },
@@ -115,14 +150,15 @@ export const assertEditorSupports = (tool: string, editor: EditorType): void => 
   if (!capability) return;
   if (capability.editors.includes(editor)) return;
 
-  const wanted = capability.editors.map((allowed) => EDITOR_LABEL[allowed]).join(" or ");
+  const guidanceEditors = capability.guidanceEditors ?? capability.editors;
+  const wanted = guidanceEditors.map((allowed) => EDITOR_LABEL[allowed]).join(" or ");
   const because = capability.reason ? ` (${capability.reason})` : "";
   // Dev Mode sits on a design file, so a design write only needs a mode switch;
   // anything else needs a different file altogether.
   const next =
     editor === "dev" && capability.editors.includes("figma")
       ? "Dev Mode is read-only; switch to the design editor and re-run."
-      : `Run the plugin in a ${capability.editors
+      : `Run the plugin in a ${guidanceEditors
           .map((allowed) => FILE_LABEL[allowed])
           .join(" or ")} and retry, passing that file's fileKey.`;
 

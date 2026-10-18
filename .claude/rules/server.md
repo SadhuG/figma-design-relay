@@ -7,12 +7,12 @@ paths:
 
 ## Landmarks
 
-- `server/src/schema.ts:676` — `toolInputSchemas`, the advertised MCP input shapes.
-- `server/src/schema.ts:1163` — `rpcToArgs`, typed `Record<ToolName, …>`. **Adding a key to
+- `server/src/schema.ts:927` — `toolInputSchemas`, the advertised MCP input shapes.
+- `server/src/schema.ts:1477` — `rpcToArgs`, typed `Record<ToolName, …>`. **Adding a key to
   `toolInputSchemas` without its mapper here is a compile error.** That is deliberate; do not work
   around it.
-- `server/src/schema.ts:1257` — `validateRpc`, the follower → leader guard.
-- `server/src/tools.ts:276` — `registerTools`; `:1263` — `renderResponse`, the shared handler
+- `server/src/schema.ts:1578` — `validateRpc`, the follower → leader guard.
+- `server/src/tools.ts:288` — `registerTools`; `:1410` — `renderResponse`, the shared handler
   wrapper that turns a `BridgeResponse.error` into an MCP error result.
 
 Adding a tool? Use the `add-mcp-tool` skill — it is a checklist across both packages.
@@ -34,10 +34,16 @@ Adding a tool? Use the `add-mcp-tool` skill — it is a checklist across both pa
   `walkWorkspace` in `src/code-connect/discover.ts`, which skips `node_modules` and friends, drops
   links that resolve outside, and stops after 10,000 directories — some MCP clients start servers in
   `/`, and `get_design_context` walks on every call.
-- **The follower → leader hop validates and strips.** `validateRpc` drops `nodeId` from params for
-  every tool, because for the older tools it is a fold of `nodeIds`. A tool that needs a real node
-  id sends it on `nodeIds` and the plugin reads `request.nodeIds[0]`. Unit tests only exercise the
-  direct leader path, so a new node-addressed tool needs one live probe through a follower.
+- **The follower → leader hop validates and strips.** `validateRpc` drops `nodeId` and `nodeIds`
+  from params for every tool, because both are folds of the transport ids the leader forwards
+  separately. A tool that needs a real node id sends it on `nodeIds` and the plugin reads
+  `request.nodeIds`. Ids of other roles (`parentId`, `relativeToId`, connector endpoints) stay in
+  params. `src/upstream-tools.test.ts` runs every new handler through `validateRpc` to simulate the
+  hop, but a new node-addressed tool still needs one live probe through a follower.
+- **Handlers that rewrite their payload validate a wire schema.** `create_image`, `import_html_layers`
+  and `create_svg` resolve `source` on the server and send `imageBase64` / `layers` / `svgText`;
+  `rpcInputSchemas` checks that shape. `create_svg` goes through `src/svg.ts`: workspace-contained,
+  one descriptor, at most `MAX_SVG_BYTES` (2 MiB) read, never a URL.
 - **The relay's `fileKey` is usually not a Figma file key.** `figma.fileKey` is exposed only to
   private plugins, so this plugin connects under a session key starting `unsaved-`. Anything needing
   the real key (a Code Connect URL, matching a mapping) treats `unsaved-…` as unknown

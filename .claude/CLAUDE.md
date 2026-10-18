@@ -33,17 +33,17 @@ This file holds only what applies to every task. The rest loads when it is relev
 
 **Bun everywhere — never `npm` or `yarn`.**
 
-| Where     | Command                                   | Notes                                                                                                           |
-| --------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| root      | `bun install`                             | installs Husky's pre-commit hook (Prettier via lint-staged)                                                     |
-| root      | `bun run format` / `bun run format:check` | Prettier 3.9.6 over everything                                                                                  |
-| root      | `bun scripts/check-version.mjs`           | server + plugin versions agree and have a changelog entry                                                       |
-| root      | `bun scripts/dev-slot.mjs [name]`         | in a feature worktree: claim its dev plugin name and port (1995–2019)                                           |
-| `server/` | `bun run build`                           | `tsc` → `dist/`; this is the server's type-check                                                                |
-| `server/` | `bun test`                                | 389 tests (2 Windows skips): schemas, transport, file safety, codegen, assets, Code Connect, Mermaid, dashboard |
-| `plugin/` | `bun run typecheck`                       | `tsc --noEmit`; must stay at zero errors                                                                        |
-| `plugin/` | `bun run build`                           | typecheck, then two Vite passes: UI, then `main`                                                                |
-| `plugin/` | `bun test`                                | 257 tests: scripts, serializer, capability table, library tools, diagrams, dispatch, HTML images, panel         |
+| Where     | Command                                   | Notes                                                                                                                                   |
+| --------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| root      | `bun install`                             | installs Husky's pre-commit hook (Prettier via lint-staged)                                                                             |
+| root      | `bun run format` / `bun run format:check` | Prettier 3.9.6 over everything                                                                                                          |
+| root      | `bun scripts/check-version.mjs`           | server + plugin versions agree and have a changelog entry                                                                               |
+| root      | `bun scripts/dev-slot.mjs [name]`         | in a feature worktree: claim its dev plugin name and port (1995–2019)                                                                   |
+| `server/` | `bun run build`                           | `tsc` → `dist/`; this is the server's type-check                                                                                        |
+| `server/` | `bun test`                                | 415 tests (2 Windows skips): schemas, transport, file safety, SVG loader, follower round trips, codegen, assets, Code Connect, Mermaid  |
+| `plugin/` | `bun run typecheck`                       | `tsc --noEmit`; must stay at zero errors                                                                                                |
+| `plugin/` | `bun run build`                           | typecheck, then two Vite passes: UI, then `main`                                                                                        |
+| `plugin/` | `bun test`                                | 381 tests: scripts, serializer, capability table, library tools, diagrams, prototypes, layout, batches, dispatch, HTML images and panel |
 
 Tests live beside the code as `*.test.ts` (excluded from both tsconfigs). CI (`.github/workflows/ci.yml`)
 runs all of the above on every push to every branch.
@@ -61,10 +61,11 @@ server/src/
   dashboard-http.ts guard, headers and file table for the status page
   election.ts   leader election
   schema.ts     Zod input schemas + the RPC validation layer
-  tools.ts      all 54 MCP tool registrations
+  tools.ts      all 64 MCP tool registrations
   content.ts    typed MCP content blocks (text + image) for tool results
   assets.ts     writes exported design assets inside the working directory
   workspace-path.ts shared filesystem containment checks for file tools and assets
+  svg.ts        create_svg's source loader: inline markup or one bounded, contained file read
   image-fetch.ts DNS-pinned remote image downloads with redirect and address checks
   codegen/      tokens, then React / HTML / CSS reference code behind index.ts's dispatcher
   code-connect/ discovers, parses, indexes, suggests and writes local *.figma.tsx mappings
@@ -87,6 +88,11 @@ plugin/src/
   main/diagram.ts           render_diagram's payload check, shape/cap mapping, placement,
                             connector attaching and label fonts
   main/script-runner.ts     run_script; eval-direct.ts + script-result.ts beside it
+  main/prototype.ts         get_prototype_connections / trace_prototype_flow, via PrototypeContext
+  main/svg.ts               create_svg's placement and cleanup
+  main/node-properties.ts   set_node_properties' preflight and apply, for batches
+  main/layout-actions.ts    distribute, grid, place, duplicate-with-offset and fit_to_content
+  main/text-target.ts       TEXT or FigJam label target for the text tools
   main/library.ts           whoami, get_libraries, import_library_asset, search_design_system
   main/permissions.ts       permission and plan refusals → actionable errors
   main/search.ts            search_design_system's matcher and ranker
