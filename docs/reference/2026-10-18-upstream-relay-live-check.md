@@ -12,7 +12,10 @@ the refreshed candidate. The refreshed candidate requires affected live checks b
 
 The unloaded-page-root gate was closed in the final section of this record. The remaining
 unavailable live cases are Conditional, Set Variable and Set Variable Mode actions on the Free
-plan. No explicit user exception has been granted for those cases.
+plan. The user explicitly waived only those three live tests if the current Free plan prevents
+them. Their automated tests and all other live checks, independent review, CodeRabbit review and
+CI remain required. The refreshed candidate's affected live rerun is still pending; this narrow
+exception does not waive it. Historical statements below describe the approval state at the time.
 
 ## Candidate
 
