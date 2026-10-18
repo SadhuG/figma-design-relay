@@ -31,6 +31,13 @@ with its tag.
 - Malformed dashboard request targets cannot terminate the relay. Each file's last-call time
   updates as a request is dispatched and survives concurrent completions and activity-log eviction.
 
+## [0.8.1] - 2026-10-18
+
+### Fixed
+
+- Pin remote image connections to their validated DNS answers, check connected peers, and
+  revalidate every redirect while preserving HTTPS certificate and hostname verification.
+
 ## [0.8.0] - 2026-10-18
 
 ### Changed

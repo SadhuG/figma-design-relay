@@ -65,6 +65,7 @@ server/src/
   content.ts    typed MCP content blocks (text + image) for tool results
   assets.ts     writes exported design assets inside the working directory
   workspace-path.ts shared filesystem containment checks for file tools and assets
+  image-fetch.ts DNS-pinned remote image downloads with redirect and address checks
   codegen/      tokens, then React / HTML / CSS reference code behind index.ts's dispatcher
   code-connect/ discovers, parses, indexes, suggests and writes local *.figma.tsx mappings
   mermaid/      parse.ts (the strict Mermaid subset) + layout.ts (positions) for generate_diagram
