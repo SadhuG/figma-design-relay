@@ -424,3 +424,64 @@ The parent owns closure of the two evidence gates, any requested exception, and 
 work. This review approves code; it does not authorize bypassing the repository's live gate.
 Only this appendix was added in the worktree. No product edit, build, relay stop/restart,
 Figma mutation, commit, push, PR, merge or subdelegation was performed.
+
+## CodeRabbit review of PR #19
+
+The six actionable comments on initial PR head `7c08c95` were independently checked against the
+current code. Five were fixed in `99eeef37503f943bed0b539cf036df089a0c4c7a`; the proposed sixth
+restriction was not applied because live API behavior contradicted its premise.
+
+| Comment                                                                                                                 | Assessment and response                                                                                                                                                                                                                              |
+| ----------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [4307838162](https://github.com/SadhuG/figma-design-relay/pull/19#discussion_r4307838162), prototype guide              | Valid. It now says design files only and explains that the latent Dev Mode capability remains for a future manifest change.                                                                                                                          |
+| [4307838171](https://github.com/SadhuG/figma-design-relay/pull/19#discussion_r4307838171), refusal guidance             | Valid. Only the three prototype entries override their advertised guidance editors to design. Both the `requires` clause and retry instruction use that list. Actual Dev Mode capability entries and regression coverage remain intact.              |
+| [4307838176](https://github.com/SadhuG/figma-design-relay/pull/19#discussion_r4307838176), proposed 0.01 resize minimum | Not reproduced; technical response asks the reviewer to confirm this disposition. No new lower bound was introduced. See investigation below.                                                                                                        |
+| [4307838183](https://github.com/SadhuG/figma-design-relay/pull/19#discussion_r4307838183), README scope                 | Valid. The `get_node includePrototype` row now matches the two other prototype rows and the shipped manifest.                                                                                                                                        |
+| [4307838188](https://github.com/SadhuG/figma-design-relay/pull/19#discussion_r4307838188), DOCTYPE subset               | Valid. The bounded root preflight scans quoted values, comments and bracket depth before ending a DOCTYPE; it does not resolve entities or replace Figma's XML parser. Valid and malformed regression cases were written and observed failing first. |
+| [4307838194](https://github.com/SadhuG/figma-design-relay/pull/19#discussion_r4307838194), three tool descriptions      | Valid. Each now advertises design files only; plain `get_node` still works across editors. Fresh live `listTools` assertions checked all three descriptions.                                                                                         |
+
+### Resize investigation
+
+The [official Figma resize documentation](https://developers.figma.com/docs/plugins/api/properties/nodes-resize/)
+states a 0.01 lower bound (with a Line height exception). Actual current-runtime behavior was
+therefore checked before changing the relay's existing positive-size contract. Through a real
+follower on the pre-fix `7c08c95` candidate, direct calls on newly created scratch nodes returned:
+
+| Node and input                | Actual result                                        |
+| ----------------------------- | ---------------------------------------------------- |
+| RECTANGLE `resize(0.005, 10)` | Succeeded; width `0.004999999888241291`, height `10` |
+| RECTANGLE `resize(10, 0.005)` | Succeeded; width `10`, height `0.004999999888241291` |
+| LINE `resize(0.005, 0)`       | Succeeded; width `0.004999999888241291`, height `0`  |
+| LINE `resize(10, 0.005)`      | Succeeded; width `10`, height `0.004999999888241291` |
+
+Thus a blanket 0.01 preflight refusal would narrow inputs the current API accepts, without a
+reproduced predictable setter failure. The existing whole-batch capability preflight is retained.
+Its documented limit remains: an unexpected Figma setter failure during application can leave
+earlier nodes written; the tool is not transactional. Raw follower evidence is in
+`%TEMP%/upstream-resize-investigation.log`. Scratch frame `45:1260` and both child nodes were
+removed in `finally`; user content was not targeted.
+
+The technical pushback was posted inline in reply
+[4307847552](https://github.com/SadhuG/figma-design-relay/pull/19#discussion_r4307847552).
+The five verified fixes were answered inline with their runtime commit, tests and focused live
+evidence in replies `4307862276`, `4307862368`, `4307862451`, `4307862500` and `4307862565`,
+respectively. The responses explicitly said the changes were local pending final evidence
+review before push; no thread was marked resolved by the author.
+
+### Verification and independent review
+
+Root `bun run check`: server 413 pass / 2 Windows skips / 0 fail (415 tests), plugin 381 pass /
+0 fail; both builds, zero-error plugin typecheck, version and formatting passed. The new complete
+prototype-refusal test and six SVG regression cases were observed red before their fixes and green
+afterwards. The full suite also updated the previous dispatcher assertion that expected the old
+Dev Mode advertisement. No resize code was changed.
+
+After rebuilding, restarting the worktree's own 1998 relay and user-confirmed Dev plugin relaunch
+in all three editors, 16 focused live calls plus three advertised-description checks passed.
+The [live record](2026-10-18-upstream-relay-live-check.md#coderabbit-fix-rerun-99eeef3) contains
+the exact runtime hash, fresh session keys, cases, results and scratch cleanup.
+
+A separate fresh reviewer approved exact runtime commit `99eeef3` with no findings and
+independently reran the SVG suite (23 pass) and capability/dispatcher suites (79 pass). This code
+approval does not replace final evidence review, acceptance of CodeRabbit responses, or the new
+head's CI checks. The three-action paid-plan live exception remains the sole user waiver.

@@ -8,7 +8,8 @@ Plan: [`../superpowers/plans/2026-10-18-upstream-relay.md`](../superpowers/plans
 The original candidate below used the then-next version 0.7.9. That version was never released.
 After incorporating the reviewed 0.8.0 panel and agent-name release and 0.8.1 DNS pinning fix, the integration candidate is
 0.8.2. Historical build hashes and results below describe their named commits. The refreshed
-candidate's affected live checks are recorded in [Integrated 0.8.2 rerun](#integrated-082-rerun-baeb3dd).
+candidate's affected live checks are recorded in [Integrated 0.8.2 rerun](#integrated-082-rerun-baeb3dd)
+and the later [CodeRabbit fix rerun](#coderabbit-fix-rerun-99eeef3).
 
 The unloaded-page-root gate was closed in the final section of this record. The remaining
 unavailable live cases are Conditional, Set Variable and Set Variable Mode actions on the Free
@@ -700,3 +701,55 @@ no matching scratch page or collection remains.
 That exception applies to those three live success paths alone. Their automated tests passed
 with the full suite. All other live checks, latest-head independent review, completed CodeRabbit
 review and successful CI remain required. This record does not approve or merge a PR.
+
+## CodeRabbit fix rerun (99eeef3)
+
+PR #19's review found five valid scope/prolog issues and proposed one resize restriction that
+could not be reproduced. Runtime fix commit `99eeef37503f943bed0b539cf036df089a0c4c7a` keeps version
+0.8.2. It corrects public prototype scope and refusal guidance while retaining the latent Dev
+Mode gate, and makes DOCTYPE preflight aware of internal subsets, quoted values and comments.
+The [review response record](2026-10-18-upstream-relay-review.md#coderabbit-review-of-pr-19)
+contains the six dispositions and the resize investigation.
+
+- Red/green: the complete prototype-refusal test failed before the change and passed afterwards;
+  all six new SVG subset/malformed cases failed before the scanner change and passed afterwards.
+  The complete root `bun run check` then passed: server **413 pass, 2 skip, 0 fail** (415 tests),
+  plugin **381 pass, 0 fail**, both builds, zero-error plugin typecheck, version and formatting.
+  The existing dispatcher refusal expectation was updated to match the corrected public scope.
+- The worktree's verified 1998 holder and child were restarted after building this exact code.
+  Hidden holder PID **32920** logs to `%TEMP%/relay-upstream-review-holder.{out,err}.log`.
+  The user explicitly confirmed closing/relaunching the rebuilt Dev plugin in all three editors.
+  Fresh sessions: Design `unsaved-mve2bncc-lnatnghn`, FigJam `unsaved-mve2bjhd-kf3elm64`,
+  Slides `unsaved-mve2be4x-54ly4jp1`. No native UI automation, stable relay change or config edit
+  was used.
+- `%TEMP%/upstream-review-live.mjs` passed **16 focused calls plus three advertised-description
+  checks**. The candidate server recorded `Became FOLLOWER`; every call used its explicit file key.
+  Design normal SVG and two internal-subset SVGs (including misleading bracket/greater-than
+  characters inside a comment and quoted entity value) each produced one editable VECTOR child.
+  An unterminated subset returned a preflight error, and inspection found exactly three created
+  children, with no malformed-input orphan. Scratch frame **46:1263** and all descendants were
+  removed in `finally`, retaining the original empty selection. The calls did not change the
+  current page or viewport.
+- In both FigJam and Slides, all three prototype entrypoints (`get_prototype_connections`,
+  `trace_prototype_flow`, `get_node includePrototype`) returned the full corrected refusal:
+  `requires design editor` and `Run the plugin in a design file and retry`; neither clause
+  advertised Dev Mode. These were read/refusal checks with no writes in either editor.
+  `listTools` also confirmed all three server descriptions state design files only and do not
+  advertise Dev Mode. Raw results and roles are in `%TEMP%/upstream-review-live/`, with the
+  command summary in `%TEMP%/upstream-review-live.log`.
+
+The build hashes were:
+
+| Artifact                                      | SHA-256                                                            |
+| --------------------------------------------- | ------------------------------------------------------------------ |
+| `server/dist/index.js`                        | `fecccbd1edb82441e7aada4aeee40168ca26afa22b79eab2c3ca18636e12ad04` |
+| Sorted concatenation of `server/dist/**/*.js` | `112173ba34439c3415eeee76d76a80909aa74579763362cf8312ff596130e376` |
+| `server/dist/image-fetch.js`                  | `96cce6832ff0acd7cc9682d9dde4325b69a0529cc28fc9a9cfb332b7a1723c96` |
+| `plugin/dist/code.js`                         | `9de46afa78ae9e107eea3bfb12b65c47ebe58ea09ba76a77bdb95281424134cc` |
+| `plugin/dist/manifest.json`                   | `1a061ff39e49a7d135152ad98d93e158ace969210832eed629b96afd28a8b9f3` |
+| `plugin/dist/index.html`                      | `3547fc127c3f968ba6f512ff8ee82d47c69c038e505b420f4959c4729e677a1f` |
+
+These focused checks cover the changed paths; the preceding integrated Design/FigJam/Slides
+matrix remains applicable to unchanged code. The narrow three-action paid-plan exception is
+unchanged. Independent review approved runtime commit `99eeef3` with no findings; final evidence
+review, CodeRabbit acceptance of the responses and new-head CI remain PR gates.
