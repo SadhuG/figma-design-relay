@@ -90,7 +90,14 @@ export class Leader {
         }
 
         if (req.method === "GET") {
-          const pathname = new URL(req.url ?? "/", "http://localhost").pathname;
+          let pathname: string;
+          try {
+            pathname = new URL(req.url ?? "/", "http://localhost").pathname;
+          } catch {
+            res.writeHead(400);
+            res.end("Invalid request target");
+            return;
+          }
           if (pathname === STATUS_PATH || Object.hasOwn(DASHBOARD_FILES, pathname)) {
             void this.serveDashboard(pathname, req, res);
             return;
@@ -102,7 +109,13 @@ export class Leader {
       });
 
       server.on("upgrade", (req: http.IncomingMessage, socket: Duplex, head: Buffer) => {
-        const pathname = new URL(req.url ?? "", "http://localhost").pathname;
+        let pathname: string;
+        try {
+          pathname = new URL(req.url ?? "", "http://localhost").pathname;
+        } catch {
+          socket.destroy();
+          return;
+        }
         if (pathname === "/ws") {
           this.bridge.handleUpgrade(req, socket, head);
         } else {

@@ -111,6 +111,14 @@ describe("dashboard routes", () => {
     expect(reply.body).toContain('<script type="module" src="/dashboard.js"></script>');
   });
 
+  test("rejects malformed targets and keeps the leader and host guard working", async () => {
+    expect((await rawRequest(port, "//")).status).toBe(400);
+    expect((await rawRequest(port, "http://[invalid")).status).toBe(400);
+    expect((await rawRequest(port, "/ping")).status).toBe(200);
+    expect((await rawRequest(port, "/api/status")).status).toBe(200);
+    expect((await rawRequest(port, "/api/status", { Host: "evil.example" })).status).toBe(403);
+  });
+
   test("answers 404 for anything outside the file table", async () => {
     expect((await rawRequest(port, "/constructor")).status).toBe(404);
     expect((await rawRequest(port, "/../package.json")).status).toBe(404);
