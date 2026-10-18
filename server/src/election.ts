@@ -1,5 +1,6 @@
 import type { Node } from "./node.js";
 import { LOOPBACK_HOST, Role } from "./types.js";
+import { INSTANCE_HEADER, INSTANCE_ID } from "./followers.js";
 
 /**
  * Election handles leader detection and role transitions.
@@ -80,6 +81,7 @@ export class Election {
   private async pingLeader(): Promise<boolean> {
     try {
       const response = await fetch(`${this.leaderUrl}/ping`, {
+        headers: { [INSTANCE_HEADER]: INSTANCE_ID },
         signal: AbortSignal.timeout(2_000),
       });
       return response.ok;

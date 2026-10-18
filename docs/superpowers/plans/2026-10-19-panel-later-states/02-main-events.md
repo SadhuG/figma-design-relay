@@ -25,8 +25,8 @@ Overview rows 04 trigger, 05 trigger, 06 trigger and "Panel ↔ main messages".
   ```
   `countNodes` mirrors `serializeNode`: the root counts, children only if `visible !== false`, and
   no children past `maxDepth` (a node at depth `maxDepth` counts but its children don't). The
-  reporter posts `Math.floor(done / total * 100)` (clamped to 99 until the last node, 100 at the
-  last), only when the percent changed and at least 200 ms passed since the last post (the first
+  reporter posts `Math.floor(done / total * 100)` (never above 100),
+  only when the percent changed and at least 200 ms passed since the last post (the first
   post waits 200 ms too). `total` 0 never posts. Tests cover depth, hidden children, throttling,
   no-change suppression.
 - [x] **2. Serializer hook.** Add `onNode?: () => void` to `SerializeOptions` in `serializer.ts`;

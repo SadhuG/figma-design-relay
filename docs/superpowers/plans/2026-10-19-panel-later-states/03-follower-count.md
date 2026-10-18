@@ -11,7 +11,7 @@ Overview rows 08 tracking and 08 delivery.
 
 ## Tasks
 
-- [ ] **1. Registry.** New `server/src/followers.ts`, test-first in `followers.test.ts`:
+- [x] **1. Registry.** New `server/src/followers.ts`, test-first in `followers.test.ts`:
   ```ts
   export const FOLLOWER_STALE_MS = 60_000;
   export const INSTANCE_HEADER = "x-relay-instance";
@@ -24,19 +24,19 @@ Overview rows 08 tracking and 08 delivery.
   }
   ```
   Tests: bad headers → null; the same id twice counts once; an id older than 60 s drops out.
-- [ ] **2. Send the header.** `follower.ts` (both `/rpc` fetches and `ping`) and `election.ts`
+- [x] **2. Send the header.** `follower.ts` (both `/rpc` fetches and `ping`) and `election.ts`
       (`pingLeader`) send `[INSTANCE_HEADER]: INSTANCE_ID`.
-- [ ] **3. Leader.** `leader.ts` owns a `FollowerRegistry`; touches it on `/ping` and `/rpc`; every
+- [x] **3. Leader.** `leader.ts` owns a `FollowerRegistry`; touches it on `/ping` and `/rpc`; every
       5 s and after each touch calls `bridge.setFollowerCount(registry.count())`. Clear the
       interval in `stop()`. Test in `leader.test.ts`: a `/ping` with the header raises the count
       the bridge sees; one without doesn't.
-- [ ] **4. Bridge.** `handleUpgrade` reads `relayStatus` from the query; the connection entry keeps
+- [x] **4. Bridge.** `handleUpgrade` reads `relayStatus` from the query; the connection entry keeps
       `wantsStatus: boolean`. `setFollowerCount(n)` stores n and, if it changed, sends
       `{ type: "relay-status", followers: n }` to every entry with `wantsStatus`; a new
       `wantsStatus` connection gets the current status right after it is registered. Tests in
       `bridge.test.ts` with a real `ws` client: opted-in client gets the status on connect and on a
       change; a client without `relayStatus=1` gets nothing; no send when the count is unchanged.
-- [ ] **5.** `bun test`, `bun run build` in `server/`; commit `feat(server): count followers and push the count to the panel`.
+- [x] **5.** `bun test`, `bun run build` in `server/`; commit `feat(server): count followers and push the count to the panel`.
 
 ## Notes
 

@@ -3,12 +3,16 @@ import type { AddressInfo } from "node:net";
 import type { Duplex } from "node:stream";
 import { cleanAgentName } from "./agent.js";
 import { Bridge } from "./bridge.js";
+import { FollowerRegistry, INSTANCE_HEADER, readInstance } from "./followers.js";
 import { validateRpc } from "./schema.js";
 import { executeSaveScreenshots } from "./tools.js";
 import type { ExportFormat } from "./tools.js";
 import { LOOPBACK_HOST } from "./types.js";
 import type { RPCRequest, RPCResponse } from "./types.js";
 import { VERSION } from "./version.js";
+
+/** How often the leader rechecks its follower count for the plugin panel. */
+const FOLLOWER_RECHECK_MS = 5_000;
 
 /**
  * Leader owns the WebSocket bridge to Figma and exposes HTTP endpoints for followers.
@@ -20,6 +24,9 @@ import { VERSION } from "./version.js";
 export class Leader {
   private bridge: Bridge;
   private server: http.Server | null = null;
+  private followers = new FollowerRegistry();
+  /** Followers age out without a request, so the count is rechecked on a timer too. */
+  private followerTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(private port: number) {
     this.bridge = new Bridge();
@@ -38,6 +45,11 @@ export class Leader {
   start(): Promise<void> {
     return new Promise((resolve, reject) => {
       const server = http.createServer((req, res) => {
+        if (req.url === "/ping" || req.url === "/rpc") {
+          this.followers.touch(readInstance(req.headers[INSTANCE_HEADER]));
+          this.publishFollowerCount();
+        }
+
         if (req.url === "/ping" && req.method === "GET") {
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ status: "ok", version: VERSION }));
@@ -93,10 +105,15 @@ export class Leader {
 
       server.listen(this.port, LOOPBACK_HOST, () => {
         this.server = server;
+        this.followerTimer = setInterval(() => this.publishFollowerCount(), FOLLOWER_RECHECK_MS);
         console.error(`Leader listening on ${LOOPBACK_HOST}:${this.port}`);
         resolve();
       });
     });
+  }
+
+  private publishFollowerCount(): void {
+    this.bridge.setFollowerCount(this.followers.count());
   }
 
   private handleRPC(req: http.IncomingMessage, res: http.ServerResponse): void {
@@ -176,6 +193,10 @@ export class Leader {
   }
 
   stop(): void {
+    if (this.followerTimer) {
+      clearInterval(this.followerTimer);
+      this.followerTimer = null;
+    }
     this.bridge.close();
     if (this.server) {
       this.server.close();
