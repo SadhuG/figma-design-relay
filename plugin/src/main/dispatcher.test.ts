@@ -1090,8 +1090,9 @@ test("a connector Figma keeps out of the requested parent is refused and removed
     endNodeId: b.id,
     parentId: "8:1",
   });
-  expect(deeper.error).toMatch(/8:2/);
-  expect(deeper.error).toMatch(/8:1/);
+  // The nodes are inside 8:1 already, one level down: the advice must fit that.
+  expect(deeper.error).toMatch(/in Inner \(8:2\), not in Area \(8:1\)/);
+  expect(deeper.error).toMatch(/Pass parentId 8:2, or move the endpoint nodes so 8:1 is/);
   // A node on the page and a free end in the section: Figma puts it on the page.
   const onPage = base("STICKY");
   const outside = await dispatch("create_connector", undefined, {

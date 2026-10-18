@@ -2279,7 +2279,7 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
           const placed = connector.parent;
           if (parent && placed?.id !== parent.id) {
             throw new Error(
-              `Figma put the connector in ${placed?.name ?? "nothing"} (${placed?.id ?? "no parent"}), not in ${parent.name} (${parent.id}): a connector stays in the closest container its node ends share. Move the endpoint nodes into ${parent.id} first, or pass parentId ${placed?.id ?? "of that container"}.`
+              `Figma put the connector in ${placed?.name} (${placed?.id}), not in ${parent.name} (${parent.id}): a connector stays in the closest container its node ends share. Pass parentId ${placed?.id}, or move the endpoint nodes so ${parent.id} is the closest container they share.`
             );
           }
           return connector;
