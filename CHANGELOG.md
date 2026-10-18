@@ -18,6 +18,47 @@ with its tag.
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-10-18
+
+Merges upstream `gethopp/figma-mcp-bridge` through v0.0.24 (`2c37e6d`), adapted to the relay's
+editor gates, follower validation and file safety. Ten new tools: 64 in all.
+
+### Added
+
+- `get_prototype_connections`, `trace_prototype_flow` and `get_node`'s `includePrototype`: read-only prototype inspection with resolved destinations, variables and modes, bounded scans and breadth-first screen traces. Design files only ([guide](docs/guides/prototypes.md)).
+- `create_svg`: SVG markup or a workspace `.svg` file, up to 2 MiB, as editable vector layers in design files ([guide](docs/guides/svg.md)).
+- `distribute_horizontally`, `distribute_vertically`, `align_to_grid`, `place_below`, `place_right_of`, `duplicate_with_offset` and `fit_to_content` for arranging existing nodes ([guide](docs/guides/layout.md)).
+- `set_node_properties` takes `nodeIds` to patch several nodes, checking every node and property before writing any.
+- FigJam: `set_text_content` and `set_text_properties` edit sticky and shape-with-text labels; `create_sticky` gains name, parent and wide width; `create_shape_with_text` gains name, parent, rotation, fill, stroke and label font and color; `create_connector` gains free endpoints, chosen sides, name, parent and stroke styling; `create_section` gains parent, background and hidden contents. `characters` is accepted as an alias for `text` on stickies and shapes.
+
+### Changed
+
+- `set_text_properties` now runs in FigJam as well as design files; Slides still refuses it.
+- `create_sticky` and `create_shape_with_text` create an empty label when no text is given, instead of refusing.
+- FigJam `get_styles` returns the style categories it can read with `notes` naming the rest, and `get_variable_defs` returns an empty list with a `note` when variables are unavailable. Design files still report these failures as errors.
+- `set_auto_layout` refuses sections with a reason.
+- `validateRpc` strips `nodeIds` as well as `nodeId` from forwarded params; ids still travel on the transport.
+- `@figma/plugin-typings` `^1.140.0` in the plugin, and as a server dev dependency for the exhaustive FigJam shape list.
+
+### Fixed
+
+- Prototype descriptions and editor refusals advertise the shipped design-editor scope; latent Dev Mode read gates remain unit-tested.
+- SVG source preflight handles DOCTYPE internal subsets, quoted delimiters and comments.
+- `duplicate_nodes` and `duplicate_with_offset` keep a copy beside its original. Figma parents the clone of a node on another page under the current page, so copies of off-page nodes used to land on whatever page the user had open (found by the live check).
+- `duplicate_nodes` checks every node before its first copy, refuses layers inside an instance (Figma cannot add a copy there) and removes every copy it made if a later one fails, instead of leaving an unreported copy behind. `duplicate_with_offset` refuses instance layers up front too (found by review).
+- `create_connector` gives Figma free endpoints on the canvas. They are taken relative to the parent, but were passed through unchanged, so a free end inside a moved, nested or rotated section or frame was drawn in the wrong place (found by review).
+- `create_connector` keeps a connector with one node end and one free end in its `parentId`. Figma moves a connector into the closest container its ends share and counted the free end as the page's, so the connector landed on the page; the free end is now anchored to the parent. A connector Figma still places elsewhere — two nodes one section further down, or a node outside the parent — is removed with an error naming where it went (found by the live check).
+- `create_shape_with_text` makes a `SQUARE` when no `shapeType` is given, as documented. FigJam gives a new shape whatever was last picked in the toolbar (found by the live check).
+- `get_prototype_connections` and `trace_prototype_flow` read each container's children once and stop at the node budget. Figma copies the children array on every read, so a wide page made even a one-node scan quadratic. A lookup that throws instead of rejecting now marks only its own reference, not the whole scan, and `trace_prototype_flow` refuses a section as its start, naming what to pass (found by review).
+
+### Kept from the relay
+
+- Loopback-only leader, private packages and the relay's release workflow; the stable manifest's `[figma, figjam, slides]` editors; the async, reference-resolving serializer; the central capability table in place of upstream's inline FigJam guards.
+
+### Verification
+
+- See [the integration record](docs/reference/2026-10-18-upstream-relay-live-check.md) for the tested build, automated results and live Figma checks.
+
 ## [0.8.1] - 2026-10-18
 
 ### Fixed

@@ -138,3 +138,85 @@ describe("slides scope", () => {
     expect(() => assertEditorSupports("create_section", "slides")).toThrow(/Slides/);
   });
 });
+
+describe("prototype reads", () => {
+  const READS = ["get_prototype_connections", "trace_prototype_flow", "get_node_prototype"];
+
+  test("run in the design editor and read-only Dev Mode", () => {
+    for (const tool of READS) {
+      expect(() => assertEditorSupports(tool, "figma")).not.toThrow();
+      expect(() => assertEditorSupports(tool, "dev")).not.toThrow();
+    }
+  });
+
+  test("are refused in FigJam and Slides, which have no prototypes", () => {
+    for (const tool of READS) {
+      expect(() => assertEditorSupports(tool, "figjam")).toThrow(/design editor/);
+      expect(() => assertEditorSupports(tool, "slides")).toThrow(/design editor/);
+    }
+  });
+
+  test("prototype refusals direct users only to the shipped design editor", () => {
+    for (const tool of READS) {
+      for (const editor of ["figjam", "slides"] as const) {
+        let message = "";
+        try {
+          assertEditorSupports(tool, editor);
+        } catch (error) {
+          message = String(error);
+        }
+        expect(message).toContain("requires design editor (");
+        expect(message).toContain("Run the plugin in a design file and retry");
+        expect(message).not.toContain("Dev Mode");
+      }
+    }
+  });
+
+  test("the get_node flag is named as the agent wrote it", () => {
+    expect(() => assertEditorSupports("get_node_prototype", "figjam")).toThrow(
+      /^get_node includePrototype requires/
+    );
+  });
+
+  test("ordinary get_node still works everywhere", () => {
+    for (const editor of ["figma", "figjam", "slides", "dev"] as const) {
+      expect(() => assertEditorSupports("get_node", editor)).not.toThrow();
+    }
+  });
+});
+
+describe("create_svg", () => {
+  test("is a design-file write like create_image", () => {
+    expect(() => assertEditorSupports("create_svg", "figma")).not.toThrow();
+    for (const editor of ["figjam", "slides", "dev"] as const) {
+      expect(() => assertEditorSupports("create_svg", editor)).toThrow(/design editor/);
+    }
+  });
+});
+
+describe("layout helpers", () => {
+  const GENERIC = [
+    "distribute_horizontally",
+    "distribute_vertically",
+    "align_to_grid",
+    "place_below",
+    "place_right_of",
+    "duplicate_with_offset",
+  ];
+
+  test("move existing nodes in design files, FigJam and Slides, never Dev Mode", () => {
+    for (const tool of GENERIC) {
+      for (const editor of ["figma", "figjam", "slides"] as const) {
+        expect(() => assertEditorSupports(tool, editor)).not.toThrow();
+      }
+      expect(() => assertEditorSupports(tool, "dev")).toThrow(/Dev Mode is read-only/);
+    }
+  });
+
+  test("fit_to_content works where sections exist", () => {
+    expect(() => assertEditorSupports("fit_to_content", "figma")).not.toThrow();
+    expect(() => assertEditorSupports("fit_to_content", "figjam")).not.toThrow();
+    expect(() => assertEditorSupports("fit_to_content", "slides")).toThrow(/Slides/);
+    expect(() => assertEditorSupports("fit_to_content", "dev")).toThrow();
+  });
+});

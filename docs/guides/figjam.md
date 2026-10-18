@@ -14,7 +14,9 @@ design file, `"figjam"` for a board, `"slides"` for a deck. Which tools work dep
 | Every read tool, `get_screenshot`, `run_script`                                   |     yes     |  yes   |  yes   |
 | `set_text_content`, `set_node_properties`, `set_solid_fill`, `create_text`, …     |     yes     |  yes   |  yes   |
 | `create_sticky`, `create_shape_with_text`, `create_connector`, `generate_diagram` |     no      |  yes   |   no   |
-| `create_section`                                                                  |     yes     |  yes   |   no   |
+| `create_section`, `fit_to_content`, `set_text_properties`                         |     yes     |  yes   |   no   |
+| `distribute_*`, `align_to_grid`, `place_*`, `duplicate_with_offset`               |     yes     |  yes   |  yes   |
+| `create_svg`, `get_prototype_connections`, `trace_prototype_flow`                 |     yes     |   no   |   no   |
 | `create_page`, `create_frame`, `set_auto_layout` and the other design writes      |     yes     |   no   |   no   |
 
 A tool used in the wrong editor is refused **before it touches the document**, with a message naming
@@ -40,22 +42,57 @@ meaning (full table in [serialized-nodes.md](../reference/serialized-nodes.md#fi
 
 **Connector endpoints are the point.** A diagram's meaning is its topology — what leads to what — and
 without `connector.from` and `connector.to` a board reads as a pile of unrelated shapes. An end that
-floats free on the canvas is `null`. Code blocks carry their `text` and `codeLanguage`, tables their
+floats free names what Figma anchors it to: the page, or, for a free end that `create_connector`
+drew beside a node end, the connector's parent section or frame. Code blocks carry their `text` and `codeLanguage`, tables their
 cell text as `table[row][column]`, and sections serialize as containers with their children.
 
 ## Writing to a board
 
-Four tools, shaped like the design write tools: validated input, an optional `fileKey`, and the new
-node's `nodeId` in the response.
+Four creators, shaped like the design write tools: validated input, an optional `fileKey`, and the
+new node's `nodeId`, `type`, `parentId`, position and size in the response. Every one resolves its
+`parentId` before creating anything, so a bad parent leaves nothing behind, and removes what it
+created if a later step — a font, an attachment — fails. With a `parentId`, `x` and `y` are
+relative to that parent.
 
-- `create_sticky` — `{ text, x?, y? }`.
-- `create_shape_with_text` — `{ text, shapeType?, x?, y?, width?, height? }`. `shapeType` is any
-  FigJam shape: `SQUARE` (the default), `ELLIPSE`, `ROUNDED_RECTANGLE`, `DIAMOND`, `ENG_DATABASE`,
-  `PREDEFINED_PROCESS`, `HEXAGON`, the triangles and parallelograms, and the rest of FigJam's list.
-  `width` and `height` go together or not at all.
-- `create_connector` — `{ startNodeId, endNodeId, text? }`. Both ends must already exist in the
-  file; the connector attaches to them, so it follows when they move.
-- `create_section` — `{ name?, x?, y?, width?, height? }`. Also works in design files.
+- `create_sticky` — `{ text?, name?, parentId?, isWideWidth?, x?, y? }`. `characters` is accepted as
+  an alias for `text`; `text` wins if both are given, and no label at all makes an empty sticky.
+- `create_shape_with_text` — `{ text?, shapeType?, name?, parentId?, x?, y?, width?, height?,
+rotation?, fontFamily?, fontStyle?, fontSize?, fillHex?, fillOpacity?, strokeHex?, strokeOpacity?,
+strokeWeight?, textFillHex?, textFillOpacity? }`. `shapeType` is any FigJam shape: `SQUARE` (the
+  default), `ELLIPSE`, `ROUNDED_RECTANGLE`, `DIAMOND`, `ENG_DATABASE`, `PREDEFINED_PROCESS`,
+  `HEXAGON`, the triangles and parallelograms, and the rest of FigJam's list. `width` and `height` go
+  together or not at all; each opacity needs its color. `characters` is an alias for `text`.
+- `create_connector` — each end is a node (`startNodeId` / `endNodeId`, optionally with a side:
+  `startAnchor` / `endAnchor` of `top`, `bottom`, `left`, `right` or `auto`) or a free point
+  (`startX` + `startY` / `endX` + `endY`, relative to the connector's parent) — exactly one of the
+  two per end. Plus `text?`, `name?`, `parentId?`, `strokeHex?` and `strokeWeight?`. A node end
+  attaches, so the connector follows the node when it moves; endpoint nodes must sit on the page the
+  connector is drawn on. Figma keeps a connector with a node end in the closest container its ends
+  share, so with a `parentId` the endpoint nodes must sit inside that parent; a connector Figma puts
+  anywhere else is removed and the error says where it went. A free end beside a node end is
+  anchored to the parent, so it moves with it. A self-loop without chosen sides leaves from the
+  right and returns at the top, so it never collapses to a point.
+- `create_section` — `{ name?, parentId?, x?, y?, width?, height?, fillHex?, fillOpacity?,
+sectionContentsHidden? }`. Also works in design files. `fit_to_content` later wraps it around what
+  you put inside ([layout guide](layout.md)).
+
+A new FigJam connector takes whatever line type was last picked in the toolbar, and a straight one
+refuses side magnets; its label font reads as empty until it has text. `create_connector` sets the
+line type to elbowed before attaching and loads the label in Inter Medium, so neither shows up.
+
+## Editing text on a board
+
+`set_text_content` and `set_text_properties` take a sticky's or shape-with-text's own id and edit its
+label; the result reports that outer node. Font, size, line height, letter spacing and color work on
+a label. Alignment and auto-resize exist only on TEXT nodes and are refused for a label before
+anything changes, and a sticky cannot be resized.
+
+## Styles and variables on a board
+
+A board may not offer every style or variable API. `get_styles` returns the categories it could
+read, `grids: []` (FigJam has no layout grids), and a `notes` list naming any category that failed.
+`get_variable_defs` returns `{ collections: [], note }` when variables cannot be read. In a design
+file the same failures stay errors.
 
 ## Drawing a diagram: `generate_diagram`
 

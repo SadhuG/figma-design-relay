@@ -20,6 +20,10 @@ deck reports `"slides"`. Run the plugin inside the deck, just as in a design fil
 - **Edits to nodes inside existing slides**: `set_text_content`, `set_node_properties`,
   `set_solid_fill`, `set_node_visibility`, `create_text` into a slide via `parentId`,
   `duplicate_nodes`, `reparent_nodes`, `group_nodes`, `ungroup_node` and `delete_nodes`.
+- **Arranging existing nodes inside a slide**: `set_node_properties` with a `nodeIds` batch,
+  `distribute_horizontally`, `distribute_vertically`, `align_to_grid`, `place_below`,
+  `place_right_of` and `duplicate_with_offset`, on freely positioned siblings within a slide
+  ([layout guide](layout.md)). These move what is there; they do not create slides or reorder them.
 - **`run_script`**, which reaches the whole Slides Plugin API — including the slide-creation calls
   the dedicated tools do not wrap. It is the escape hatch here as everywhere else.
 
@@ -27,13 +31,16 @@ deck reports `"slides"`. Run the plugin inside the deck, just as in a design fil
 
 **Creating slide structure is out of scope.** There is no tool for adding a slide, a slide row or a
 slide grid, and `create_frame`, `create_shape`, `create_page`, `set_auto_layout`, `create_section` and
-the other design-only writes are refused in Slides with a message naming the editor they need. The
+the other design-only writes — `fit_to_content`, `create_svg` and `set_text_properties` included —
+are refused in Slides with a message naming the editor they need. The
 node types exist, but the layout rules a deck imposes on them — slide size, row order, grid position
 — are not something this relay models yet, and a half-working slide builder is worse than none: it
 would produce decks that look right in the tool result and wrong on screen.
 
 The FigJam tools (`create_sticky`, `create_shape_with_text`, `create_connector`, `generate_diagram`)
-are refused too; they need a FigJam board.
+are refused too; they need a FigJam board. Prototype reads (`get_prototype_connections`,
+`trace_prototype_flow`, `get_node` with `includePrototype`) are refused because a deck has no
+prototype; plain `get_node` still works.
 
 `duplicate_nodes` and `delete_nodes` accept a slide's own id like any other node's. Where Figma puts a
 duplicated slide in the grid is Figma's decision, not the relay's; check the result with
