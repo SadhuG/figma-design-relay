@@ -37,8 +37,8 @@ real client. The panel was read from screenshots of the Figma window and compare
 
 ## Recheck after the review fixes
 
-The review fixes (`67861d8` and the commit after it) changed the plugin and the server, so the
-affected cases were run again on the rebuilt plugin and a restarted relay.
+The review fixes (`67861d8`, `c72a787`) changed the plugin and the server, so the affected cases
+were run again on a plugin and relay built from `c72a787`.
 
 | Case                                                 | Result                                                                                                   |
 | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
@@ -47,15 +47,22 @@ affected cases were run again on the rebuilt plugin and a restarted relay.
 | Real Claude Code session                             | Pass: "Claude Code is working", Dev pill truncated first                                                 |
 | Port that accepts TCP but never answers (a stand-in) | Pass: "Connecting…" for 5 s, then "Retrying…" with Retry now; attempts kept coming on the retry schedule |
 | Real relay back on the port                          | Pass: reconnected without user action                                                                    |
+| Stable build (no dev slot), stable relay on 1994     | Pass: sun icon, "Live on port 1994", `ws://localhost:1994`, `v0.8.0`, no Dev pill                        |
+| File renamed by the user while the Dev plugin ran    | Pass, as built: the panel stayed "Live" and the connection was untouched (see below)                     |
+
+**Renaming the file.** Figma sends plugins no event for a rename. `code.ts` re-reads the file name
+only on `selectionchange` and at startup, so a rename reaches the panel (and `list_files`) at the
+next selection change. Only then does the socket effect redial under the new name. This behaviour
+predates the redesign. A follow-up can poll `figma.root.name`.
+
+The Stable build was made from `c72a787` in a temporary detached worktree with no `.dev-slot.json`.
+Its `dist/` was copied into the main checkout's `plugin/dist/` (build output, git-ignored), where
+Figma's stable import loads from, and the stable plugin was run against the stable relay.
 
 **Not checked live:**
 
-- **The Stable build** (sun icon, version in place of the pill). This worktree always builds the Dev
-  variant, and `uiDefine(null, …)` is unit-tested. A build of this branch without a slot is staged
-  for the stable import; see the PR or merge notes for its result.
-- **A long file name, and redialing after a rename.** A plugin can't change `figma.root.name`. The
-  File row uses the same ellipsis rule as the other rows. The rename path reuses the effect cleanup
-  that the fileKey case runs.
+- **A long file name.** The rename test kept the short name. The File row uses the same ellipsis rule
+  as the other rows.
 - **Readable names for Cursor, VS Code and Codex.** Only Claude Code was available. The other
   entries in `AGENT_DISPLAY_NAMES` come from those apps' published client names and are unverified;
   an unlisted name shows as sent.

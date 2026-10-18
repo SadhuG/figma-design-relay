@@ -42,6 +42,12 @@ describe("cleanAgentName against display tricks", () => {
     expect(cleanAgentName(`ar${ch(0x061c)}m`)).toBe("arm");
   });
 
+  test("keeps the visible characters just past each range", () => {
+    // U+202F (narrow no-break space) follows 2028–202E; U+205F (medium math space) precedes 2060.
+    expect(cleanAgentName(`a${ch(0x202f)}b`)).toBe(`a${ch(0x202f)}b`);
+    expect(cleanAgentName(`a${ch(0x205f)}b`)).toBe(`a${ch(0x205f)}b`);
+  });
+
   test("never splits a character made of two code units", () => {
     const name = "a".repeat(63) + ch(0x1f600);
     expect(cleanAgentName(name)).toBe(name);
