@@ -12,7 +12,7 @@ server, its plugin build and these probes all read that port from the slot inste
 the single place the harness reads its port from: `SMOKE_PORT`, else the slot, else 1994.
 
 So a probe run inside a worktree drives that worktree's Dev plugin, and a probe run in the main
-checkout drives the stable one. The plugin panel's **Relay:** row shows the address a running plugin
+checkout drives the stable one. The plugin panel's **Relay** row shows the address a running plugin
 dials, and Figma's window title shows which plugin it is.
 
 ## Running it
@@ -96,7 +96,7 @@ the plugin in every open file instead, and `list_files` stayed empty until each 
 `netstat -ano | grep 1994` (or the slot's port) answers most of it. `LISTENING` on `127.0.0.1` means
 a leader is up (a listener on `0.0.0.0` or `[::]` is not this project); a matching `ESTABLISHED`
 pair means the plugin is attached. `SYN_SENT` means the plugin is retrying against a port with
-nothing on it. No socket at all means the plugin is dialing some other port — check its **Relay:**
+nothing on it. No socket at all means the plugin is dialing some other port — check its **Relay**
 row.
 
 Figma's Development menu lists plugins by name. Keep exactly one **Figma Design Relay**, imported

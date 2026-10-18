@@ -215,6 +215,7 @@ export class Bridge {
     nodeIds?: string[],
     params?: Record<string, unknown>,
     fileKey?: string,
+    agent?: string,
     origin: CallOrigin = { kind: "local" }
   ): Promise<BridgeResponse> {
     return new Promise((resolveCall, rejectCall) => {
@@ -255,6 +256,9 @@ export class Bridge {
       };
       if (nodeIds && nodeIds.length > 0) {
         request.nodeIds = nodeIds;
+      }
+      if (agent) {
+        request.agent = agent;
       }
       if (params && Object.keys(params).length > 0) {
         request.params = params;

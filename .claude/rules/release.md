@@ -36,9 +36,9 @@ paths:
 ## CI
 
 - `ci.yml` runs the version check, the plugin type-check, both test suites and both builds on
-  **every push to every branch** and on pull requests. Every branch, because upstream merges are
-  resolved on a feature branch and merged onto `dev` without a PR — after a separate agent's
-  review (`finish-task` step 4), never before.
+  **every push to every branch** and on pull requests. Branch pushes validate work early;
+  upstream merges are resolved on a feature branch, then land through reviewed PRs into `dev`
+  and separately into `main`. CLAUDE.md's PR review and checks gate applies to both promotions.
 - Every action runs on **node24**. When adding one, check `action.yml`'s `runs.using` at the exact
   ref you pin — a high major version does not imply a current runtime
   (`softprops/action-gh-release@v2` was still node20 after v3 shipped).

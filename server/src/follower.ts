@@ -15,12 +15,14 @@ export class Follower {
     requestType: string,
     nodeIds?: string[],
     params?: Record<string, unknown>,
-    fileKey?: string
+    fileKey?: string,
+    agent?: string
   ): Promise<BridgeResponse> {
     const rpcReq: RPCRequest = { tool: requestType };
     if (nodeIds && nodeIds.length > 0) rpcReq.nodeIds = nodeIds;
     if (params && Object.keys(params).length > 0) rpcReq.params = params;
     if (fileKey) rpcReq.fileKey = fileKey;
+    if (agent) rpcReq.agent = agent;
 
     const response = await fetch(`${this.leaderUrl}/rpc`, {
       method: "POST",

@@ -5,6 +5,7 @@ import type { Duplex } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { FollowerRegistry, INSTANCE_HEADER, readInstance } from "./activity.js";
 import type { CallOrigin } from "./activity.js";
+import { cleanAgentName } from "./agent.js";
 import { Bridge } from "./bridge.js";
 import {
   DASHBOARD_DIR,
@@ -160,6 +161,8 @@ export class Leader {
         // understands the canonical spelling.
         const validatedParams = validation.params ?? rpcReq.params;
         const fileKey = rpcReq.fileKey;
+        // Display-only and untrusted: a bad value is dropped, never a reason to refuse the call.
+        const agent = cleanAgentName(rpcReq.agent);
 
         // Currently the only tool that is not forwarded to the plugin is save_screenshots
         // If more are added we need to refactor to a better abstraction.
@@ -171,7 +174,8 @@ export class Leader {
               requestType: string,
               nodeIds?: string[],
               sendParams?: Record<string, unknown>
-            ) => this.bridge.sendWithParams(requestType, nodeIds, sendParams, fileKey, origin),
+            ) =>
+              this.bridge.sendWithParams(requestType, nodeIds, sendParams, fileKey, agent, origin),
           };
           const result = await executeSaveScreenshots(
             sender,
@@ -189,6 +193,7 @@ export class Leader {
           rpcReq.nodeIds,
           validatedParams,
           fileKey,
+          agent,
           origin
         );
 

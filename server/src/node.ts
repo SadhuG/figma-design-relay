@@ -1,3 +1,4 @@
+import { cleanAgentName } from "./agent.js";
 import { Leader } from "./leader.js";
 import { Follower } from "./follower.js";
 import { LOOPBACK_HOST, Role } from "./types.js";
@@ -11,6 +12,7 @@ export class Node {
   private _role: Role = Role.Unknown;
   private leader: Leader | null = null;
   private follower: Follower;
+  private agentName: string | undefined;
 
   constructor(private port: number) {
     this.follower = new Follower(`http://${LOOPBACK_HOST}:${port}`);
@@ -42,9 +44,16 @@ export class Node {
     fileKey?: string
   ): Promise<BridgeResponse> {
     if (this._role === Role.Leader && this.leader) {
-      return this.leader.getBridge().sendWithParams(requestType, nodeIds, params, fileKey);
+      return this.leader
+        .getBridge()
+        .sendWithParams(requestType, nodeIds, params, fileKey, this.agentName);
     }
-    return this.follower.sendWithParams(requestType, nodeIds, params, fileKey);
+    return this.follower.sendWithParams(requestType, nodeIds, params, fileKey, this.agentName);
+  }
+
+  /** The MCP client's name from `initialize`; every later request carries it to the plugin. */
+  setAgentName(raw: unknown): void {
+    this.agentName = cleanAgentName(raw);
   }
 
   listConnectedFiles(): ConnectedFile[] | undefined {
