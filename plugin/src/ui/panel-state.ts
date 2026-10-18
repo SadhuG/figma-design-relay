@@ -30,3 +30,36 @@ export function relayPort(wsUrl: string): string {
 export function relayRowText(address: string, connected: boolean): string {
   return connected ? address : `${address} (no answer)`;
 }
+
+/** How long to wait before each reconnect attempt; the last value repeats. */
+export const RETRY_DELAYS_MS = [1000, 2000, 5000, 10000, 30000] as const;
+
+/** Attempt 0 is the first retry after a drop. */
+export function retryDelayMs(attempt: number): number {
+  return RETRY_DELAYS_MS[Math.min(attempt, RETRY_DELAYS_MS.length - 1)];
+}
+
+export type ChipTone = "live" | "working" | "lost";
+
+export type ChipInput = {
+  connected: boolean;
+  port: string;
+  /** From workingLabel; null when no agent is working. */
+  workingLabel: string | null;
+  /** Seconds until the next attempt; null or 0 while an attempt is under way. */
+  retryInSeconds: number | null;
+};
+
+/** `text` is for the open panel, `short` for the collapsed bar. Lost beats working beats live. */
+export function chipState(input: ChipInput): { tone: ChipTone; text: string; short: string } {
+  if (!input.connected) {
+    const text = input.retryInSeconds
+      ? `Lost the relay · retrying in ${input.retryInSeconds} s`
+      : "Lost the relay · retrying…";
+    return { tone: "lost", text, short: "Retrying…" };
+  }
+  if (input.workingLabel) {
+    return { tone: "working", text: input.workingLabel, short: input.workingLabel };
+  }
+  return { tone: "live", text: `Live on port ${input.port}`, short: `Live · ${input.port}` };
+}

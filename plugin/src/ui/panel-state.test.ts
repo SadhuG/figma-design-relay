@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { formatSelection, relayAddress, relayPort, relayRowText } from "./panel-state";
+import {
+  chipState,
+  formatSelection,
+  relayAddress,
+  relayPort,
+  relayRowText,
+  retryDelayMs,
+} from "./panel-state";
 
 describe("formatSelection", () => {
   test("zero", () => expect(formatSelection(0)).toBe("Nothing selected"));
@@ -26,4 +33,41 @@ describe("relayRowText", () => {
     expect(relayRowText("ws://localhost:1994", true)).toBe("ws://localhost:1994"));
   test("disconnected", () =>
     expect(relayRowText("ws://localhost:1994", false)).toBe("ws://localhost:1994 (no answer)"));
+});
+
+describe("retryDelayMs", () => {
+  test("follows the schedule", () =>
+    expect([0, 1, 2, 3, 4].map(retryDelayMs)).toEqual([1000, 2000, 5000, 10000, 30000]));
+  test("stays at 30 s", () => expect(retryDelayMs(12)).toBe(30000));
+});
+
+describe("chipState", () => {
+  const base = { connected: true, port: "1994", workingLabel: null, retryInSeconds: null };
+  test("live", () =>
+    expect(chipState(base)).toEqual({
+      tone: "live",
+      text: "Live on port 1994",
+      short: "Live · 1994",
+    }));
+  test("working", () =>
+    expect(chipState({ ...base, workingLabel: "Agent working" })).toEqual({
+      tone: "working",
+      text: "Agent working",
+      short: "Agent working",
+    }));
+  test("lost with countdown", () =>
+    expect(chipState({ ...base, connected: false, retryInSeconds: 5 })).toEqual({
+      tone: "lost",
+      text: "Lost the relay · retrying in 5 s",
+      short: "Retrying…",
+    }));
+  test("lost mid-attempt", () =>
+    expect(chipState({ ...base, connected: false, retryInSeconds: 0 }).text).toBe(
+      "Lost the relay · retrying…"
+    ));
+  test("lost beats working", () =>
+    expect(
+      chipState({ ...base, connected: false, workingLabel: "Agent working", retryInSeconds: null })
+        .tone
+    ).toBe("lost"));
 });
