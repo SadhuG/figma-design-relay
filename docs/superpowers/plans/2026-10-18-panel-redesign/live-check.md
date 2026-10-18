@@ -50,9 +50,10 @@ were run again on a plugin and relay built from `c72a787`.
 | Stable build (no dev slot), stable relay on 1994     | Pass: sun icon, "Live on port 1994", `ws://localhost:1994`, `v0.8.0`, no Dev pill                        |
 | File renamed by the user while the Dev plugin ran    | Pass, as built: the panel stayed "Live" and the connection was untouched (see below)                     |
 
-**Renaming the file.** Figma sends plugins no event for a rename. `code.ts` re-reads the file name
-only on `selectionchange` and at startup, so a rename reaches the panel (and `list_files`) at the
-next selection change. Only then does the socket effect redial under the new name. This behaviour
+**Renaming the file.** Figma sends plugins no event for a rename. `code.ts` sends the file name
+(`sendStatus`) only on `selectionchange`, at startup, when the panel loads (`request-ui-state`) and
+on every socket open (`ui-ready`). A rename therefore reaches the panel (and `list_files`) at the
+next selection change or reconnect. Only then does the socket effect redial under the new name. This behaviour
 predates the redesign. A follow-up can poll `figma.root.name`.
 
 The Stable build was made from `c72a787` in a temporary detached worktree with no `.dev-slot.json`.

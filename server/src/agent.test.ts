@@ -42,7 +42,7 @@ describe("cleanAgentName against display tricks", () => {
     expect(cleanAgentName(`ar${ch(0x061c)}m`)).toBe("arm");
   });
 
-  test("keeps the visible characters just past each range", () => {
+  test("keeps the visible characters next to the 2028–202E and 2060–2069 ranges", () => {
     // U+202F (narrow no-break space) follows 2028–202E; U+205F (medium math space) precedes 2060.
     expect(cleanAgentName(`a${ch(0x202f)}b`)).toBe(`a${ch(0x202f)}b`);
     expect(cleanAgentName(`a${ch(0x205f)}b`)).toBe(`a${ch(0x205f)}b`);
