@@ -11,6 +11,7 @@ import {
   pickSlotPort,
   readDevSlot,
   slotNameFromBranch,
+  uiDefine,
 } from "./dev-slot";
 import baseManifest from "./manifest.json";
 
@@ -99,5 +100,21 @@ describe("devManifest", () => {
     expect(manifest.editorType).toEqual(baseManifest.editorType);
     expect(manifest.documentAccess).toBe(baseManifest.documentAccess);
     expect(manifest.networkAccess.reasoning).toBe(baseManifest.networkAccess.reasoning);
+  });
+});
+
+describe("uiDefine", () => {
+  test("a stable build gets only the version", () => {
+    expect(uiDefine(null, "0.7.8")).toEqual({
+      "import.meta.env.VITE_FIGMA_DESIGN_RELAY_VERSION": '"0.7.8"',
+    });
+  });
+
+  test("a slotted build also gets the slot name and its relay address", () => {
+    expect(uiDefine({ name: "panel-redesign", port: 1999 }, "0.7.8")).toEqual({
+      "import.meta.env.VITE_FIGMA_DESIGN_RELAY_VERSION": '"0.7.8"',
+      "import.meta.env.VITE_FIGMA_DESIGN_RELAY_SLOT": '"panel-redesign"',
+      "import.meta.env.VITE_FIGMA_DESIGN_RELAY_WS": '"ws://localhost:1999/ws"',
+    });
   });
 });

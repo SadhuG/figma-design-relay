@@ -73,6 +73,13 @@ async function main(): Promise<void> {
     version: VERSION,
   });
 
+  // The client names itself in `initialize`; the plugin panel shows it ("Claude Code is working").
+  server.server.oninitialized = () => {
+    const client = server.server.getClientVersion();
+    node.setAgentName(client?.name);
+    console.error(`MCP client: ${client?.name ?? "(none)"} ${client?.version ?? ""}`);
+  };
+
   registerTools(server, node, PORT);
 
   console.error(`Starting MCP server (role: ${node.roleName})`);

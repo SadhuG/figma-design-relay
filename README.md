@@ -78,7 +78,7 @@ Open a Figma file, run the plugin, and start prompting your AI tool. The MCP ser
 
 To work across multiple files, just open the plugin in each Figma file. The bridge keeps all connections active and your AI agent can target any of them by `fileKey`.
 
-The panel collapses to a slim title bar via the chevron in its top-right corner, keeping the connection status visible while freeing up canvas space. The choice is remembered across sessions.
+The panel shows the file, the selection and the relay address it dials (`ws://localhost:1994`), with a status chip underneath: **Live**, **`<Agent>` is working** while an AI tool calls it (named after the app, e.g. "Claude Code is working"), or **Relay lost** with a countdown and a **Retry now** button. The chevron in its top-right corner collapses it to a 36 px bar that keeps the status chip visible; the choice is remembered across sessions.
 
 If you want to know more about how it works, read the [How it works](#how-it-works) section.
 
@@ -235,7 +235,7 @@ half-built feature cannot break the plugin you use for real work. The
 [`start-feature` skill](.claude/skills/start-feature/SKILL.md) has the full procedure, including
 tearing a slot down after the merge.
 
-The plugin panel's **Relay:** row shows the address a running plugin is dialing. The smoke-test
+The plugin panel's **Relay** row shows the address a running plugin is dialing. The smoke-test
 probes in `server/.smoke/` follow the slot too. `FIGMA_DESIGN_RELAY_PORT` and `SMOKE_PORT` still
 override the port, but only 1994 and a slot's own port have a plugin that can dial them — the stable
 manifest allows 1994 alone, and a slotted build refuses any other address — so treat them as tools
@@ -303,6 +303,7 @@ Figma-Design-Relay/
         ├── code-connect/ # Reads, suggests and writes local Code Connect mappings
         ├── mermaid/      # Parses the Mermaid subset and lays diagrams out for FigJam
         ├── search/       # Searches every open design file and merges the answers
+        ├── agent.ts      # Cleans the calling client's name for the plugin panel
         └── types.ts      # Shared types
 ```
 

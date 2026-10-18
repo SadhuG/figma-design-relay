@@ -1,5 +1,19 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import hoppLogo from "./assets/hopp-logo.png";
+import React, { useEffect, useRef, useState } from "react";
+import { ChevronIcon, CursorIcon, LostIcon, PlaneIcon, SunIcon } from "./icons";
+import {
+  ActivityLog,
+  CONNECT_TIMEOUT_MS,
+  agentDisplayName,
+  agentTooltip,
+  chipState,
+  formatSelection,
+  relayAddress,
+  relayPort,
+  relayRowText,
+  retryDelayMs,
+  workingLabel,
+  type ChipTone,
+} from "./panel-state";
 
 type RequestType =
   | "get_document"
@@ -37,6 +51,8 @@ type ServerRequest = {
   requestId: string;
   nodeIds?: string[];
   params?: Record<string, unknown>;
+  /** The calling MCP client's name, when the relay knows it. Display-only. */
+  agent?: string;
 };
 
 type PluginResponse = {
@@ -61,16 +77,44 @@ const WS_BASE_URL = import.meta.env.VITE_FIGMA_DESIGN_RELAY_WS || "ws://localhos
 
 // Shown in the panel so a running plugin says which relay it dials. The port is
 // baked in at build time, and a build for another port looks identical otherwise.
-const RELAY_ADDRESS = (() => {
-  try {
-    return new URL(WS_BASE_URL).host;
-  } catch {
-    return WS_BASE_URL;
-  }
-})();
+const RELAY_ADDRESS = relayAddress(WS_BASE_URL);
+const RELAY_PORT = relayPort(WS_BASE_URL);
+
+const VERSION = import.meta.env.VITE_FIGMA_DESIGN_RELAY_VERSION ?? "";
+/** Set only in a dev slot's build; it switches on the plane icon and the Dev pill. */
+const DEV_SLOT = import.meta.env.VITE_FIGMA_DESIGN_RELAY_SLOT;
+
+function AppIcon({ size, faded }: { size: number; faded: boolean }) {
+  return (
+    <span className={`app-icon${faded ? " faded" : ""}`}>
+      {DEV_SLOT ? <PlaneIcon size={size} /> : <SunIcon size={size} />}
+    </span>
+  );
+}
+
+function Chip({ tone, text, title }: { tone: ChipTone; text: string; title: string }) {
+  return (
+    <span
+      className={`chip ${tone}${tone === "working" || tone === "lost" ? " has-icon" : ""}`}
+      title={title}
+    >
+      {(tone === "live" || tone === "connecting") && <span className="dot" />}
+      {tone === "working" && <CursorIcon size={14} />}
+      {tone === "lost" && <LostIcon size={14} />}
+      <span className="chip-text">{text}</span>
+    </span>
+  );
+}
+
+function DevPill() {
+  return DEV_SLOT ? <span className="dev-pill">Dev: {DEV_SLOT}</span> : null;
+}
 
 export default function App() {
   const [connected, setConnected] = useState(false);
+  /** An attempt has failed or a connection dropped; until then the panel is just connecting. */
+  const [hasFailed, setHasFailed] = useState(false);
+  const lost = !connected && hasFailed;
   const [collapsed, setCollapsed] = useState(false);
   const [status, setStatus] = useState<PluginStatus>({
     fileName: "Unknown file",
@@ -79,20 +123,68 @@ export default function App() {
   });
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<number | null>(null);
+  /** Gives up on a handshake that neither opens nor fails within CONNECT_TIMEOUT_MS. */
+  const connectTimer = useRef<number | null>(null);
+  const clearConnectTimer = () => {
+    if (connectTimer.current !== null) {
+      window.clearTimeout(connectTimer.current);
+      connectTimer.current = null;
+    }
+  };
+  /** Retries since the last successful connect; picks the next delay. */
+  const retryAttempt = useRef(0);
+  /** When the pending retry fires, or null while an attempt is under way. */
+  const retryDeadline = useRef<number | null>(null);
+  /** Set by the socket effect; Retry now calls it. */
+  const connectNow = useRef<(() => void) | null>(null);
+  const activity = useRef(new ActivityLog());
+  const [retryInSeconds, setRetryInSeconds] = useState<number | null>(null);
+  // Bumped whenever the activity log changes or an entry leaves its window.
+  const [activityVersion, setActivityVersion] = useState(0);
+  const bumpActivity = () => setActivityVersion((version) => version + 1);
 
-  const statusLabel = useMemo(
-    () => (connected ? "WebSocket Connected" : "Disconnected"),
-    [connected]
-  );
+  const agents = activity.current.activeAgents(Date.now());
+  const chip = chipState({
+    connected,
+    connecting: !hasFailed,
+    port: RELAY_PORT,
+    workingLabel: workingLabel(agents.map(agentDisplayName)),
+    retryInSeconds,
+  });
+  const chipTitle = (chip.tone === "working" && agentTooltip(agents)) || WS_BASE_URL;
 
-  // One definition, rendered either in the collapsed bar or in the footer --
-  // never both at once, since .body is hidden while collapsed.
-  const statusBadge = (
-    <div className={`badge ${connected ? "connected" : "disconnected"}`} title={WS_BASE_URL}>
-      <span className="dot" />
-      <span className="badge-text">{statusLabel}</span>
-    </div>
-  );
+  // Re-render once when the oldest finished request leaves the working window.
+  useEffect(() => {
+    const wait = activity.current.nextExpiry(Date.now());
+    if (wait === null) return;
+    const timer = window.setTimeout(bumpActivity, wait);
+    return () => window.clearTimeout(timer);
+  }, [activityVersion]);
+
+  // While disconnected, count down to the next attempt once a second.
+  useEffect(() => {
+    if (connected) return;
+    const tick = () => {
+      const deadline = retryDeadline.current;
+      setRetryInSeconds(
+        deadline === null ? 0 : Math.max(0, Math.ceil((deadline - Date.now()) / 1000))
+      );
+    };
+    tick();
+    const timer = window.setInterval(tick, 1000);
+    return () => window.clearInterval(timer);
+  }, [connected]);
+
+  const retryNow = () => {
+    if (reconnectTimer.current !== null) {
+      window.clearTimeout(reconnectTimer.current);
+      reconnectTimer.current = null;
+    }
+    retryAttempt.current = 0;
+    retryDeadline.current = null;
+    setRetryInSeconds(0);
+    connectNow.current?.();
+  };
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -112,6 +204,10 @@ export default function App() {
       if (!("requestId" in msg)) {
         return;
       }
+
+      // A response on its way back: the request it answers is no longer running.
+      activity.current.finish(msg.requestId, Date.now());
+      bumpActivity();
 
       if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
         return;
@@ -158,19 +254,42 @@ export default function App() {
       const ws = new WebSocket(wsUrl);
       socketRef.current = ws;
 
+      // Something on the port that accepts TCP but never answers would otherwise leave the panel
+      // "Connecting…" until the browser gives up. Closing a socket mid-handshake fires onclose,
+      // which schedules the next attempt like any other failure.
+      clearConnectTimer();
+      connectTimer.current = window.setTimeout(() => {
+        connectTimer.current = null;
+        if (socketRef.current === ws && ws.readyState === WebSocket.CONNECTING) ws.close();
+      }, CONNECT_TIMEOUT_MS);
+
       ws.onopen = () => {
+        clearConnectTimer();
+        retryAttempt.current = 0;
+        retryDeadline.current = null;
+        setRetryInSeconds(null);
         setConnected(true);
         parent.postMessage({ pluginMessage: { type: "ui-ready" } }, "*");
       };
 
       ws.onclose = () => {
         if (disposed || socketRef.current !== ws) return;
+        clearConnectTimer();
+        // Responses to requests still in flight will never arrive.
+        activity.current.clear();
+        bumpActivity();
         setConnected(false);
+        setHasFailed(true);
         if (reconnectTimer.current === null) {
+          const delay = retryDelayMs(retryAttempt.current++);
+          retryDeadline.current = Date.now() + delay;
+          setRetryInSeconds(Math.ceil(delay / 1000));
           reconnectTimer.current = window.setTimeout(() => {
             reconnectTimer.current = null;
+            retryDeadline.current = null;
+            setRetryInSeconds(0);
             connect();
-          }, 1500);
+          }, delay);
         }
       };
 
@@ -182,18 +301,31 @@ export default function App() {
       ws.onmessage = (event) => {
         if (disposed || socketRef.current !== ws) return;
         const payload = JSON.parse(event.data) as ServerRequest;
+        const agent = typeof payload.agent === "string" && payload.agent ? payload.agent : null;
+        activity.current.start(payload.requestId, agent, Date.now());
+        bumpActivity();
         parent.postMessage({ pluginMessage: { type: "server-request", payload } }, "*");
       };
     };
 
+    connectNow.current = connect;
     connect();
 
     return () => {
       disposed = true;
+      connectNow.current = null;
       if (reconnectTimer.current !== null) {
         window.clearTimeout(reconnectTimer.current);
         reconnectTimer.current = null;
       }
+      clearConnectTimer();
+      // The next run dials at once, so drop the old countdown and schedule with the timer. Its
+      // socket is new, so the panel reads "Connecting…", not the old socket's Live or Lost.
+      retryAttempt.current = 0;
+      retryDeadline.current = null;
+      setRetryInSeconds(0);
+      setConnected(false);
+      setHasFailed(false);
       if (socketRef.current) {
         const ws = socketRef.current;
         ws.onopen = null;
@@ -207,64 +339,60 @@ export default function App() {
   }, [status.fileKey, status.fileName, status.editorType]);
 
   return (
-    <div className={`container ${collapsed ? "collapsed" : ""}`}>
-      {collapsed && <div className="titlebar">{statusBadge}</div>}
-
+    <div className={`container${collapsed ? " collapsed" : ""}`}>
       <button
         type="button"
-        className="collapse-toggle"
+        className="toggle"
         onClick={toggleCollapsed}
-        title={collapsed ? "Restore" : "Minimize"}
-        aria-label={collapsed ? "Restore" : "Minimize"}
+        title={collapsed ? "Expand" : "Collapse"}
+        aria-label={collapsed ? "Expand" : "Collapse"}
         aria-expanded={!collapsed}
       >
-        <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
-          <path
-            d="M1 3.5 L5 7 L9 3.5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+        <ChevronIcon size={9} direction={collapsed ? "down" : "up"} />
       </button>
 
-      <div className="body">
-        <div className="info-section">
-          <div className="info-row">
-            <span className="info-label">File:</span>
-            <span className="info-value">{status.fileName}</span>
-          </div>
-          <div className="info-row">
-            <span className="info-label">Selection:</span>
-            <span className="info-value">{status.selectionCount} node(s)</span>
-          </div>
-          <div className="info-row">
-            <span className="info-label">Relay:</span>
-            <span className="info-value">{RELAY_ADDRESS}</span>
-          </div>
+      {collapsed ? (
+        <div className="bar">
+          <AppIcon size={20} faded={lost} />
+          <span className="grow" />
+          <DevPill />
+          <Chip tone={chip.tone} text={chip.short} title={chipTitle} />
         </div>
+      ) : (
+        <div className="panel">
+          <div className="rows">
+            <div className="row">
+              <span className="row-label">File</span>
+              <span className="row-value" title={status.fileName}>
+                {status.fileName}
+              </span>
+            </div>
+            <div className="row">
+              <span className="row-label">Selection</span>
+              <span className="row-value">{formatSelection(status.selectionCount)}</span>
+            </div>
+            <div className="row">
+              <span className="row-label">Relay</span>
+              <span className="row-value">{relayRowText(RELAY_ADDRESS, !lost)}</span>
+            </div>
+          </div>
 
-        <div className="footer">
-          {statusBadge}
-          <a
-            href="https://www.gethopp.app/?ref=figma-design-relay"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="branding"
-          >
-            <img src={hoppLogo} alt="Hopp" className="logo" />
-            <span className="sponsored-text">
-              Sponsored by Hopp
-              <br />
-              The best open-source
-              <br />
-              pair-programming app
-            </span>
-          </a>
+          <div className="footer">
+            <AppIcon size={16} faded={lost} />
+            <Chip tone={chip.tone} text={chip.text} title={chipTitle} />
+            <span className="grow" />
+            {lost ? (
+              <button type="button" className="button" onClick={retryNow}>
+                Retry now
+              </button>
+            ) : DEV_SLOT ? (
+              <DevPill />
+            ) : (
+              <span className="version">v{VERSION}</span>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

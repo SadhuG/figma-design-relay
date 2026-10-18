@@ -1,6 +1,7 @@
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import type { Duplex } from "node:stream";
+import { cleanAgentName } from "./agent.js";
 import { Bridge } from "./bridge.js";
 import { validateRpc } from "./schema.js";
 import { executeSaveScreenshots } from "./tools.js";
@@ -126,6 +127,8 @@ export class Leader {
         // understands the canonical spelling.
         const validatedParams = validation.params ?? rpcReq.params;
         const fileKey = rpcReq.fileKey;
+        // Display-only and untrusted: a bad value is dropped, never a reason to refuse the call.
+        const agent = cleanAgentName(rpcReq.agent);
 
         // Currently the only tool that is not forwarded to the plugin is save_screenshots
         // If more are added we need to refactor to a better abstraction.
@@ -137,7 +140,7 @@ export class Leader {
               requestType: string,
               nodeIds?: string[],
               sendParams?: Record<string, unknown>
-            ) => this.bridge.sendWithParams(requestType, nodeIds, sendParams, fileKey),
+            ) => this.bridge.sendWithParams(requestType, nodeIds, sendParams, fileKey, agent),
           };
           const result = await executeSaveScreenshots(
             sender,
@@ -154,7 +157,8 @@ export class Leader {
           rpcReq.tool,
           rpcReq.nodeIds,
           validatedParams,
-          fileKey
+          fileKey,
+          agent
         );
 
         this.sendJSON(res, 200, resp.error ? { error: resp.error } : { data: resp.data });

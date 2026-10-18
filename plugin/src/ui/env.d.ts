@@ -8,6 +8,10 @@
 // `WS_BASE_URL` in `App.tsx`, which falls back with `||` for exactly that reason.
 interface ImportMetaEnv {
   readonly VITE_FIGMA_DESIGN_RELAY_WS?: string;
+  /** Baked in by vite.config.ts from package.json. */
+  readonly VITE_FIGMA_DESIGN_RELAY_VERSION?: string;
+  /** The dev slot's name; absent in a stable build, which shows no Dev pill. */
+  readonly VITE_FIGMA_DESIGN_RELAY_SLOT?: string;
 }
 
 interface ImportMeta {

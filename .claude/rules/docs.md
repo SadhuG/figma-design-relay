@@ -26,6 +26,13 @@ plan.
   progress. Mark progress in the markdown and rebuild, never in the HTML. Confirm the reported step
   count matches the markdown — a suspiciously low count means steps were dropped.
 
+## Folder plans
+
+Plans written since 2026-10-18 are folders (`plans/YYYY-MM-DD-<slug>/00-overview.md` plus one file
+per phase), following the user's rule for small plan files. The generator reads only single-file
+plans, so a folder plan has **no HTML twin and no `index.html` card**. Its entry in
+`docs/superpowers/README.md` is the index. Don't add it to `build-plans.mjs`.
+
 ## Moving or renaming a doc
 
 Links to docs live in `README.md`, `CHANGELOG.md`, the plans, the spec, the HTML pages and

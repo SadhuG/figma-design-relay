@@ -1,14 +1,18 @@
+/* The panel from the Figma frame "Board 10: Plugin UI, final states". Light only for now. */
 :root {
-  --bg-primary: #0f172b;
-  --text-label: #cad5e2;
-  --text-value: #f1f5f9;
-  --badge-bg: #ffffff;
-  --badge-border: #d5d7da;
-  --badge-text: #414651;
-  --dot-connected: #17b26a;
-  --dot-disconnected: #f04438;
-  --text-white: #ffffff;
-  --toggle-hover: rgba(255, 255, 255, 0.1);
+  --bg: #ffffff;
+  --text-label: #757575;
+  --text-value: #1e1e1e;
+  --divider: #e6e6e6;
+  --live: #14ae5c;
+  --live-bg: rgba(20, 174, 92, 0.12);
+  --working: #ff4fa3;
+  --working-bg: rgba(255, 79, 163, 0.12);
+  --lost: #e5484d;
+  --lost-bg: rgba(229, 72, 77, 0.12);
+  --dev-pill: #ffb020;
+  --toggle-hover: rgba(0, 0, 0, 0.06);
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 * {
@@ -24,36 +28,30 @@ body {
     system-ui,
     -apple-system,
     sans-serif;
-  background: var(--bg-primary);
+  font-size: 11px;
+  line-height: 13px;
+  background: var(--bg);
   color: var(--text-value);
+  overflow: hidden;
 }
 
 .container {
   position: relative;
-  display: flex;
-  flex-direction: column;
   height: 100vh;
   overflow: hidden;
 }
 
-.titlebar {
-  display: flex;
-  align-items: center;
-  height: 36px;
-  flex-shrink: 0;
-  padding: 0 38px 0 14px;
-}
-
-.collapse-toggle {
+/* One toggle for both views, in the same spot: 6 px down, 8 px in from the right. */
+.toggle {
   position: absolute;
-  top: 7px;
+  top: 6px;
   right: 8px;
   z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   border: none;
   border-radius: 4px;
@@ -62,117 +60,184 @@ body {
   cursor: pointer;
 }
 
-.collapse-toggle:hover {
+.toggle:hover {
   background: var(--toggle-hover);
   color: var(--text-value);
 }
 
-.collapse-toggle svg {
-  transition: transform 120ms ease;
+.toggle:focus-visible {
+  outline: 2px solid #0d99ff;
+  outline-offset: -2px;
 }
 
-.container.collapsed .collapse-toggle svg {
-  transform: rotate(180deg);
-}
-
-.body {
-  flex: 1;
-  min-height: 0;
-  padding: 14px;
+/* Open view: 320 × 113 = rows (75) + spacer (4) + footer (34). */
+.panel {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  height: 100%;
 }
 
-.container.collapsed .body {
-  display: none;
-}
-
-.info-section {
+.rows {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  /* Keeps a long file name clear of the floating toggle. */
-  padding-right: 26px;
+  gap: 6px;
+  /* 40 px on the right keeps a long file name clear of the toggle. */
+  padding: 14px 40px 10px 12px;
 }
 
-.info-row {
+.row {
   display: flex;
-  align-items: baseline;
-  font-size: 12px;
-  line-height: 18px;
+  gap: 8px;
+  min-width: 0;
 }
 
-.info-label {
+.row-label {
+  flex: 0 0 64px;
   color: var(--text-label);
-  width: 82px;
-  flex-shrink: 0;
 }
 
-.info-value {
-  color: var(--text-value);
+.row-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .footer {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-}
-
-.badge {
-  display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 6px;
-  border-radius: 6px;
-  background: var(--badge-bg);
-  border: 1px solid var(--badge-border);
-  font-size: 12px;
-  line-height: 18px;
-  white-space: nowrap;
+  gap: 8px;
+  height: 34px;
+  padding: 0 12px;
+  border-top: 1px solid var(--divider);
 }
 
-.badge .dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Collapsed view: 320 × 36. The right padding leaves room for the toggle. */
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 40px 0 10px;
+}
+
+.app-icon {
+  display: flex;
   flex-shrink: 0;
 }
 
-.badge.connected .dot {
-  background: var(--dot-connected);
+.app-icon.faded {
+  opacity: 0.4;
 }
 
-.badge.disconnected .dot {
-  background: var(--dot-disconnected);
-}
-
-.badge .badge-text {
-  color: var(--badge-text);
+/* The state is what the panel is for: the chip keeps its width (up to a cap, then truncates) and the
+   Dev pill gives way instead. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  max-width: 200px;
+  height: 17px;
+  padding: 0 7px 0 6px;
+  border-radius: 999px;
   font-weight: 500;
+  white-space: nowrap;
 }
 
-.branding {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-  text-decoration: none;
+.chip-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chip.has-icon {
+  padding-left: 5px;
+}
+
+.bar .chip {
+  max-width: 170px;
+  height: 16px;
+  padding: 0 6px;
+  font-size: 10px;
+  line-height: 12px;
+}
+
+.chip .dot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.chip svg {
+  flex-shrink: 0;
+}
+
+.chip.connecting {
+  color: var(--text-label);
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.chip.live {
+  color: var(--live);
+  background: var(--live-bg);
+}
+
+.chip.working {
+  color: var(--working);
+  background: var(--working-bg);
+}
+
+.chip.lost {
+  color: var(--lost);
+  background: var(--lost-bg);
+}
+
+.version {
+  flex-shrink: 0;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-label);
+}
+
+/* Shrinks before the state chip does, so the state stays readable next to a long slot name. */
+.dev-pill {
+  flex-shrink: 100;
+  min-width: 48px;
+  height: 17px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--dev-pill);
+  color: var(--text-value);
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 17px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.button {
+  flex-shrink: 0;
+  height: 17px;
+  padding: 0 8px;
+  border: 1px solid var(--divider);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--text-value);
+  font: inherit;
+  font-weight: 500;
   cursor: pointer;
 }
 
-.branding:hover {
-  opacity: 0.85;
-}
-
-.branding .logo {
-  height: 22px;
-  width: auto;
-}
-
-.branding .sponsored-text {
-  color: var(--text-white);
-  font-size: 10px;
-  line-height: 1.4;
-  text-align: right;
+.button:hover {
+  background: #f5f5f5;
 }
