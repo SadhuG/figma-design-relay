@@ -12,7 +12,7 @@ the 60 s / next-call Diagram window, the 500 ms syncing delay, the selection row
 
 ## Tasks
 
-- [ ] **1. Chip state.** Extend `ChipTone` with `"syncing" | "diagram" | "sent" | "leader"` and
+- [x] **1. Chip state.** Extend `ChipTone` with `"syncing" | "diagram" | "sent" | "leader"` and
       `ChipInput` with `syncingPercent: number | null`, `notice: "diagram" | "sent" | null`,
       `followers: number`. Tests in `panel-state.test.ts` first:
   - syncing 62 → `Reading the layer tree… 62%` / `Syncing 62%`; syncing beats working and diagram.
@@ -21,7 +21,7 @@ the 60 s / next-call Diagram window, the 500 ms syncing delay, the selection row
   - followers 2 → `Leader · 2 followers` / `Leader +2`; 1 → `Leader · 1 follower` / `Leader +1`;
     0 → the existing Live text; leader loses to sent.
   - lost and connecting still beat everything.
-- [ ] **2. `NoticeBoard`.** A class holding at most one notice per kind:
+- [x] **2. `NoticeBoard`.** A class holding at most one notice per kind:
   ```ts
   type NoticeKind = "sent" | "diagram";
   type Notice = { kind: NoticeKind; requestId: string; nodeIds: string[] };
@@ -43,15 +43,15 @@ the 60 s / next-call Diagram window, the 500 ms syncing delay, the selection row
   replaces the old notice of that kind. Events can arrive before or after their own response;
   `record` after `requestFinished` of the same id counts that finish (store finished ids for the
   current window). Tests: each rule, plus `nextExpiry` returning the nearest expiry.
-- [ ] **3. Syncing visibility.** `export const SYNC_DELAY_MS = 500;` and
+- [x] **3. Syncing visibility.** `export const SYNC_DELAY_MS = 500;` and
       `class ReadProgressLog { start(id, now); progress(id, percent); finish(id); clear(); percent(now): number | null; nextReveal(now): number | null }`.
       `percent` returns the lowest percent among reads that started ≥ 500 ms ago and have reported
       one, else null; `nextReveal` is the ms until the next such read crosses 500 ms. Tests: before
       500 ms → null; after → percent; finished → null; percent is clamped to 0–100 and floored.
-- [ ] **4. Selection row.** `selectionRowText(count: number, sentNow: boolean): string` →
+- [x] **4. Selection row.** `selectionRowText(count: number, sentNow: boolean): string` →
       `formatSelection(count)` plus ` · sent just now` when `sentNow`;
       `sameNodes(a: string[], b: string[]): boolean` (order-insensitive). Tests for both.
-- [ ] **5.** `bun test`, `bun run typecheck` in `plugin/`; commit `feat(plugin): panel rules for the later states`.
+- [x] **5.** `bun test`, `bun run typecheck` in `plugin/`; commit `feat(plugin): panel rules for the later states`.
 
 ## Notes
 

@@ -39,9 +39,16 @@ export function retryDelayMs(attempt: number): number {
   return RETRY_DELAYS_MS[Math.min(attempt, RETRY_DELAYS_MS.length - 1)];
 }
 
-export type ChipTone = "connecting" | "live" | "working" | "lost";
+export type ChipTone =
+  "connecting" | "live" | "working" | "lost" | "syncing" | "diagram" | "sent" | "leader";
 
 export type ChipInput = {
+  /** From ReadProgressLog.percent; null when no long read is showing progress. */
+  syncingPercent?: number | null;
+  /** The notice to show, from NoticeBoard; diagram wins when both are current. */
+  notice?: NoticeKind | null;
+  /** Followers the leader heard from in the last minute. */
+  followers?: number;
   connected: boolean;
   /** Not connected yet, but no attempt has failed either: the first dial after launch. */
   connecting?: boolean;
@@ -55,7 +62,7 @@ export type ChipInput = {
 
 /**
  * `text` is for the open panel, `short` for the collapsed bar. Connecting beats lost, so a launch
- * doesn't flash "Relay lost"; then lost beats working beats live.
+ * doesn't flash "Relay lost"; then lost > syncing > diagram > working > sent > leader > live.
  */
 export function chipState(input: ChipInput): { tone: ChipTone; text: string; short: string } {
   if (!input.connected && input.connecting) {
@@ -68,8 +75,30 @@ export function chipState(input: ChipInput): { tone: ChipTone; text: string; sho
       : "Relay lost · retrying…";
     return { tone: "lost", text, short: "Retrying…" };
   }
+  if (input.syncingPercent != null) {
+    const percent = `${input.syncingPercent}%`;
+    return {
+      tone: "syncing",
+      text: `Reading the layer tree… ${percent}`,
+      short: `Syncing ${percent}`,
+    };
+  }
+  if (input.notice === "diagram") {
+    return { tone: "diagram", text: "Diagram drawn on this page", short: "Diagram drawn" };
+  }
   if (input.workingLabel) {
     return { tone: "working", text: input.workingLabel, short: input.workingLabel };
+  }
+  if (input.notice === "sent") {
+    return { tone: "sent", text: "Sent to your agent", short: "Sent" };
+  }
+  const followers = input.followers ?? 0;
+  if (followers > 0) {
+    return {
+      tone: "leader",
+      text: `Leader · ${followers} ${followers === 1 ? "follower" : "followers"}`,
+      short: `Leader +${followers}`,
+    };
   }
   if (!input.port) return { tone: "live", text: "Live", short: "Live" };
   return { tone: "live", text: `Live on port ${input.port}`, short: `Live · ${input.port}` };
@@ -157,3 +186,150 @@ export function agentTooltip(agents: (string | null)[]): string | null {
 
 /** How long one connection attempt may take before it counts as failed. */
 export const CONNECT_TIMEOUT_MS = 5000;
+
+/** Selection sent: shown once the working state ends, for this long. */
+export const SENT_WINDOW_MS = 10_000;
+/** Diagram drawn: shown for this long unless another request starts first. */
+export const DIAGRAM_WINDOW_MS = 60_000;
+
+export type NoticeKind = "sent" | "diagram";
+export type Notice = { kind: NoticeKind; requestId: string; nodeIds: string[] };
+type Held = { notice: Notice; expiresAt: number | null };
+
+/**
+ * What the agent just read or drew, from the main thread's `selection-sent` and `diagram-drawn`
+ * messages. One notice per kind; a new one replaces the old.
+ */
+export class NoticeBoard {
+  private held: Record<NoticeKind, Held | null> = { sent: null, diagram: null };
+  /** Recent finishes, so an event that arrives after its own response still gets its clock. */
+  private finished = new Map<string, number>();
+
+  record(kind: NoticeKind, requestId: string, nodeIds: string[], now: number): void {
+    const notice = { kind, requestId, nodeIds };
+    if (kind === "diagram") {
+      this.held.diagram = { notice, expiresAt: now + DIAGRAM_WINDOW_MS };
+      return;
+    }
+    const finishedAt = this.finished.get(requestId);
+    this.held.sent = {
+      notice,
+      expiresAt: finishedAt === undefined ? null : finishedAt + WORKING_WINDOW_MS + SENT_WINDOW_MS,
+    };
+  }
+
+  /** Any other request starting means the agent has moved on from the diagram. */
+  requestStarted(requestId: string, _now: number): void {
+    if (this.held.diagram && this.held.diagram.notice.requestId !== requestId) {
+      this.held.diagram = null;
+    }
+  }
+
+  /** Sent lasts until the working state that follows the latest finish has ended, plus its window. */
+  requestFinished(requestId: string, now: number): void {
+    this.finished.set(requestId, now);
+    for (const [id, at] of this.finished) {
+      if (now - at > DIAGRAM_WINDOW_MS) this.finished.delete(id);
+    }
+    const sent = this.held.sent;
+    if (sent) {
+      const until = now + WORKING_WINDOW_MS + SENT_WINDOW_MS;
+      sent.expiresAt = sent.expiresAt === null ? until : Math.max(sent.expiresAt, until);
+    }
+  }
+
+  dismiss(kind: NoticeKind): void {
+    this.held[kind] = null;
+  }
+
+  /** The socket closed. */
+  clear(): void {
+    this.held = { sent: null, diagram: null };
+    this.finished.clear();
+  }
+
+  current(now: number): { diagram: Notice | null; sent: Notice | null } {
+    this.prune(now);
+    return {
+      diagram: this.held.diagram?.notice ?? null,
+      sent: this.held.sent?.notice ?? null,
+    };
+  }
+
+  /** Milliseconds until the nearest notice expires, or null if no clock is running. */
+  nextExpiry(now: number): number | null {
+    this.prune(now);
+    let next: number | null = null;
+    for (const held of Object.values(this.held)) {
+      if (!held || held.expiresAt === null) continue;
+      const left = held.expiresAt - now;
+      if (next === null || left < next) next = left;
+    }
+    return next;
+  }
+
+  private prune(now: number): void {
+    for (const kind of ["sent", "diagram"] as const) {
+      const held = this.held[kind];
+      if (held && held.expiresAt !== null && now >= held.expiresAt) this.held[kind] = null;
+    }
+  }
+}
+
+/** A read shows its progress only once it has run this long, so quick reads don't flash. */
+export const SYNC_DELAY_MS = 500;
+
+/** Long layer-tree reads and their latest percent, from the main thread's `read-progress`. */
+export class ReadProgressLog {
+  private reads = new Map<string, { startedAt: number; percent: number | null }>();
+
+  start(requestId: string, now: number): void {
+    this.reads.set(requestId, { startedAt: now, percent: null });
+  }
+
+  progress(requestId: string, percent: number): void {
+    const read = this.reads.get(requestId);
+    if (read) read.percent = Math.min(100, Math.max(0, Math.floor(percent)));
+  }
+
+  finish(requestId: string): void {
+    this.reads.delete(requestId);
+  }
+
+  clear(): void {
+    this.reads.clear();
+  }
+
+  /** The lowest percent among reads past SYNC_DELAY_MS that have reported one, else null. */
+  percent(now: number): number | null {
+    let lowest: number | null = null;
+    for (const { startedAt, percent } of this.reads.values()) {
+      if (percent === null || now - startedAt < SYNC_DELAY_MS) continue;
+      if (lowest === null || percent < lowest) lowest = percent;
+    }
+    return lowest;
+  }
+
+  /** Milliseconds until the next running read crosses SYNC_DELAY_MS, or null. */
+  nextReveal(now: number): number | null {
+    let next: number | null = null;
+    for (const { startedAt } of this.reads.values()) {
+      const left = startedAt + SYNC_DELAY_MS - now;
+      if (left > 0 && (next === null || left < next)) next = left;
+    }
+    return next;
+  }
+}
+
+/** The Selection row; `sentNow` adds the 04 suffix. */
+export function selectionRowText(count: number, sentNow: boolean): string {
+  const text = formatSelection(count);
+  return sentNow ? `${text} · sent just now` : text;
+}
+
+/** True when both lists hold the same node ids, in any order. Nothing sent is never a match. */
+export function sameNodes(a: readonly string[], b: readonly string[]): boolean {
+  if (a.length === 0 || a.length !== b.length) return false;
+  const set = new Set(a);
+  return b.every((id) => set.has(id));
+}
