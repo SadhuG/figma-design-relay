@@ -31,6 +31,8 @@ with its tag.
   while collapsed ("Expand").
 - Reconnecting waits 1, 2, 5, 10, then 30 s between attempts, with a countdown in the chip
   ("Relay lost · retry in 5 s") and a **Retry now** button. The app icon fades while disconnected.
+  The chip reads "Connecting…" before the first attempt fails and while redialing after a file
+  rename. A handshake that hasn't finished after 5 s counts as a failed attempt.
 
 ### Added
 

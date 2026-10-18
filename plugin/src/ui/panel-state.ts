@@ -154,3 +154,6 @@ export function agentTooltip(agents: (string | null)[]): string | null {
   if (agents.length < 2) return null;
   return agents.map((agent) => agentDisplayName(agent) ?? "Unnamed agent").join(", ");
 }
+
+/** How long one connection attempt may take before it counts as failed. */
+export const CONNECT_TIMEOUT_MS = 5000;

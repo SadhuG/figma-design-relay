@@ -7,16 +7,19 @@
 export const AGENT_NAME_MAX = 64;
 
 /**
- * Characters that are invisible or rearrange what is shown: C0 and C1 controls with DEL,
- * zero-width characters and direction marks, and bidi embeddings, overrides and isolates.
+ * Characters that are invisible or rearrange what is shown: C0 and C1 controls with DEL, the soft
+ * hyphen, the Arabic letter mark, zero-width characters and direction marks, line and paragraph
+ * separators, bidi embeddings, overrides and isolates, word joiners and invisible operators.
  * Written as code points so no escape or invisible character has to survive in source.
  */
 const HIDDEN_RANGES: [number, number][] = [
   [0x0000, 0x001f],
   [0x007f, 0x009f],
+  [0x00ad, 0x00ad],
+  [0x061c, 0x061c],
   [0x200b, 0x200f],
-  [0x202a, 0x202e],
-  [0x2066, 0x2069],
+  [0x2028, 0x202e],
+  [0x2060, 0x2069],
   [0xfeff, 0xfeff],
 ];
 

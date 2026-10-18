@@ -166,3 +166,11 @@ describe("chipState edge cases", () => {
       short: "Connecting…",
     }));
 });
+
+test("connecting is ignored once connected", () => {
+  const live = { connected: true, port: "1994", workingLabel: null, retryInSeconds: null };
+  expect(chipState({ ...live, connecting: true }).tone).toBe("live");
+  expect(chipState({ ...live, connecting: true, workingLabel: "Agent working" }).tone).toBe(
+    "working"
+  );
+});

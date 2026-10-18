@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { ChevronIcon, CursorIcon, LostIcon, PlaneIcon, SunIcon } from "./icons";
 import {
   ActivityLog,
+  CONNECT_TIMEOUT_MS,
   agentDisplayName,
   agentTooltip,
   chipState,
@@ -122,6 +123,14 @@ export default function App() {
   });
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<number | null>(null);
+  /** Gives up on a handshake that neither opens nor fails within CONNECT_TIMEOUT_MS. */
+  const connectTimer = useRef<number | null>(null);
+  const clearConnectTimer = () => {
+    if (connectTimer.current !== null) {
+      window.clearTimeout(connectTimer.current);
+      connectTimer.current = null;
+    }
+  };
   /** Retries since the last successful connect; picks the next delay. */
   const retryAttempt = useRef(0);
   /** When the pending retry fires, or null while an attempt is under way. */
@@ -245,7 +254,17 @@ export default function App() {
       const ws = new WebSocket(wsUrl);
       socketRef.current = ws;
 
+      // Something on the port that accepts TCP but never answers would otherwise leave the panel
+      // "Connecting…" until the browser gives up. Closing a socket mid-handshake fires onclose,
+      // which schedules the next attempt like any other failure.
+      clearConnectTimer();
+      connectTimer.current = window.setTimeout(() => {
+        connectTimer.current = null;
+        if (socketRef.current === ws && ws.readyState === WebSocket.CONNECTING) ws.close();
+      }, CONNECT_TIMEOUT_MS);
+
       ws.onopen = () => {
+        clearConnectTimer();
         retryAttempt.current = 0;
         retryDeadline.current = null;
         setRetryInSeconds(null);
@@ -255,6 +274,7 @@ export default function App() {
 
       ws.onclose = () => {
         if (disposed || socketRef.current !== ws) return;
+        clearConnectTimer();
         // Responses to requests still in flight will never arrive.
         activity.current.clear();
         bumpActivity();
@@ -298,10 +318,14 @@ export default function App() {
         window.clearTimeout(reconnectTimer.current);
         reconnectTimer.current = null;
       }
-      // The next run dials at once, so drop the old countdown and schedule with the timer.
+      clearConnectTimer();
+      // The next run dials at once, so drop the old countdown and schedule with the timer. Its
+      // socket is new, so the panel reads "Connecting…", not the old socket's Live or Lost.
       retryAttempt.current = 0;
       retryDeadline.current = null;
       setRetryInSeconds(0);
+      setConnected(false);
+      setHasFailed(false);
       if (socketRef.current) {
         const ws = socketRef.current;
         ws.onopen = null;

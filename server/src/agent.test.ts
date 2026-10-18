@@ -35,6 +35,13 @@ describe("cleanAgentName against display tricks", () => {
     expect(cleanAgentName(`${ch(0xfeff)}bom`)).toBe("bom");
   });
 
+  test("removes the other invisible characters: joiners, separators, soft hyphen, Arabic mark", () => {
+    expect(cleanAgentName(`a${ch(0x2060)}b${ch(0x2064)}c`)).toBe("abc");
+    expect(cleanAgentName(`line${ch(0x2028)}para${ch(0x2029)}`)).toBe("linepara");
+    expect(cleanAgentName(`soft${ch(0x00ad)}hyphen`)).toBe("softhyphen");
+    expect(cleanAgentName(`ar${ch(0x061c)}m`)).toBe("arm");
+  });
+
   test("never splits a character made of two code units", () => {
     const name = "a".repeat(63) + ch(0x1f600);
     expect(cleanAgentName(name)).toBe(name);

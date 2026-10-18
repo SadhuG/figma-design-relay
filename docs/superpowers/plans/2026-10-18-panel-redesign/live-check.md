@@ -35,13 +35,27 @@ real client. The panel was read from screenshots of the Figma window and compare
   Code is working". Now the chip keeps its width (up to 200 px, or 170 px collapsed) and the Dev
   pill gives way, down to 48 px.
 
+## Recheck after the review fixes
+
+The review fixes (`67861d8` and the commit after it) changed the plugin and the server, so the
+affected cases were run again on the rebuilt plugin and a restarted relay.
+
+| Case                                                 | Result                                                                                                   |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Launch with the relay down                           | Pass: grey "Connecting…" with the normal icon, then red "Retrying…" with the icon faded                  |
+| Relay started                                        | Pass: reconnected without user action                                                                    |
+| Real Claude Code session                             | Pass: "Claude Code is working", Dev pill truncated first                                                 |
+| Port that accepts TCP but never answers (a stand-in) | Pass: "Connecting…" for 5 s, then "Retrying…" with Retry now; attempts kept coming on the retry schedule |
+| Real relay back on the port                          | Pass: reconnected without user action                                                                    |
+
 **Not checked live:**
 
 - **The Stable build** (sun icon, version in place of the pill). This worktree always builds the Dev
-  variant, and `uiDefine(null, …)` is unit-tested. Check it after the merge, once the main checkout
-  is rebuilt.
-- **A long file name.** `figma.root.name` can't be changed from a plugin. The File row uses the
-  same ellipsis rule as the other rows.
+  variant, and `uiDefine(null, …)` is unit-tested. A build of this branch without a slot is staged
+  for the stable import; see the PR or merge notes for its result.
+- **A long file name, and redialing after a rename.** A plugin can't change `figma.root.name`. The
+  File row uses the same ellipsis rule as the other rows. The rename path reuses the effect cleanup
+  that the fileKey case runs.
 - **Readable names for Cursor, VS Code and Codex.** Only Claude Code was available. The other
   entries in `AGENT_DISPLAY_NAMES` come from those apps' published client names and are unverified;
   an unlisted name shows as sent.
