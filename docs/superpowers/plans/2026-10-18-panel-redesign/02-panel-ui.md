@@ -47,19 +47,19 @@ is the matching card in Board 10, section 1 (cards `01`, `02`, `03c`, `07`) and 
   `JSON.stringify`-ed. In the UI, `import.meta.env.VITE_FIGMA_DESIGN_RELAY_VERSION: string` and
   `VITE_FIGMA_DESIGN_RELAY_SLOT?: string`.
 
-- [ ] **Step 1: Failing tests** in `dev-slot.test.ts`:
+- [x] **Step 1: Failing tests** in `dev-slot.test.ts`:
   - `uiDefine(null, "0.7.8")` equals
     `{ "import.meta.env.VITE_FIGMA_DESIGN_RELAY_VERSION": "\"0.7.8\"" }`.
   - `uiDefine({ name: "panel-redesign", port: 1999 }, "0.7.8")` has all three keys, with SLOT
     `"\"panel-redesign\""` and WS `"\"ws://localhost:1999/ws\""`.
-- [ ] **Step 2: Run to see it fail.** Run `cd plugin && bun test dev-slot.test.ts`. Expected: FAIL,
+- [x] **Step 2: Run to see it fail.** Run `cd plugin && bun test dev-slot.test.ts`. Expected: FAIL,
       `uiDefine` not exported.
-- [ ] **Step 3: Implement `uiDefine`.** In `vite.config.ts`, use
+- [x] **Step 3: Implement `uiDefine`.** In `vite.config.ts`, use
       `define: uiDefine(slot, pkg.version)`, where `pkg` is `./package.json`, and keep the existing
       contradiction check. Add both env fields to `env.d.ts`.
-- [ ] **Step 4: Run to see it pass.** Run `cd plugin && bun test && bun run build`. Expected: PASS.
+- [x] **Step 4: Run to see it pass.** Run `cd plugin && bun test && bun run build`. Expected: PASS.
       `dist/index.html` contains `panel-redesign`.
-- [ ] **Step 5: Commit** with `feat(plugin): bake version and dev slot name into the UI`.
+- [x] **Step 5: Commit** with `feat(plugin): bake version and dev slot name into the UI`.
 
 ### Task 2: Icons
 
@@ -72,7 +72,7 @@ is the matching card in Board 10, section 1 (cards `01`, `02`, `03c`, `07`) and 
 - Produces: `SunIcon`, `PlaneIcon`, `CursorIcon`, `LostIcon`, `ChevronIcon`. Each takes
   `{ size: number }`; `ChevronIcon` also takes `{ direction: "up" | "down" }`.
 
-- [ ] **Step 1: Export the SVGs** from Board 10 with the relay's `save_screenshots` tool
+- [x] **Step 1: Export the SVGs** from Board 10 with the relay's `save_screenshots` tool
       (`format: "SVG"`) into a scratch folder inside the worktree:
   - Stable app icon: `App icon` in card 01's footer.
   - Dev app icon: `App icon` in card 02's footer.
@@ -81,11 +81,11 @@ is the matching card in Board 10, section 1 (cards `01`, `02`, `03c`, `07`) and 
 
   Find each node with `run_script` by name under that card.
 
-- [ ] **Step 2: Inline them as React components.** Use `viewBox` and the `size` prop. Keep the
+- [x] **Step 2: Inline them as React components.** Use `viewBox` and the `size` prop. Keep the
       fills from the export. `ChevronIcon` is `M 0 4.5 L 4.5 0 L 9 4.5` in a 9 × 4.5 box, 1.5 px
       `currentColor` stroke with round caps, rotated 180° for `down`. Delete the scratch folder.
-- [ ] **Step 3: Verify.** Run `cd plugin && bun run typecheck`. Expected: 0 errors.
-- [ ] **Step 4: Commit** with `feat(plugin): panel icons from Board 10`.
+- [x] **Step 3: Verify.** Run `cd plugin && bun run typecheck`. Expected: 0 errors.
+- [x] **Step 4: Commit** with `feat(plugin): panel icons from Board 10`.
 
 ### Task 3: Panel layout and styles
 
@@ -100,7 +100,7 @@ is the matching card in Board 10, section 1 (cards `01`, `02`, `03c`, `07`) and 
 - Consumes: `formatSelection`, `relayAddress`, `relayRowText`, `relayPort`, `chipState`,
   `workingLabel` (phase 1), `uiDefine`'s env fields (Task 1), the icons (Task 2).
 
-- [ ] **Step 1: Rewrite the markup.** Match Board 10, using these classes:
+- [x] **Step 1: Rewrite the markup.** Match Board 10, using these classes:
   - `.panel` for the open view: `.rows` (File, Selection, Relay) and `.footer` (app icon, chip,
     grow, then the version, the Dev pill or Retry now).
   - `.bar` for the collapsed view: app icon, grow, pill, chip.
@@ -111,15 +111,15 @@ is the matching card in Board 10, section 1 (cards `01`, `02`, `03c`, `07`) and 
   Medium, 2/7/2/6 padding, pill radius, 5 px gap, 6 px dot for live. Collapsed bar: 0/8/0/10
   padding, 10 px chip text. Everything else comes from the overview's colour table.
 
-- [ ] **Step 2: Wire the toggle.** `title` and `aria-label` are "Collapse" when open and "Expand"
+- [x] **Step 2: Wire the toggle.** `title` and `aria-label` are "Collapse" when open and "Expand"
       when collapsed. `ChevronIcon direction` is `up` when open and `down` when collapsed.
-- [ ] **Step 3: Wire the text.** For two or more agents, the chip's `title` lists them (phase 3
+- [x] **Step 3: Wire the text.** For two or more agents, the chip's `title` lists them (phase 3
       fills in the names). The Relay row's value truncates with an ellipsis. The full
       `WS_BASE_URL` stays as the chip's `title` when no agent list is shown.
-- [ ] **Step 4: Remove the Hopp link,** its import and the PNG.
-- [ ] **Step 5: Verify.** Run `cd plugin && bun run build && bun test`. Expected: PASS, and
+- [x] **Step 4: Remove the Hopp link,** its import and the PNG.
+- [x] **Step 5: Verify.** Run `cd plugin && bun run build && bun test`. Expected: PASS, and
       `dist/index.html` no longer contains `hopp`.
-- [ ] **Step 6: Commit** with `feat(plugin): light panel layout from Board 10`.
+- [x] **Step 6: Commit** with `feat(plugin): light panel layout from Board 10`.
 
 ### Task 4: Reconnect schedule, Retry now and the working state
 
@@ -131,23 +131,23 @@ is the matching card in Board 10, section 1 (cards `01`, `02`, `03c`, `07`) and 
 
 - Consumes: `retryDelayMs`, `ActivityLog`, `WORKING_WINDOW_MS` (phase 1).
 
-- [ ] **Step 1: Retry schedule.** Keep an attempt counter in a ref. On close, schedule
+- [x] **Step 1: Retry schedule.** Keep an attempt counter in a ref. On close, schedule
       `retryDelayMs(attempt++)` and store the deadline. On open, reset the counter to 0. A 1 s
       interval updates `retryInSeconds` only while disconnected. Clear it on connect and on
       unmount.
-- [ ] **Step 2: Retry now.** Clear the pending timer, reset the counter and call `connect()`.
+- [x] **Step 2: Retry now.** Clear the pending timer, reset the counter and call `connect()`.
       `connect()` already detaches and closes the previous socket, so a click mid-attempt replaces
       it rather than adding a second one. While an attempt is open, `retryInSeconds` is `0`.
-- [ ] **Step 3: Activity.**
+- [x] **Step 3: Activity.**
   - `ws.onmessage` calls `log.start(payload.requestId, null, Date.now())`.
   - The window `message` handler that forwards a response calls `log.finish(msg.requestId, Date.now())`.
   - `ws.onclose` calls `log.clear()`.
 
   After each change, re-render and set one timeout for `log.nextExpiry(now)`.
 
-- [ ] **Step 4: Verify.** Run `cd plugin && bun run build`. Expected: PASS. The behaviour gets
+- [x] **Step 4: Verify.** Run `cd plugin && bun run build`. Expected: PASS. The behaviour gets
       checked live in Task 6.
-- [ ] **Step 5: Commit** with `feat(plugin): growing reconnect delay, Retry now and the working chip`.
+- [x] **Step 5: Commit** with `feat(plugin): growing reconnect delay, Retry now and the working chip`.
 
 ### Task 5: Window height
 
@@ -155,16 +155,16 @@ is the matching card in Board 10, section 1 (cards `01`, `02`, `03c`, `07`) and 
 
 - Modify: `plugin/src/main/code.ts` (`UI_EXPANDED_HEIGHT`)
 
-- [ ] **Step 1: Change the height.** Set `UI_EXPANDED_HEIGHT = 113` and update its comment.
+- [x] **Step 1: Change the height.** Set `UI_EXPANDED_HEIGHT = 113` and update its comment.
       `UI_COLLAPSED_HEIGHT` stays 36.
-- [ ] **Step 2: Verify.** Run `cd plugin && bun run build`. Expected: PASS.
-- [ ] **Step 3: Commit** with `feat(plugin): 113 px open panel`.
+- [x] **Step 2: Verify.** Run `cd plugin && bun run build`. Expected: PASS.
+- [x] **Step 3: Commit** with `feat(plugin): 113 px open panel`.
 
 ### Task 6: Live check and docs
 
-- [ ] **Step 1: Build and relaunch.** Build both packages in the worktree, restart the
+- [x] **Step 1: Build and relaunch.** Build both packages in the worktree, restart the
       `panel-redesign` relay and relaunch the Dev plugin.
-- [ ] **Step 2: Check each state live** with the `live-figma-check` skill. Compare each state with
+- [x] **Step 2: Check each state live** with the `live-figma-check` skill. Compare each state with
       its Board 10 card side by side:
   - Connected: card 02, as this is a Dev build.
   - A tool call through the dev MCP: card 03c, "Agent working" for about 10 s after the call.
@@ -175,14 +175,14 @@ is the matching card in Board 10, section 1 (cards `01`, `02`, `03c`, `07`) and 
   - Reopening the plugin while collapsed: no flash.
   - A long file name: truncated before the toggle.
   - Selection 0, 1 and 3: the plural text.
-- [ ] **Step 3: Check the Stable build.** Build the main checkout's plugin from this branch's
+- [x] **Step 3: Check the Stable build.** Build the main checkout's plugin from this branch's
       `plugin/` into a scratch copy, or ask the user to check after the merge. Note in the PR that
       the sun icon and version appear without a slot.
-- [ ] **Step 4: Record the results.** Write the tested commit, setup, cases and results in
+- [x] **Step 4: Record the results.** Write the tested commit, setup, cases and results in
       `docs/superpowers/plans/2026-10-18-panel-redesign/live-check.md`.
-- [ ] **Step 5: Update the docs.** In the README, update any description of the panel and its
+- [x] **Step 5: Update the docs.** In the README, update any description of the panel and its
       screenshot. Refresh CLAUDE.md's plugin test count.
-- [ ] **Step 6:** Run `finish-task`: version bump, separate-agent review, merge.
+- [x] **Step 6:** Run `finish-task`: version bump, separate-agent review, merge.
 
 ## Acceptance checks
 

@@ -51,19 +51,19 @@ The name is display-only. Nothing routes, authorises or logs by it.
 
 - Produces: `AGENT_NAME_MAX = 64` and `cleanAgentName(raw: unknown): string | undefined`.
 
-- [ ] **Step 1: Failing tests.** Each case and its result:
+- [x] **Step 1: Failing tests.** Each case and its result:
   - `"claude-code"` gives `"claude-code"`.
   - `"  Cursor  "` gives `"Cursor"`.
   - `""`, `"   "`, `42`, `{}` and `undefined` give `undefined`.
   - A name with `\n` or `\u0000` in it comes back with those characters removed.
   - A 200-character name is cut to 64 characters.
-- [ ] **Step 2: Run to see it fail.** Run `cd server && bun test src/agent.test.ts`. Expected:
+- [x] **Step 2: Run to see it fail.** Run `cd server && bun test src/agent.test.ts`. Expected:
       FAIL, the module is missing.
-- [ ] **Step 3: Implement.** Use `String.raw` for the control-character class, as CLAUDE.md
+- [x] **Step 3: Implement.** Use `String.raw` for the control-character class, as CLAUDE.md
       requires for regex source, and check the compiled pattern.
-- [ ] **Step 4: Run to see it pass.** Run `cd server && bun test src/agent.test.ts`. Expected:
+- [x] **Step 4: Run to see it pass.** Run `cd server && bun test src/agent.test.ts`. Expected:
       PASS.
-- [ ] **Step 5: Commit** with `feat(server): clean MCP client names for display`.
+- [x] **Step 5: Commit** with `feat(server): clean MCP client names for display`.
 
 ### Task 2: Carry the name to the plugin
 
@@ -87,7 +87,7 @@ The name is display-only. Nothing routes, authorises or logs by it.
 - Produces: `Node.setAgentName(raw: unknown): void`, and the `agent` field on the wire for the
   plugin (Task 4).
 
-- [ ] **Step 1: Failing tests.**
+- [x] **Step 1: Failing tests.**
   - Bridge: the JSON a fake plugin socket receives has `agent: "claude-code"` when one is passed,
     and no `agent` key when none is.
   - Node, leader role: after `setAgentName("claude-code")`, the request reaching the bridge carries
@@ -98,11 +98,11 @@ The name is display-only. Nothing routes, authorises or logs by it.
     - A body with no `agent` field reaches it with no agent.
   - Follower: the `/rpc` body it posts includes `agent` (stub `fetch`, as the existing follower
     tests do, or add the case to `node.test.ts` if that is where follower bodies are checked).
-- [ ] **Step 2: Run to see them fail.** Run `cd server && bun test`. Expected: the new cases fail.
-- [ ] **Step 3: Implement** the signatures above.
-- [ ] **Step 4: Run to see them pass.** Run `cd server && bun test && bun run build`. Expected:
+- [x] **Step 2: Run to see them fail.** Run `cd server && bun test`. Expected: the new cases fail.
+- [x] **Step 3: Implement** the signatures above.
+- [x] **Step 4: Run to see them pass.** Run `cd server && bun test && bun run build`. Expected:
       PASS, and `tsc` is clean.
-- [ ] **Step 5: Commit** with `feat(server): send the calling agent's name with each request`.
+- [x] **Step 5: Commit** with `feat(server): send the calling agent's name with each request`.
 
 ### Task 3: Read the name at initialize
 
@@ -110,11 +110,11 @@ The name is display-only. Nothing routes, authorises or logs by it.
 
 - Modify: `server/src/index.ts`
 
-- [ ] **Step 1: Read the name.** After `new McpServer(...)`, set
+- [x] **Step 1: Read the name.** After `new McpServer(...)`, set
       `server.server.oninitialized = () => { const info = server.server.getClientVersion(); node.setAgentName(info?.name); console.error(`MCP client: ${info?.name ?? "(none)"} ${info?.version ?? ""}`); }`.
       The log line is how Task 5 finds the real names.
-- [ ] **Step 2: Verify.** Run `cd server && bun run build`. Expected: PASS.
-- [ ] **Step 3: Commit** with `feat(server): remember the MCP client's name`.
+- [x] **Step 2: Verify.** Run `cd server && bun run build`. Expected: PASS.
+- [x] **Step 3: Commit** with `feat(server): remember the MCP client's name`.
 
 ### Task 4: Readable names in the panel
 
@@ -129,36 +129,36 @@ The name is display-only. Nothing routes, authorises or logs by it.
   `agentDisplayName(raw: string | null): string | null`. A name in the map gives its readable
   form, any other non-empty name comes back as is, and `null` stays `null`.
 
-- [ ] **Step 1: Failing tests.**
+- [x] **Step 1: Failing tests.**
   - Known names: `claude-code` gives "Claude Code", `cursor-vscode` gives "Cursor",
     `Visual Studio Code` gives "VS Code" and `codex-mcp-client` gives "Codex".
   - An unknown name comes back unchanged, and `null` gives `null`.
   - `workingLabel(["claude-code"].map(agentDisplayName))` gives "Claude Code is working".
-- [ ] **Step 2: Run to see it fail.** Run `cd plugin && bun test src/ui/panel-state.test.ts`.
+- [x] **Step 2: Run to see it fail.** Run `cd plugin && bun test src/ui/panel-state.test.ts`.
       Expected: FAIL.
-- [ ] **Step 3: Implement and wire.**
+- [x] **Step 3: Implement and wire.**
   - `ServerRequest` gets `agent?: string`.
   - `ws.onmessage` calls `log.start(id, payload.agent ?? null, now)`.
   - The chip label and its tooltip map names through `agentDisplayName`. With two or more agents,
     the tooltip joins the readable names with ", ", and an unnamed one shows as "Unnamed agent".
-- [ ] **Step 4: Run to see it pass.** Run `cd plugin && bun test && bun run build`. Expected:
+- [x] **Step 4: Run to see it pass.** Run `cd plugin && bun test && bun run build`. Expected:
       PASS.
-- [ ] **Step 5: Commit** with `feat(plugin): name the working agent`.
+- [x] **Step 5: Commit** with `feat(plugin): name the working agent`.
 
 ### Task 5: Check the real names, then the live check
 
-- [ ] **Step 1: Read the names live.** Start the dev relay from each MCP client the user has
+- [x] **Step 1: Read the names live.** Start the dev relay from each MCP client the user has
       (Claude Code at least; ask which others: Cursor, VS Code, Codex). Read the
       `MCP client:` lines from each client's server log.
-- [ ] **Step 2: Fix the map.** Correct `AGENT_DISPLAY_NAMES` and its tests to the names actually
+- [x] **Step 2: Fix the map.** Correct `AGENT_DISPLAY_NAMES` and its tests to the names actually
       seen. Commit with `fix(plugin): agent names as the clients send them`.
-- [ ] **Step 3: Live check** with `live-figma-check`. Compare each case with its Board 10 card:
+- [x] **Step 3: Live check** with `live-figma-check`. Compare each case with its Board 10 card:
   - One client calling: card 03a, with the real readable name.
   - A second client calling within 10 s, through a follower: card 03b, with both names in the
     tooltip.
   - A client whose name is not in the map: card 03d, showing the name as sent.
   - The Dev build: card 03d.
-- [ ] **Step 4: Record the results** in `live-check.md` next to phase 2's. Then run
+- [x] **Step 4: Record the results** in `live-check.md` next to phase 2's. Then run
       `finish-task`.
 
 ## Acceptance checks
