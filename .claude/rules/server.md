@@ -50,6 +50,11 @@ Adding a tool? Use the `add-mcp-tool` skill — it is a checklist across both pa
   (`pickFigmaFileKey`) and lets the caller pass the key from the file's URL, as
   `add_code_connect_map`'s `figmaFileKey` does.
 - The bridge times out a request after **180 seconds** (`src/bridge.ts`).
+- **The dashboard is read-only and same-origin.** `GET /` and `/api/status` (`src/dashboard-http.ts`)
+  refuse any `Host` but `127.0.0.1:<port>`/`localhost:<port>` (DNS rebinding), the API refuses
+  foreign `Origin` and cross-site `Sec-Fetch-Site`, and every reply carries a strict CSP. Never add
+  a route that calls a tool, and never log a call's params or results in `ActivityLog`. The page's
+  files live in `server/dashboard/` and are copied into the release by `release.yml`.
 - **A leader keeps running the `dist` it started from.** After touching `schema.ts`, `leader.ts`,
   `bridge.ts` or `election.ts`, restart the client's relay before trusting a live probe.
 

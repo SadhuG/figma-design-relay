@@ -33,17 +33,17 @@ This file holds only what applies to every task. The rest loads when it is relev
 
 **Bun everywhere — never `npm` or `yarn`.**
 
-| Where     | Command                                   | Notes                                                                                                                                   |
-| --------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| root      | `bun install`                             | installs Husky's pre-commit hook (Prettier via lint-staged)                                                                             |
-| root      | `bun run format` / `bun run format:check` | Prettier 3.9.6 over everything                                                                                                          |
-| root      | `bun scripts/check-version.mjs`           | server + plugin versions agree and have a changelog entry                                                                               |
-| root      | `bun scripts/dev-slot.mjs [name]`         | in a feature worktree: claim its dev plugin name and port (1995–2019)                                                                   |
-| `server/` | `bun run build`                           | `tsc` → `dist/`; this is the server's type-check                                                                                        |
-| `server/` | `bun test`                                | 415 tests (2 Windows skips): schemas, transport, file safety, SVG loader, follower round trips, codegen, assets, Code Connect, Mermaid  |
-| `plugin/` | `bun run typecheck`                       | `tsc --noEmit`; must stay at zero errors                                                                                                |
-| `plugin/` | `bun run build`                           | typecheck, then two Vite passes: UI, then `main`                                                                                        |
-| `plugin/` | `bun test`                                | 381 tests: scripts, serializer, capability table, library tools, diagrams, prototypes, layout, batches, dispatch, HTML images and panel |
+| Where     | Command                                   | Notes                                                                                                                                             |
+| --------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| root      | `bun install`                             | installs Husky's pre-commit hook (Prettier via lint-staged)                                                                                       |
+| root      | `bun run format` / `bun run format:check` | Prettier 3.9.6 over everything                                                                                                                    |
+| root      | `bun scripts/check-version.mjs`           | server + plugin versions agree and have a changelog entry                                                                                         |
+| root      | `bun scripts/dev-slot.mjs [name]`         | in a feature worktree: claim its dev plugin name and port (1995–2019)                                                                             |
+| `server/` | `bun run build`                           | `tsc` → `dist/`; this is the server's type-check                                                                                                  |
+| `server/` | `bun test`                                | 452 tests (2 Windows skips): schemas, transport, file safety, SVG loader, follower round trips, codegen, assets, Code Connect, Mermaid, dashboard |
+| `plugin/` | `bun run typecheck`                       | `tsc --noEmit`; must stay at zero errors                                                                                                          |
+| `plugin/` | `bun run build`                           | typecheck, then two Vite passes: UI, then `main`                                                                                                  |
+| `plugin/` | `bun test`                                | 381 tests: scripts, serializer, capability table, library tools, diagrams, prototypes, layout, batches, dispatch, HTML images and panel           |
 
 Tests live beside the code as `*.test.ts` (excluded from both tsconfigs). CI (`.github/workflows/ci.yml`)
 runs all of the above on every push to every branch.
@@ -55,8 +55,10 @@ server/src/
   index.ts      entry
   port.ts       startup port: FIGMA_DESIGN_RELAY_PORT, else the worktree's dev slot, else 1994
   node.ts       leader/follower router — every tool call goes through node.send / sendWithParams
-  leader.ts     HTTP + WebSocket host     follower.ts  proxies to leader over /rpc
-  bridge.ts     socket registry keyed by fileKey; 180 s per-request timeout
+  leader.ts     HTTP + WebSocket host, and the dashboard     follower.ts  proxies to leader over /rpc
+  bridge.ts     socket registry keyed by fileKey; 180 s per-request timeout; logs every call
+  activity.ts   call log + follower registry the dashboard reads
+  dashboard-http.ts guard, headers and file table for the status page
   election.ts   leader election
   schema.ts     Zod input schemas + the RPC validation layer
   tools.ts      all 64 MCP tool registrations
@@ -70,6 +72,7 @@ server/src/
   mermaid/      parse.ts (the strict Mermaid subset) + layout.ts (positions) for generate_diagram
   search/       search_design_system across open files: select-files.ts, merge.ts, index.ts (fan-out)
   types.ts      shared types; LOOPBACK_HOST lives here
+server/dashboard/ the leader's status page: index.html, render.js (tested), dashboard.js/.css
   agent.ts      cleans the MCP client name that rides on each request to the panel
 server/.smoke/  live harness: probe.mjs (run_script), call.mjs (any tool) — see its README
 plugin/dev-slot.ts        dev slot rules + the dev manifest both Vite configs emit into dist/

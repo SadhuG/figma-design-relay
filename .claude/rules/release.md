@@ -29,8 +29,9 @@ paths:
   true**. It reads the version via `check-version.mjs` and uses the changelog entry as the notes,
   so bump first. A dry run builds and uploads the archive as an artifact with no tag or release;
   use one whenever the workflow changes.
-- The archive carries `plugin/` (self-contained) and `server/` (`dist` + `package.json` +
-  `bun.lock`; the user runs `bun install --production`). README's Quick Start documents that flow —
+- The archive carries `plugin/` (self-contained) and `server/` (`dist` + `dashboard/` + `package.json` +
+  `bun.lock`; the user runs `bun install --production`). The dashboard assets sit beside `dist/`
+  so the leader can serve them. README's Quick Start documents that flow —
   keep them in step.
 
 ## CI

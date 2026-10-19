@@ -18,6 +18,19 @@ with its tag.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-18
+
+### Added
+
+- A read-only relay dashboard at `http://localhost:<port>/`: connected files, recent tool calls
+  and follower processes. The status page follows the relay's dev slot, polls every two seconds,
+  and ships with release archives.
+
+### Fixed
+
+- Malformed dashboard request targets cannot terminate the relay. Each file's last-call time
+  updates as a request is dispatched and survives concurrent completions and activity-log eviction.
+
 ## [0.8.2] - 2026-10-18
 
 Merges upstream `gethopp/figma-mcp-bridge` through v0.0.24 (`2c37e6d`), adapted to the relay's
