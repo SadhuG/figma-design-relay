@@ -1,16 +1,29 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ChevronIcon, CursorIcon, LostIcon, PlaneIcon, SunIcon } from "./icons";
+import {
+  ChevronIcon,
+  CursorIcon,
+  DartsIcon,
+  DiagramIcon,
+  LayersIcon,
+  LostIcon,
+  PlaneIcon,
+  SelectionIcon,
+  SunIcon,
+} from "./icons";
 import {
   ActivityLog,
   CONNECT_TIMEOUT_MS,
+  NoticeBoard,
+  ReadProgressLog,
   agentDisplayName,
   agentTooltip,
   chipState,
-  formatSelection,
   relayAddress,
   relayPort,
   relayRowText,
   retryDelayMs,
+  sameNodes,
+  selectionRowText,
   workingLabel,
   type ChipTone,
 } from "./panel-state";
@@ -68,7 +81,12 @@ type PluginStatus = {
   /** Tells the relay which editor this file is open in, so list_files can say. */
   editorType?: string;
   selectionCount: number;
+  /** The selection's node ids, to tell whether it is still what an agent just read. */
+  selectionIds?: string[];
 };
+
+/** The leader's follower count, pushed to plugins that dial with `relayStatus=1`. */
+type RelayStatus = { type: "relay-status"; followers: number };
 
 // `||` (not `??`) so an empty build-time value falls back to the default.
 // A custom endpoint must also be listed in manifest.json's
@@ -92,15 +110,31 @@ function AppIcon({ size, faded }: { size: number; faded: boolean }) {
   );
 }
 
-function Chip({ tone, text, title }: { tone: ChipTone; text: string; title: string }) {
+/** Live and Connecting show a dot; every other state has a mark of its own. */
+const CHIP_ICONS: Partial<Record<ChipTone, (props: { size: number }) => React.JSX.Element>> = {
+  working: CursorIcon,
+  lost: LostIcon,
+  sent: SelectionIcon,
+  syncing: LayersIcon,
+  diagram: DiagramIcon,
+  leader: DartsIcon,
+};
+
+function Chip({
+  tone,
+  text,
+  title,
+  iconSize,
+}: {
+  tone: ChipTone;
+  text: string;
+  title: string;
+  iconSize: number;
+}) {
+  const Icon = CHIP_ICONS[tone];
   return (
-    <span
-      className={`chip ${tone}${tone === "working" || tone === "lost" ? " has-icon" : ""}`}
-      title={title}
-    >
-      {(tone === "live" || tone === "connecting") && <span className="dot" />}
-      {tone === "working" && <CursorIcon size={14} />}
-      {tone === "lost" && <LostIcon size={14} />}
+    <span className={`chip ${tone}${Icon ? " has-icon" : ""}`} title={title}>
+      {Icon ? <Icon size={iconSize} /> : <span className="dot" />}
       <span className="chip-text">{text}</span>
     </span>
   );
@@ -138,25 +172,48 @@ export default function App() {
   /** Set by the socket effect; Retry now calls it. */
   const connectNow = useRef<(() => void) | null>(null);
   const activity = useRef(new ActivityLog());
+  /** What an agent just read (04) or drew (06). */
+  const notices = useRef(new NoticeBoard());
+  /** Long layer-tree reads and how far they have got (05). */
+  const progress = useRef(new ReadProgressLog());
+  const [followers, setFollowers] = useState(0);
   const [retryInSeconds, setRetryInSeconds] = useState<number | null>(null);
   // Bumped whenever the activity log changes or an entry leaves its window.
   const [activityVersion, setActivityVersion] = useState(0);
   const bumpActivity = () => setActivityVersion((version) => version + 1);
 
-  const agents = activity.current.activeAgents(Date.now());
+  const now = Date.now();
+  const agents = activity.current.activeAgents(now);
+  const notice = notices.current.current(now);
   const chip = chipState({
     connected,
     connecting: !hasFailed,
     port: RELAY_PORT,
     workingLabel: workingLabel(agents.map(agentDisplayName)),
     retryInSeconds,
+    syncingPercent: progress.current.percent(now),
+    notice: notice.diagram ? "diagram" : notice.sent ? "sent" : null,
+    followers,
   });
+  const sentNodes = chip.tone === "sent" ? notice.sent?.nodeIds : undefined;
+  const diagramNodes = chip.tone === "diagram" ? notice.diagram?.nodeIds : undefined;
+  const selectionText = selectionRowText(
+    status.selectionCount,
+    sentNodes !== undefined && sameNodes(sentNodes, status.selectionIds ?? [])
+  );
   const chipTitle = (chip.tone === "working" && agentTooltip(agents)) || WS_BASE_URL;
 
-  // Re-render once when the oldest finished request leaves the working window.
+  // Re-render once when the next timed change is due: a finished request leaving the working
+  // window, a notice expiring, or a long read reaching the point where it shows its progress.
   useEffect(() => {
-    const wait = activity.current.nextExpiry(Date.now());
-    if (wait === null) return;
+    const at = Date.now();
+    const waits = [
+      activity.current.nextExpiry(at),
+      notices.current.nextExpiry(at),
+      progress.current.nextReveal(at),
+    ].filter((left): left is number => left !== null);
+    if (waits.length === 0) return;
+    const wait = Math.min(...waits);
     const timer = window.setTimeout(bumpActivity, wait);
     return () => window.clearTimeout(timer);
   }, [activityVersion]);
@@ -201,12 +258,28 @@ export default function App() {
         return;
       }
 
+      if (msg.type === "read-progress") {
+        progress.current.progress(msg.requestId, msg.percent);
+        bumpActivity();
+        return;
+      }
+
+      if (msg.type === "selection-sent" || msg.type === "diagram-drawn") {
+        const kind = msg.type === "selection-sent" ? "sent" : "diagram";
+        notices.current.record(kind, msg.requestId, msg.nodeIds ?? [], Date.now());
+        bumpActivity();
+        return;
+      }
+
       if (!("requestId" in msg)) {
         return;
       }
 
       // A response on its way back: the request it answers is no longer running.
-      activity.current.finish(msg.requestId, Date.now());
+      const finishedAt = Date.now();
+      activity.current.finish(msg.requestId, finishedAt);
+      notices.current.requestFinished(msg.requestId, finishedAt);
+      progress.current.finish(msg.requestId);
       bumpActivity();
 
       if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
@@ -224,12 +297,30 @@ export default function App() {
     };
   }, []);
 
+  /** Show in canvas zooms to the nodes; Select it selects them too. */
+  const showNodes = (nodeIds: string[], select: boolean) =>
+    parent.postMessage({ pluginMessage: { type: "show-nodes", nodeIds, select } }, "*");
+
   const toggleCollapsed = () => {
     setCollapsed((previous) => {
       const next = !previous;
       parent.postMessage({ pluginMessage: { type: "set-ui-collapsed", collapsed: next } }, "*");
       return next;
     });
+  };
+
+  /**
+   * Forgets every request of the socket that is going away: their responses will never reach the
+   * agent, so neither their working state nor a late Sent, Diagram or progress event may show.
+   * Runs whenever a socket closes or is replaced, including the deliberate replacements below,
+   * which detach the old socket's onclose first.
+   */
+  const forgetRequests = () => {
+    activity.current.clear();
+    notices.current.clear();
+    progress.current.clear();
+    setFollowers(0);
+    bumpActivity();
   };
 
   // Connect/reconnect WebSocket when fileKey changes
@@ -249,8 +340,9 @@ export default function App() {
         previousSocket.onmessage = null;
         previousSocket.close();
       }
+      forgetRequests();
 
-      const wsUrl = `${WS_BASE_URL}?fileKey=${encodeURIComponent(status.fileKey)}&fileName=${encodeURIComponent(status.fileName)}&editorType=${encodeURIComponent(status.editorType ?? "")}`;
+      const wsUrl = `${WS_BASE_URL}?fileKey=${encodeURIComponent(status.fileKey)}&fileName=${encodeURIComponent(status.fileName)}&editorType=${encodeURIComponent(status.editorType ?? "")}&relayStatus=1`;
       const ws = new WebSocket(wsUrl);
       socketRef.current = ws;
 
@@ -275,9 +367,7 @@ export default function App() {
       ws.onclose = () => {
         if (disposed || socketRef.current !== ws) return;
         clearConnectTimer();
-        // Responses to requests still in flight will never arrive.
-        activity.current.clear();
-        bumpActivity();
+        forgetRequests();
         setConnected(false);
         setHasFailed(true);
         if (reconnectTimer.current === null) {
@@ -300,9 +390,16 @@ export default function App() {
 
       ws.onmessage = (event) => {
         if (disposed || socketRef.current !== ws) return;
-        const payload = JSON.parse(event.data) as ServerRequest;
+        const payload = JSON.parse(event.data) as ServerRequest | RelayStatus;
+        if (payload.type === "relay-status") {
+          setFollowers(typeof payload.followers === "number" ? payload.followers : 0);
+          return;
+        }
         const agent = typeof payload.agent === "string" && payload.agent ? payload.agent : null;
-        activity.current.start(payload.requestId, agent, Date.now());
+        const startedAt = Date.now();
+        activity.current.start(payload.requestId, agent, startedAt);
+        notices.current.requestStarted(payload.requestId, startedAt);
+        progress.current.start(payload.requestId, startedAt);
         bumpActivity();
         parent.postMessage({ pluginMessage: { type: "server-request", payload } }, "*");
       };
@@ -314,6 +411,7 @@ export default function App() {
     return () => {
       disposed = true;
       connectNow.current = null;
+      forgetRequests();
       if (reconnectTimer.current !== null) {
         window.clearTimeout(reconnectTimer.current);
         reconnectTimer.current = null;
@@ -356,7 +454,7 @@ export default function App() {
           <AppIcon size={20} faded={lost} />
           <span className="grow" />
           <DevPill />
-          <Chip tone={chip.tone} text={chip.short} title={chipTitle} />
+          <Chip tone={chip.tone} text={chip.short} title={chipTitle} iconSize={12} />
         </div>
       ) : (
         <div className="panel">
@@ -369,7 +467,7 @@ export default function App() {
             </div>
             <div className="row">
               <span className="row-label">Selection</span>
-              <span className="row-value">{formatSelection(status.selectionCount)}</span>
+              <span className="row-value">{selectionText}</span>
             </div>
             <div className="row">
               <span className="row-label">Relay</span>
@@ -379,11 +477,27 @@ export default function App() {
 
           <div className="footer">
             <AppIcon size={16} faded={lost} />
-            <Chip tone={chip.tone} text={chip.text} title={chipTitle} />
+            <Chip tone={chip.tone} text={chip.text} title={chipTitle} iconSize={14} />
             <span className="grow" />
             {lost ? (
               <button type="button" className="button" onClick={retryNow}>
                 Retry now
+              </button>
+            ) : diagramNodes ? (
+              <button
+                type="button"
+                className="button diagram"
+                onClick={() => {
+                  showNodes(diagramNodes, true);
+                  notices.current.dismiss("diagram");
+                  bumpActivity();
+                }}
+              >
+                Select it
+              </button>
+            ) : sentNodes ? (
+              <button type="button" className="button" onClick={() => showNodes(sentNodes, false)}>
+                Show in canvas
               </button>
             ) : DEV_SLOT ? (
               <DevPill />

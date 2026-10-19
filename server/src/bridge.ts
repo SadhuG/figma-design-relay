@@ -19,6 +19,8 @@ interface ConnectionEntry {
   fileName: string;
   editorType?: EditorType;
   isAlive: boolean;
+  /** Dialled with `relayStatus=1`: the plugin understands `relay-status` frames. */
+  wantsStatus: boolean;
   connectedAt: number;
   lastCallAt?: number;
 }
@@ -29,6 +31,7 @@ export class Bridge {
   private pending = new Map<string, PendingRequest>();
   private counter = 0;
   private pingTimer: ReturnType<typeof setInterval> | null = null;
+  private followerCount = 0;
 
   constructor(private activity: ActivityLog = new ActivityLog()) {
     this.wss = new WebSocketServer({ noServer: true });
@@ -58,7 +61,12 @@ export class Bridge {
     }
 
     const url = new URL(request.url, "http://localhost");
-    const { fileKey, fileName = "Unknown", editorType } = Object.fromEntries(url.searchParams);
+    const {
+      fileKey,
+      fileName = "Unknown",
+      editorType,
+      relayStatus,
+    } = Object.fromEntries(url.searchParams);
     const editor = EDITOR_TYPES.find((known) => known === editorType);
 
     if (!fileKey) {
@@ -68,7 +76,7 @@ export class Bridge {
     }
 
     this.wss.handleUpgrade(request, socket, head, (ws) => {
-      this.handleConnection(ws, fileKey, fileName, editor);
+      this.handleConnection(ws, fileKey, fileName, editor, relayStatus === "1");
     });
   }
 
@@ -76,7 +84,8 @@ export class Bridge {
     ws: WebSocket,
     fileKey: string,
     fileName: string,
-    editorType?: EditorType
+    editorType: EditorType | undefined,
+    wantsStatus: boolean
   ): void {
     // Replace existing connection for the same file
     const existing = this.connections.get(fileKey);
@@ -89,9 +98,11 @@ export class Bridge {
       fileName,
       editorType,
       isAlive: true,
+      wantsStatus,
       connectedAt: Date.now(),
     });
     console.error(`Plugin connected: ${fileName} (${fileKey})`);
+    if (wantsStatus) this.sendStatus(ws);
 
     ws.on("pong", () => {
       const entry = this.connections.get(fileKey);
@@ -183,6 +194,20 @@ export class Bridge {
     throw new Error(
       `Multiple files connected. Specify a fileKey to choose which file to query. Connected files: ${files.map((f) => `"${f.fileName}" (fileKey: ${f.fileKey})`).join(", ")}. Use the list_files tool to see all connected files.`
     );
+  }
+
+  /** The leader's follower count changed: tell every plugin that asked. */
+  setFollowerCount(count: number): void {
+    if (count === this.followerCount) return;
+    this.followerCount = count;
+    for (const entry of this.connections.values()) {
+      if (entry.wantsStatus) this.sendStatus(entry.ws);
+    }
+  }
+
+  private sendStatus(ws: WebSocket): void {
+    if (ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: "relay-status", followers: this.followerCount }));
   }
 
   /** Expose this bridge's bounded completed-call history to the leader's status snapshot. */

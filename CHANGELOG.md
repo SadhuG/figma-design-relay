@@ -18,6 +18,24 @@ with its tag.
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-19
+
+The plugin panel's four "Later" states from Board 10, built after the decisions of 2026-10-19
+([plan](docs/superpowers/plans/2026-10-19-panel-later-states/00-overview.md)).
+
+### Added
+
+- **Sent to your agent** (orange): shown after a tool reads your selection (`get_selection`, or `get_design_context` / `get_screenshot` without a node id), once the agent's working state ends, for 10 s. The Selection row reads "3 nodes · sent just now" while the selection is unchanged, and **Show in canvas** zooms to the nodes that were read.
+- **Reading the layer tree… 62%** (purple): real progress for long reads (`get_document`, `get_selection`, `get_node`, `get_design_context`), shown once a read has run half a second. Collapsed: "Syncing 62%".
+- **Diagram drawn on this page** (red, FigJam): shown as soon as `generate_diagram` draws, for 60 s or until the agent makes another call. **Select it** selects the new diagram and zooms to it.
+- **Leader · 2 followers** (blue): followers name themselves on every call and leader check, and the leader pushes the number heard from in the last minute to the panel. With none, the chip stays "Live on port …". Collapsed: "Leader +2".
+
+### Changed
+
+- Long layer-tree reads now pause briefly every 200 ms so Figma can deliver the progress messages and stay responsive; on a 30,000-layer page a read takes about 10% longer.
+- The leader pushes the dashboard's follower count (followers heard from in the last minute) to the panel too.
+- The relay only sends its `relay-status` message to plugins that ask for it (`relayStatus=1`), so older plugins are unaffected.
+
 ## [0.9.0] - 2026-10-18
 
 ### Added

@@ -435,8 +435,15 @@ const lookupStyle = (id: string) =>
  * @param node - The scene node.
  * @returns The design block, or undefined when the node references nothing.
  */
+/** Awaits a checkpoint's pause, if it opened one. */
+const pass = async (checkpoint: SerializeOptions["onNode"]) => {
+  const pause = checkpoint?.();
+  if (pause) await pause;
+};
+
 const serializeDesign = async (
-  node: SceneNode | PageNode
+  node: SceneNode | PageNode,
+  checkpoint: SerializeOptions["onNode"]
 ): Promise<SerializedDesign | undefined> => {
   const raw = node as unknown as Record<string, unknown>;
   const design: SerializedDesign = {};
@@ -448,6 +455,7 @@ const serializeDesign = async (
     const identity = serializeComponentIdentity(node as never);
     if (identity) Object.assign(design, identity);
   }
+  await pass(checkpoint);
 
   const bound = await resolveBoundVariables(
     raw.boundVariables as Record<string, unknown> | undefined,
@@ -455,6 +463,7 @@ const serializeDesign = async (
     lookupCollection
   );
   if (bound) design.boundVariables = bound;
+  await pass(checkpoint);
 
   // Resolved concurrently: a library style that is slow or unreachable then costs
   // one round-trip per node rather than one per style field.
@@ -479,13 +488,27 @@ export interface SerializeOptions {
    * walk is bounded without a second pass. Omit to walk the whole tree.
    */
   maxDepth?: number;
+  /**
+   * Called at each of a node's CHECKPOINTS_PER_NODE checkpoints; the panel's read progress counts
+   * these. A returned promise is awaited, which lets the walk yield to Figma.
+   */
+  onNode?: () => Promise<void> | undefined | void;
 }
+
+/**
+ * Where a walk can yield: on entry, after each of the design lookups (instance identity, bound
+ * variables, styles). A parent starts all its children at once and their lookups resolve
+ * together, so the work after each await runs as one burst across the whole tree unless it can
+ * pause there.
+ */
+export const CHECKPOINTS_PER_NODE = 4;
 
 export const serializeNode = async (
   node: SceneNode | PageNode,
   options: SerializeOptions = {},
   depth = 0
 ): Promise<SerializedNode> => {
+  await pass(options.onNode);
   const raw = node as unknown as Record<string, unknown>;
   const base: SerializedNode = {
     id: node.id,
@@ -495,8 +518,9 @@ export const serializeNode = async (
     styles: serializeStyles(node),
   };
 
-  const design = await serializeDesign(node);
+  const design = await serializeDesign(node, options.onNode);
   if (design) base.design = design;
+  await pass(options.onNode);
 
   const layout = serializeLayoutIntent(raw);
   if (layout) base.layout = layout;

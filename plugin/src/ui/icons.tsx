@@ -92,3 +92,89 @@ export function ChevronIcon({ size, direction }: IconProps & { direction: "up" |
     </svg>
   );
 }
+
+/** 04 Selection sent: the chip's mark. */
+export function SelectionIcon({ size }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <path
+        d="M3.0625 3.0625H10.9375V10.9375H3.0625V3.0625Z"
+        stroke="#1e1e1e"
+        strokeWidth={0.546875}
+      />
+      <path
+        d="M4.15625 1.96875H1.96875V4.15625H4.15625V1.96875Z M12.0312 1.96875H9.84375V4.15625H12.0312V1.96875Z M4.15625 9.84375H1.96875V12.0312H4.15625V9.84375Z M12.0312 9.84375H9.84375V12.0312H12.0312V9.84375Z"
+        fill="white"
+        stroke="#1e1e1e"
+        strokeWidth={0.546875}
+      />
+      <path
+        d="M5.25 8.75L8.75 5.25M8.75 7.875V5.25H6.125"
+        stroke="#ff4f1a"
+        strokeWidth={0.875}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** 05 Syncing layers: the chip's mark. */
+export function LayersIcon({ size }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <path
+        opacity={0.4}
+        d="M7 12.25L1.75 9.625L7 7L12.25 9.625L7 12.25Z"
+        stroke="#1e1e1e"
+        strokeWidth={0.765625}
+        strokeLinejoin="round"
+      />
+      <path
+        opacity={0.7}
+        d="M7 9.84375L1.75 7.21875L7 4.59375L12.25 7.21875L7 9.84375Z"
+        stroke="#1e1e1e"
+        strokeWidth={0.765625}
+        strokeLinejoin="round"
+      />
+      <path
+        d="M7 7L1.75 4.375L7 1.75L12.25 4.375L7 7Z"
+        stroke="#7c5cff"
+        strokeWidth={0.765625}
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** 06 Diagram drawn: the chip's mark. */
+export function DiagramIcon({ size }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <path
+        d="M2.625 8.75C3.5915 8.75 4.375 7.9665 4.375 7C4.375 6.0335 3.5915 5.25 2.625 5.25C1.6585 5.25 0.875 6.0335 0.875 7C0.875 7.9665 1.6585 8.75 2.625 8.75Z"
+        fill="#1e1e1e"
+      />
+      <path opacity={0.55} d="M5.25 8.75L7 5.25L8.75 8.75H5.25Z" fill="#1e1e1e" />
+      <path d="M13.125 5.25H9.625V8.75H13.125V5.25Z" fill="#d62828" />
+    </svg>
+  );
+}
+
+/** 08 Leader and followers: the chip's mark. */
+export function DartsIcon({ size }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <path d="M7 0.875L9.625 4.375L7 3.28125L4.375 4.375L7 0.875Z" fill="#3d5afe" />
+      <path
+        d="M3.9375 5.25L6.5625 8.75L3.9375 7.65625L1.3125 8.75L3.9375 5.25ZM10.0625 5.25L12.6875 8.75L10.0625 7.65625L7.4375 8.75L10.0625 5.25Z"
+        fill="#1e1e1e"
+      />
+      <path
+        opacity={0.45}
+        d="M7 9.625L9.625 13.125L7 12.0312L4.375 13.125L7 9.625Z"
+        fill="#1e1e1e"
+      />
+    </svg>
+  );
+}
