@@ -30,8 +30,8 @@ Closes the P2 from the GPT-6.1-Sol promotion review, round 2, of
 The panel's connect effect depends on `status.fileKey`, `status.fileName` and
 `status.editorType`, so a new file name replaces the socket through the effect cleanup and a
 fresh `connect()`. These are the two deliberate paths `0e79d29` covers. A plugin cannot rename
-the file: `figma.root.name = …` is silently ignored. The main thread also posts `plugin-status`
-only on a selection change. So:
+the file: `figma.root.name = …` is silently ignored. A file rename does not itself trigger a
+status update; changing the selection triggers `sendStatus()` with the new name. So:
 
 1. The file was renamed in Figma's UI (double-click the name in the left sidebar, type, Enter).
    The panel is not told yet.
