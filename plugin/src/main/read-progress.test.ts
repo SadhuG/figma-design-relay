@@ -114,6 +114,23 @@ describe("progressReporter", () => {
       await flush();
       expect(through).toBe(MIN_BATCH * 2);
     });
+    test("a pause opened because a batch ran out doesn't post inside the interval", async () => {
+      const { tick, at, waits, posted } = setup();
+      at(200);
+      let through = 0;
+      for (let i = 0; i < MIN_BATCH * 3; i++) tick()?.then(() => through++);
+      waits[0]();
+      await flush();
+      // The batch ran out at 5% and opened a second pause in the same millisecond.
+      expect(waits).toHaveLength(2);
+      expect(posted).toEqual([0]);
+      waits[1]();
+      await flush();
+      expect(through).toBe(MIN_BATCH * 3);
+      at(400);
+      tick();
+      expect(posted).toEqual([0, 15]);
+    });
     test("the batch grows to what the last cycle managed in an interval", async () => {
       const { tick, at, waits } = setup();
       for (let i = 0; i < 500; i++) tick();

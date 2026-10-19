@@ -198,14 +198,19 @@ type Held = { notice: Notice; expiresAt: number | null };
 
 /**
  * What the agent just read or drew, from the main thread's `selection-sent` and `diagram-drawn`
- * messages. One notice per kind; a new one replaces the old.
+ * messages. One notice per kind; a new one replaces the old. Only requests seen starting on the
+ * current socket count: when it closes, a request still running in the main thread sends its
+ * event and response late, and the agent never gets that answer.
  */
 export class NoticeBoard {
   private held: Record<NoticeKind, Held | null> = { sent: null, diagram: null };
+  /** Requests started on the current socket and not finished yet. */
+  private running = new Set<string>();
   /** Recent finishes, so an event that arrives after its own response still gets its clock. */
   private finished = new Map<string, number>();
 
   record(kind: NoticeKind, requestId: string, nodeIds: string[], now: number): void {
+    if (!this.running.has(requestId) && !this.finished.has(requestId)) return;
     const notice = { kind, requestId, nodeIds };
     if (kind === "diagram") {
       this.held.diagram = { notice, expiresAt: now + DIAGRAM_WINDOW_MS };
@@ -220,6 +225,7 @@ export class NoticeBoard {
 
   /** Any other request starting means the agent has moved on from the diagram. */
   requestStarted(requestId: string, _now: number): void {
+    this.running.add(requestId);
     if (this.held.diagram && this.held.diagram.notice.requestId !== requestId) {
       this.held.diagram = null;
     }
@@ -227,6 +233,7 @@ export class NoticeBoard {
 
   /** Sent lasts until the working state that follows the latest finish has ended, plus its window. */
   requestFinished(requestId: string, now: number): void {
+    if (!this.running.delete(requestId)) return;
     this.finished.set(requestId, now);
     for (const [id, at] of this.finished) {
       if (now - at > DIAGRAM_WINDOW_MS) this.finished.delete(id);
@@ -245,6 +252,7 @@ export class NoticeBoard {
   /** The socket closed. */
   clear(): void {
     this.held = { sent: null, diagram: null };
+    this.running.clear();
     this.finished.clear();
   }
 

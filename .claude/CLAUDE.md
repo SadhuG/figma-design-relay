@@ -43,7 +43,7 @@ This file holds only what applies to every task. The rest loads when it is relev
 | `server/` | `bun test`                                | 425 tests (2 Windows skips): schemas, transport, file safety, SVG loader, follower round trips and count, codegen, assets, Code Connect, Mermaid       |
 | `plugin/` | `bun run typecheck`                       | `tsc --noEmit`; must stay at zero errors                                                                                                               |
 | `plugin/` | `bun run build`                           | typecheck, then two Vite passes: UI, then `main`                                                                                                       |
-| `plugin/` | `bun test`                                | 448 tests: scripts, serializer, read progress, capability table, library tools, diagrams, prototypes, layout, batches, dispatch, HTML images and panel |
+| `plugin/` | `bun test`                                | 451 tests: scripts, serializer, read progress, capability table, library tools, diagrams, prototypes, layout, batches, dispatch, HTML images and panel |
 
 Tests live beside the code as `*.test.ts` (excluded from both tsconfigs). CI (`.github/workflows/ci.yml`)
 runs all of the above on every push to every branch.

@@ -29,10 +29,11 @@ export const MIN_BATCH = 50;
 
 /**
  * Returns a tick to call at each serializer checkpoint (a step). A step counts as done once it is
- * let through. Every interval the reporter posts the percent done (when that changed) and opens a
- * pause: ticks then return a promise the step must await before doing its work, which lets the
- * main thread yield so Figma can deliver the message. A walk of resolved promises never yields by
- * itself, and its messages would otherwise all arrive with the response.
+ * let through. Every interval the reporter posts the percent done (when that changed, and never
+ * more than once per interval) and opens a pause: ticks then return a promise the step must await
+ * before doing its work, which lets the main thread yield so Figma can deliver the message. A walk
+ * of resolved promises never yields by itself, and its messages would otherwise all arrive with
+ * the response.
  *
  * Steps parked on a pause resume together, before any of them has done its work, so a clock
  * can't tell when to stop them. Instead each pause lets through a batch: as many steps as the
@@ -48,6 +49,8 @@ export function progressReporter(
   let done = 0;
   let lastPercent = -1;
   let cycleStart = now();
+  /** Posts keep their own clock: a pause can open early, when a batch runs out. */
+  let lastPostAt = cycleStart;
   let admitted = 0;
   let budget = Infinity;
   let pause: Promise<void> | null = null;
@@ -55,8 +58,10 @@ export function progressReporter(
   const mustPause = () => total > 0 && (budget <= 0 || now() - cycleStart >= PROGRESS_INTERVAL_MS);
   const checkpoint = () => {
     const percent = Math.min(100, Math.floor((done / total) * 100));
-    if (percent !== lastPercent) {
+    const at = now();
+    if (percent !== lastPercent && at - lastPostAt >= PROGRESS_INTERVAL_MS) {
       lastPercent = percent;
+      lastPostAt = at;
       post(percent);
     }
     let end = () => {};
