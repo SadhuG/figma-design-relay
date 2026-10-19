@@ -1,8 +1,8 @@
 # Relay dashboard verification — 2026-10-18–19
 
 Status: **all eight required live cases passed.** Final evidence review and the GitHub release
-workflow dry run remain before opening the PR. FigJam relaunch was requested from the user after
-the deliberate disconnect check; restoration has not yet been observed.
+workflow dry run remain before opening the PR. After the deliberate disconnect check, user
+relaunch restored FigJam; status, MCP `list_files` and the live DOM confirm all three editors.
 
 ## Candidate and setup
 
@@ -28,7 +28,7 @@ plugin in Design, FigJam and Slides. The browser was opened through T3 `preview_
 | 2. Local call         | Passed: original holder's `get_selection` appeared as **This relay**, **OK**, **8 ms**. Its attempted `get_node` used the obsolete `nodeIds` MCP argument and failed validation, so that attempt is not counted as a plugin error.                                                                                                                                                                                                                |
 | 3. Follower node call | Passed: follower **13164** sent MCP `get_node` with `nodeId: "6:5440"` and the Design file key. It returned the requested **6:5440**, **Board 6**, **TEXT**, `isError: false`. The dashboard DOM showed its **Follower 13164**, **23 ms**, **OK** row and process **13164** with **9** calls. `get_selection` also succeeded in all three editors.                                                                                                |
 | 4. Failure filtering  | Passed: real plugin errors said **Node not found: 999999:1**. Clicking **Only failed calls** left exactly three failed rows and zero OK rows. [Filter screenshot](assets/relay-dashboard-2026-10-19/failed-filter.png).                                                                                                                                                                                                                           |
-| 5. FigJam close       | Passed: targeted `run_script` in FigJam file `unsaved-mverd7jw-l4ocpz7f` scheduled `figma.closePlugin()` after 300 ms. The next status had only Design and Slides. The live dashboard DOM then reported `figjamPresent: false`, displaying only Design and Slides cards. User relaunch was requested afterward.                                                                                                                                   |
+| 5. FigJam close       | Passed: targeted `run_script` in FigJam file `unsaved-mverd7jw-l4ocpz7f` scheduled `figma.closePlugin()` after 300 ms. The next status had only Design and Slides. The live dashboard DOM then reported `figjamPresent: false`, displaying only Design and Slides cards. User relaunch was verified afterward in both MCP list_files and the live DOM (new key `unsaved-mverlxw5-d10oar8o`).                                                      |
 | 6. Relay handover     | Passed: stopped only verified dashboard owner 7788 and child leader 2640. The offline banner appeared. New hidden holder **37380**, child leader **10032**, took port 1996 and the same browser page recovered. `performance.timeOrigin` stayed **1792357018201.4** and navigation count stayed **1**, proving no reload. [Offline](assets/relay-dashboard-2026-10-19/offline.png), [recovered](assets/relay-dashboard-2026-10-19/recovered.png). |
 | 7. Host guard         | Passed: `curl.exe` to live `/api/status` with `Host: evil.example` returned **403**. The Node 24.20.0 malformed-target harness also passed after the tree-neutral main merge.                                                                                                                                                                                                                                                                     |
 | 8. Tool shape         | Passed: MCP `list_files` returned only `fileKey`, `fileName`, `editorType` for each file; neither `connectedAt` nor `lastCallAt` leaked into that tool's response.                                                                                                                                                                                                                                                                                |
@@ -37,7 +37,8 @@ plugin in Design, FigJam and Slides. The browser was opened through T3 `preview_
 
 The user recovered the earlier native manifest-picker/plugin-environment problem and relaunched
 the Dev plugin in all three editors. Holder 37380 / leader 10032 remains on 1996. After the targeted
-FigJam close, Design and Slides remain connected; user FigJam relaunch was requested. No design
+FigJam close, the user relaunched it under new key `unsaved-mverlxw5-d10oar8o`. The live DOM showed
+`figjamPresent: true`, all three editor cards and the default unchecked failed-only filter. No design
 nodes were created, changed or deleted; no blind keyboard input was performed. Temporary follower
 clients 12576 and 13164 and their verified probe parents were stopped after verification. The
 original untracked `server/.smoke/dashboard-live.mjs` is preserved unchanged; corrected probes are
