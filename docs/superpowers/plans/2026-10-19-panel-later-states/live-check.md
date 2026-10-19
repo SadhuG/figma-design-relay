@@ -43,3 +43,19 @@ responsive.
 **Test artefact, not a defect:** zoom keystrokes sent while the first diagram was still selected
 turned its labels struck-through; a freshly drawn diagram had `textDecoration: NONE`. All test
 diagrams were deleted afterwards.
+
+## Recheck after review round 1
+
+Round 1's fixes (`d5e2fd0`) changed the plugin only: `NoticeBoard` now ignores events from
+requests that didn't start on the current socket, and progress posts keep their own 200 ms clock.
+The plugin was rebuilt from `d5e2fd0` and launched in the design file (by name, from Figma's
+Actions menu: another session's Dev plugin was "last plugin" by then).
+
+| Case                                  | Result                                                                |
+| ------------------------------------- | --------------------------------------------------------------------- |
+| `get_selection` with 3 nodes selected | Pass: "Sent to your agent", "3 nodes · sent just now", Show in canvas |
+| `get_document` on a 30,300-layer page | Pass: "Reading the layer tree… 7%" climbing; page deleted afterwards  |
+| Follower probe                        | Pass: "Leader · 1 follower"                                           |
+
+The late-event case itself (socket closed mid-request) is covered by unit tests: it needs the
+relay killed while the main thread is still serializing, which the harness can't time reliably.
