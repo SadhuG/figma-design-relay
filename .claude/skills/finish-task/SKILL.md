@@ -108,13 +108,15 @@ admin/bypass options. Use GitHub merge commits, not squash or rebase, to preserv
 3. Fetch again before merging. If the head or target changed, review the resulting diff and
    repeat affected verification, including live checks when applicable. Merge the PR through
    GitHub only when CLAUDE.md's PR gate passes.
-4. Open (or update) the `dev` → `main` GitHub PR and **stop: the user merges it.** Put the
-   feature's review record and live-check results in its description so the user can judge it.
+4. Open (or update) the `dev` → `main` GitHub PR. Apply the PR gate to its actual latest diff:
+   an independent GPT-6.1-Sol review round of that diff, CodeRabbit's review when configured, and
+   the required checks. Put that review record and the live-check results in its description, then
+   **stop: the user merges it.**
 5. Update local checkouts with `git pull --ff-only` after a remote PR merges. The branches may
-   have different merge commit SHAs; do not push to make their tips identical. Tagging a version
-   happens after the user has merged `dev` → `main`; tag the merged `origin/main` commit and push
-   that tag **by name** only. Never tag or release a candidate that has not passed the `main` PR
-   gate.
+   have different merge commit SHAs; do not push to make their tips identical. Tag only if this
+   task bumped the version: after the user has merged `dev` → `main`, tag the merged `origin/main`
+   commit and push that tag **by name** only. Never tag or release a candidate that has not
+   passed the `main` PR gate.
 
 If any gate cannot pass, leave the PR open and report the blocker. Do not replace a missing PR or
 review with a local merge, test results, a tag, or permission inferred from the task request.
