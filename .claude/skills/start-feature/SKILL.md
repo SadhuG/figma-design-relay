@@ -54,11 +54,11 @@ branch minus its `feat/`-style prefix; the port is the lowest one no other workt
 
 Everything for the task — code, tests, `server/.smoke/` probes — runs inside the worktree. The smoke
 harness reads the slot too, so `node .smoke/call.mjs …` hits the dev relay, not the stable one.
-Follow CLAUDE.md's workflow as usual; `finish-task` merges from here.
+Follow CLAUDE.md's workflow as usual; `finish-task` lands the branch in `dev` from here.
 
 ## 4. Tear down after the merge
 
-Once `finish-task` has merged the branch into `main`:
+Once the branch is in `dev` and the user has merged the `dev` → `main` PR that `finish-task` opened:
 
 1. Remove the Dev plugin from Figma's Development menu, and its entry from the MCP client config.
 2. From the main checkout, after `git pull`: `git worktree remove ../figma-design-relay-<feature>`
