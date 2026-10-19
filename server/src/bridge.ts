@@ -185,11 +185,12 @@ export class Bridge {
     );
   }
 
+  /** Expose this bridge's bounded completed-call history to the leader's status snapshot. */
   getActivity(): ActivityLog {
     return this.activity;
   }
 
-  /** list_files plus when each file connected — for the dashboard, not the tool. */
+  /** Return connection and latest-dispatch times for dashboard cards, without changing list_files. */
   describeConnections(): Array<ConnectedFile & { connectedAt: number; lastCallAt?: number }> {
     return [...this.connections.values()].map((entry) => ({
       fileKey: entry.fileKey,
@@ -200,6 +201,7 @@ export class Bridge {
     }));
   }
 
+  /** Return public file identities and editor types, omitting dashboard timing fields. */
   listConnectedFiles(): ConnectedFile[] {
     return [...this.connections.values()].map((entry) => ({
       fileKey: entry.fileKey,
@@ -208,10 +210,15 @@ export class Bridge {
     }));
   }
 
+  /** Send a local request without params or an agent label, using the normal activity tracking. */
   send(requestType: string, nodeIds?: string[], fileKey?: string): Promise<BridgeResponse> {
     return this.sendWithParams(requestType, nodeIds, undefined, fileKey);
   }
 
+  /**
+   * Dispatch to the selected file and record one outcome, including timeout or disconnect errors.
+   * Agent labels travel to the plugin; origin metadata stays in the leader's activity history.
+   */
   sendWithParams(
     requestType: string,
     nodeIds?: string[],

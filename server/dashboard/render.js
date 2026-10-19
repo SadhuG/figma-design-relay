@@ -5,23 +5,24 @@
 const EDITOR_LABELS = { figma: "Design", figjam: "FigJam", slides: "Slides", dev: "Dev Mode" };
 const ENTITIES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 
-/** @param {unknown} value */
+/** Convert a value to text and escape the five HTML metacharacters. @param {unknown} value */
 export function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, (ch) => ENTITIES[ch]);
 }
 
-/** @param {string | undefined} editorType */
+/** Name a known editor, falling back to "Unknown editor". @param {string | undefined} editorType */
 export function editorLabel(editorType) {
   return Object.hasOwn(EDITOR_LABELS, String(editorType))
     ? EDITOR_LABELS[editorType]
     : "Unknown editor";
 }
 
-/** @param {number} ms */
+/** Format elapsed milliseconds as milliseconds or one-decimal seconds. @param {number} ms */
 export function formatDuration(ms) {
   return ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)} s`;
 }
 
+/** Pad a clock component to at least two digits. @param {number} n */
 const pad = (n) => String(n).padStart(2, "0");
 
 /** Local wall-clock time, HH:MM:SS. @param {number} epochMs */
@@ -30,7 +31,11 @@ export function formatClock(epochMs) {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
-/** @param {number} thenMs @param {number} nowMs */
+/**
+ * Describe elapsed time against the leader's clock, clamping future timestamps to "just now".
+ * @param {number} thenMs
+ * @param {number} nowMs
+ */
 export function relativeTime(thenMs, nowMs) {
   const seconds = Math.max(0, Math.round((nowMs - thenMs) / 1000));
   if (seconds < 5) return "just now";
@@ -40,11 +45,13 @@ export function relativeTime(thenMs, nowMs) {
   return `${Math.floor(minutes / 60)}h ago`;
 }
 
+/** Render version, port, leader process and local start time from a status snapshot. */
 export function renderHeader(status) {
   return `<h1>Figma Design Relay</h1>
 <p class="meta">v${escapeHtml(status.version)} · port ${escapeHtml(status.port)} · leader process ${escapeHtml(status.pid)}, running since ${formatClock(status.startedAt)}</p>`;
 }
 
+/** Render connected-file cards with dispatch timestamps, or instructions for connecting a file. */
 export function renderFiles(status) {
   if (status.files.length === 0) {
     return `<p class="empty">No Figma files connected. In Figma, open a file and run <strong>Plugins → Development → Figma Design Relay</strong>. The plugin must dial port ${escapeHtml(status.port)}.</p>`;
@@ -63,6 +70,7 @@ export function renderFiles(status) {
   return `<ul class="cards">${cards.join("")}</ul>`;
 }
 
+/** Render active follower labels, last-seen ages and RPC counts, or the no-followers explanation. */
 export function renderFollowers(status) {
   if (status.followers.length === 0) {
     return `<p class="empty">No other relay processes. Each AI tool session starts one; the extras join this one as followers and send their calls through it.</p>`;
@@ -74,12 +82,14 @@ export function renderFollowers(status) {
   return `<table><thead><tr><th>Process</th><th>Last seen</th><th>Tool calls</th></tr></thead><tbody>${rows.join("")}</tbody></table>`;
 }
 
+/** Render a call's local/follower attribution, escaping the untrusted process label. */
 function originLabel(origin) {
   return origin.kind === "follower"
     ? `Follower ${escapeHtml(origin.instance ?? "unknown")}`
     : "This relay";
 }
 
+/** Render settled calls in snapshot order, optionally retaining failures only, with an empty state. */
 export function renderActivity(status, { errorsOnly = false } = {}) {
   const entries = errorsOnly ? status.activity.filter((e) => !e.ok) : status.activity;
   if (entries.length === 0) {

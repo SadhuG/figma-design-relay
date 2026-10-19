@@ -116,3 +116,16 @@ Independent review approved the full candidate through `ad1b0ba`, the documentat
 main merge is tree-neutral. Subsequent final live evidence and restoration updates through
 `5c379e9` were independently approved. This release evidence update still needs independent
 review; PR review, CodeRabbit and required checks remain before merging.
+
+## Comment-only review follow-up
+
+CodeRabbit's review of `7dad854` reported no actionable code findings, but its docstring check
+reported 45% coverage against an 80% threshold. The follow-up adds concise JSDoc contracts to the
+activity, request-guard, rendering, polling and transport helpers. No executable statements changed.
+Comment-free TypeScript emit and syntax-tree comparisons against `7dad854` matched for all eight
+changed production TS/JS files; server `tsc --noEmit` and root formatting checks passed.
+
+This comment-only update preserves the runtime behavior exercised by the `1878eee` live checks and
+release dry run 39200711903. The build hashes above identify those original tested bytes; they are
+not claimed as hashes of the added comments. No plugin rebuild, relay restart or live retest was
+performed. Independent review and CodeRabbit recalculation of this follow-up remain pending.

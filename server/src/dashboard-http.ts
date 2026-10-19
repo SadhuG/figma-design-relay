@@ -41,6 +41,7 @@ const FOREIGN_SITE = "The relay dashboard does not answer requests from other we
  * Why a dashboard request is refused, or null to serve it. The page is
  * read-only but names the files open in Figma, so no other site may read it —
  * including through DNS rebinding, where the browser sends the attacker's Host.
+ * Host and Origin checks apply to every route; fetch-site restrictions apply only to status JSON.
  */
 export function refuseDashboardRequest(
   headers: http.IncomingHttpHeaders,

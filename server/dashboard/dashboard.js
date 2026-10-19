@@ -1,9 +1,11 @@
 import { renderActivity, renderFiles, renderFollowers, renderHeader } from "./render.js";
 
 const POLL_MS = 2_000;
+/** Find a control or output region defined by the dashboard's static HTML shell. */
 const byId = (id) => document.getElementById(id);
 let latest = null;
 
+/** Render the latest successful snapshot using the current failed-call filter. */
 function draw() {
   const errorsOnly = byId("errors-only").checked;
   byId("header").innerHTML = renderHeader(latest);
@@ -12,8 +14,10 @@ function draw() {
   byId("followers").innerHTML = renderFollowers(latest);
 }
 
-// The leader can stop or hand over to another process on the same port; keep
-// polling, and let the banner say so until someone answers again.
+/**
+ * Fetch one uncached snapshot and schedule the next attempt after it settles.
+ * Preserve the last view on failure; clear the offline banner when any leader answers again.
+ */
 async function poll() {
   try {
     const res = await fetch("/api/status", { cache: "no-store" });

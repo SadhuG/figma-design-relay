@@ -35,20 +35,26 @@ export const INSTANCE_ID = String(process.pid);
 
 const INSTANCE_PATTERN = /^\d{1,10}$/;
 
+/** Accept one numeric process label of at most ten digits; ignore missing or malformed headers. */
 export function readInstance(header: string | string[] | undefined): string | null {
   return typeof header === "string" && INSTANCE_PATTERN.test(header) ? header : null;
 }
 
+/** Bounded history of settled calls, excluding arguments and results. */
 export class ActivityLog {
   private entries: ActivityEntry[] = [];
   private nextId = 1;
 
+  /** Configure retained entry count and the clock used for start times and durations. */
   constructor(
     private limit: number = ACTIVITY_LIMIT,
     private now: () => number = Date.now
   ) {}
 
-  /** Call as the request leaves; call the returned function once it settles. */
+  /**
+   * Capture dispatch time and file identity; return an idempotent completion callback.
+   * Omitting its error records success; supplying one records a truncated failure message.
+   */
   start(
     tool: string,
     origin: CallOrigin,
@@ -78,17 +84,20 @@ export class ActivityLog {
     };
   }
 
-  /** Newest first. */
+  /** Return a new array of retained entries, most recently completed first. */
   recent(): ActivityEntry[] {
     return [...this.entries].reverse();
   }
 }
 
+/** Process labels heard from recently enough to appear in the dashboard. */
 export class FollowerRegistry {
   private seen = new Map<string, FollowerSeen>();
 
+  /** Use the supplied epoch-millisecond clock for refresh and expiry. */
   constructor(private now: () => number = Date.now) {}
 
+  /** Refresh a known label and count RPC requests; ignore unidentified processes. */
   touch(instance: string | null, isCall: boolean): void {
     if (instance === null) return;
     const entry = this.seen.get(instance) ?? { instance, lastSeen: 0, calls: 0 };
@@ -97,7 +106,7 @@ export class FollowerRegistry {
     this.seen.set(instance, entry);
   }
 
-  /** Followers heard from in the last minute, most recent first. */
+  /** Expire stale labels and return copies of active entries, most recently heard first. */
   active(): FollowerSeen[] {
     const cutoff = this.now() - FOLLOWER_STALE_MS;
     for (const [instance, entry] of this.seen) {

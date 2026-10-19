@@ -41,10 +41,12 @@ export class Leader {
     this.bridge = new Bridge();
   }
 
+  /** Return the socket bridge used by local tool calls and dashboard activity reads. */
   getBridge(): Bridge {
     return this.bridge;
   }
 
+  /** Return the registry refreshed by identified follower RPC and heartbeat requests. */
   getFollowers(): FollowerRegistry {
     return this.followers;
   }
@@ -55,6 +57,7 @@ export class Leader {
     return typeof address === "string" ? null : address;
   }
 
+  /** Bind the loopback HTTP/WebSocket listener; resolve when listening or reject on startup failure. */
   start(): Promise<void> {
     return new Promise((resolve, reject) => {
       const server = http.createServer((req, res) => {
@@ -143,6 +146,7 @@ export class Leader {
     });
   }
 
+  /** Validate a follower RPC, attribute its origin and forward its call or return a protocol error. */
   private handleRPC(req: http.IncomingMessage, res: http.ServerResponse): void {
     const instance = readInstance(req.headers[INSTANCE_HEADER]);
     this.followers.touch(instance, true);
@@ -219,7 +223,7 @@ export class Leader {
     });
   }
 
-  /** What the dashboard shows. Read-only: nothing here reaches the plugin. */
+  /** Snapshot connection, call and active-follower state without dispatching any plugin request. */
   status(): RelayStatus {
     return {
       version: VERSION,
@@ -233,6 +237,7 @@ export class Leader {
     };
   }
 
+  /** Serve an allowlisted page asset or status JSON after Host, Origin and API fetch-site checks. */
   private async serveDashboard(
     pathname: string,
     req: http.IncomingMessage,

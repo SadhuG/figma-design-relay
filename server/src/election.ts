@@ -78,6 +78,7 @@ export class Election {
     // If ping fails too, next tick will retry
   }
 
+  /** Probe leader health within two seconds while refreshing this process's follower label. */
   private async pingLeader(): Promise<boolean> {
     try {
       const response = await fetch(`${this.leaderUrl}/ping`, {
