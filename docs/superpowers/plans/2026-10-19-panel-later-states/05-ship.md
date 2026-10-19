@@ -25,14 +25,17 @@
       review is a GPT-6.1-Sol agent through T3 `delegate_task` (`codex`, `gpt-6.1-sol`), re-run
       until satisfied; the agent merges feature → `dev` and opens `dev` → `main` for the user.
 - [x] **4. finish-task:** refresh CLAUDE.md facts (test counts, layout: `followers.ts`,
-      `read-progress.ts`), bump to **0.10.0** (0.9.0 went to the relay dashboard, which reached `dev` first) with a CHANGELOG entry, `bun scripts/check-version.mjs`,
-      format, all tests and builds.
-- [ ] **5. Review:** GPT-6.1-Sol on the full branch diff against `origin/dev`; fix, re-verify,
-      re-review until satisfied. Rerun affected live checks if the plugin or server changed.
-- [ ] **6. PR** feature → `dev` with the review rounds and live-check record; CodeRabbit review and
-      CI green; merge (merge commit). Open or update `dev` → `main` and give it its own gate on its
-      actual diff (a GPT-6.1-Sol round, CodeRabbit, required checks) before handing it to the user.
-      Update overview statuses.
+      `read-progress.ts`), bump to **0.10.0** (0.9.0 went to the relay dashboard, which reached
+      `dev` first) with a CHANGELOG entry, `bun scripts/check-version.mjs`, format, all tests and
+      builds.
+- [x] **5. Review:** GPT-6.1-Sol on the full branch diff against `origin/dev`; fix, re-verify,
+      re-review until satisfied. Rerun affected live checks if the plugin or server changed. Six
+      rounds; final approval at `27ee482` (record in PR #22).
+- [x] **6. PR** feature → `dev` with the review rounds and live-check record; CodeRabbit review and
+      CI green; merge (merge commit). Done: PR #22 merged as `996db70`.
+- [ ] **7. Promotion.** `dev` → `main` (PR #23, shared with the relay dashboard) gets its own gate
+      on its actual diff: a GPT-6.1-Sol round (passed at `996db70`), CodeRabbit and required
+      checks. The user merges it. Then mark phase 5 done in the overview.
 
 ## Acceptance
 
