@@ -44,6 +44,7 @@ None. Run `start-feature` first (slug `relay-dashboard`); all commands run from 
 
 - Produces: `CallOrigin`, `ActivityEntry`, `FollowerSeen` (shapes in the overview);
   `ACTIVITY_LIMIT = 200`; `ERROR_TEXT_LIMIT = 300`; `FOLLOWER_STALE_MS = 60_000`;
+  `FOLLOWER_LIMIT = 256`;
   `INSTANCE_HEADER = "x-relay-instance"`; `INSTANCE_ID: string` (this process's pid);
   `readInstance(header: string | string[] | undefined): string | null`;
   `class ActivityLog { constructor(limit?: number, now?: () => number); start(tool: string, origin: CallOrigin, file: { fileKey: string; fileName: string } | null): (error?: string) => void; recent(): ActivityEntry[] }`;
@@ -128,6 +129,39 @@ describe("ActivityLog", () => {
 });
 
 describe("FollowerRegistry", () => {
+  test("bounds distinct follower observations without dashboard reads", () => {
+    const c = clock();
+    const registry = new FollowerRegistry(c.now);
+    for (let i = 0; i < 300; i++) registry.touch(String(i), false);
+    const active = registry.active();
+    expect(active).toHaveLength(256);
+    expect(active.some((entry) => entry.instance === "0")).toBe(false);
+    expect(active.some((entry) => entry.instance === "299")).toBe(true);
+  });
+
+  test("expires a stale returning follower on observation without a prior snapshot", () => {
+    const c = clock();
+    const registry = new FollowerRegistry(c.now);
+    registry.touch("4242", true);
+    c.advance(FOLLOWER_STALE_MS + 1);
+    registry.touch("4242", false);
+    expect(registry.active()).toEqual([{ instance: "4242", lastSeen: c.now(), calls: 0 }]);
+  });
+
+  test("evicts the least recently observed label and preserves refreshed call counts", () => {
+    const c = clock();
+    const registry = new FollowerRegistry(c.now);
+    for (let i = 0; i < 256; i++) registry.touch(String(i), true);
+    c.advance(1);
+    registry.touch("0", true);
+    registry.touch("256", false);
+    const active = registry.active();
+    expect(active).toHaveLength(256);
+    expect(active.find((entry) => entry.instance === "0")?.calls).toBe(2);
+    expect(active.some((entry) => entry.instance === "1")).toBe(false);
+    expect(active.some((entry) => entry.instance === "256")).toBe(true);
+  });
+
   test("counts calls and forgets followers silent for a minute", () => {
     const c = clock();
     const registry = new FollowerRegistry(c.now);
@@ -199,6 +233,7 @@ export interface FollowerSeen {
 export const ACTIVITY_LIMIT = 200;
 export const ERROR_TEXT_LIMIT = 300;
 export const FOLLOWER_STALE_MS = 60_000;
+export const FOLLOWER_LIMIT = 256;
 
 /** Followers and the election name their process on every request to the leader. */
 export const INSTANCE_HEADER = "x-relay-instance";
@@ -260,20 +295,33 @@ export class FollowerRegistry {
 
   constructor(private now: () => number = Date.now) {}
 
+  /** Expire stale telemetry on every observation, then refresh a label and count RPC requests. */
   touch(instance: string | null, isCall: boolean): void {
+    const now = this.now();
+    this.prune(now);
     if (instance === null) return;
     const entry = this.seen.get(instance) ?? { instance, lastSeen: 0, calls: 0 };
-    entry.lastSeen = this.now();
+    entry.lastSeen = now;
     if (isCall) entry.calls++;
+    // Map insertion order tracks observations, including ties in the clock.
+    this.seen.delete(instance);
     this.seen.set(instance, entry);
+    if (this.seen.size > FOLLOWER_LIMIT) {
+      this.seen.delete(this.seen.keys().next().value!);
+    }
+  }
+
+  /** Remove expired labels without requiring a dashboard snapshot or a background timer. */
+  private prune(now: number): void {
+    const cutoff = now - FOLLOWER_STALE_MS;
+    for (const [instance, entry] of this.seen) {
+      if (entry.lastSeen < cutoff) this.seen.delete(instance);
+    }
   }
 
   /** Followers heard from in the last minute, most recent first. */
   active(): FollowerSeen[] {
-    const cutoff = this.now() - FOLLOWER_STALE_MS;
-    for (const [instance, entry] of this.seen) {
-      if (entry.lastSeen < cutoff) this.seen.delete(instance);
-    }
+    this.prune(this.now());
     return [...this.seen.values()]
       .sort((a, b) => b.lastSeen - a.lastSeen)
       .map((entry) => ({ ...entry }));
@@ -284,7 +332,7 @@ export class FollowerRegistry {
 - [x] **Step 4: Run the tests and see them pass**
 
 Run: `cd server && bun test src/activity.test.ts`
-Expected: PASS, 7 tests.
+Expected: PASS, 10 tests.
 
 - [x] **Step 5: Commit**
 

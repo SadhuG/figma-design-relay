@@ -108,7 +108,7 @@ machine. A dev plugin's relay shows its own on its dev port.
 - [x] **Step 5: Format and commit**
 
 ```bash
-bun run format && bunx prettier --check "docs/**/*"
+bun run format && bunx prettier --check --ignore-unknown "docs/**/*"
 git add README.md .claude/rules/server.md .claude/CLAUDE.md docs/superpowers/README.md
 git commit -m "docs: the relay dashboard"
 ```
