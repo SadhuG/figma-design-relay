@@ -108,7 +108,7 @@ export interface RelayStatus {
   pid: number;
   startedAt: number;
   now: number;
-  files: Array<ConnectedFile & { connectedAt: number }>;
+  files: Array<ConnectedFile & { connectedAt: number; lastCallAt?: number }>;
   followers: FollowerSeen[];
   activity: ActivityEntry[];
 }
@@ -360,7 +360,14 @@ In the request handler, between the `/rpc` branch and the 404:
 
 ```ts
 if (req.method === "GET") {
-  const pathname = new URL(req.url ?? "/", "http://localhost").pathname;
+  let pathname: string;
+  try {
+    pathname = new URL(req.url ?? "/", "http://localhost").pathname;
+  } catch {
+    res.writeHead(400);
+    res.end("Invalid request target");
+    return;
+  }
   if (pathname === STATUS_PATH || Object.hasOwn(DASHBOARD_FILES, pathname)) {
     void this.serveDashboard(pathname, req, res);
     return;
