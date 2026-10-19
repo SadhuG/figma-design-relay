@@ -59,3 +59,11 @@ Actions menu: another session's Dev plugin was "last plugin" by then).
 
 The late-event case itself (socket closed mid-request) is covered by unit tests: it needs the
 relay killed while the main thread is still serializing, which the harness can't time reliably.
+
+## After review round 2
+
+`0e79d29` makes the panel forget a socket's requests whenever the socket is replaced, not only
+when it closes. The rebuilt plugin hot-reloaded and reconnected through the changed `connect()`
+path, and `get_selection` through a follower answered normally. The panel itself wasn't
+screenshotted again: the machine was in use and Figma could not be brought to the front. The
+change only adds clearing calls; the visible states were checked after round 1.
