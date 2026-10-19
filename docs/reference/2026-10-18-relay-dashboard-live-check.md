@@ -1,7 +1,7 @@
 # Relay dashboard verification — 2026-10-18–19
 
-Status: **all eight required live cases passed.** Final evidence review and the GitHub release
-workflow dry run remain before opening the PR. After the deliberate disconnect check, user
+Status: **all eight required live cases and the release workflow dry run passed.** Review of this
+release evidence update and the PR gates remain. After the deliberate disconnect check, user
 relaunch restored FigJam; status, MCP `list_files` and the live DOM confirm all three editors.
 
 ## Candidate and setup
@@ -9,6 +9,9 @@ relaunch restored FigJam; status, MCP `list_files` and the live DOM confirm all 
 - Tested build: `1878eee961c8064bf36e2d82cacb24cb1275a17d`, version 0.9.0. Merge `b0a3714`
   incorporates the upstream promotion `origin/main` (`2a43cfb`) with an empty tree diff against
   the tested commit. No runtime rebuild was needed for that merge.
+- The release dry run tested `5c379e9341289a5ae88d417760971b0127d40e15`; its suffix after the
+  tree-neutral main merge changes only documentation and evidence assets. The live-tested product
+  sources remain identical to `1878eee`.
 - Worktree: `C:/Users/sadhu/code/figma-design-relay-relay-dashboard`.
 - Dev plugin: `Figma Design Relay (Dev: relay-dashboard, port 1996)`.
 - Stable relay and MCP configuration were not changed.
@@ -69,7 +72,20 @@ Local packaging using the workflow's file selection produced exactly
 `server/dashboard/{index.html,dashboard.css,dashboard.js,render.js}`, excluding the test file.
 Archive SHA-256: `4C46C9899D3968EC5511606DDCA5A272CC776FC3FB67B12E0A5B78D8F754589C`.
 This checks packaging selection; the local plugin build uses its Dev manifest. The actual GitHub
-Release workflow with `dry_run: true` remains required after the reviewed live candidate can be pushed.
+Release workflow subsequently passed on the reviewed feature branch:
+
+- [Run 39200711903](https://github.com/SadhuG/figma-design-relay/actions/runs/39200711903), exact
+  commit `5c379e9341289a5ae88d417760971b0127d40e15`, dispatched explicitly with `dry_run: true`.
+  The release job succeeded in 19 seconds; **Create GitHub Release** was **skipped** and
+  **Dry run summary** succeeded. No release or tag was created by this workflow.
+- Artifact **12163906259**, `figma-design-relay-v0.9.0`, contains the inner ZIP
+  `figma-design-relay-v0.9.0.zip` (307,336 bytes). Inner ZIP SHA-256:
+  `42FD572BE045E0B0050AD10716BBB28F1CFA9C0F02557EF18FF8D7FE21B799B7`.
+- Inspection confirmed exactly the four dashboard assets listed above and no `render.test.ts`;
+  `server/dist/index.js` and `plugin/dist/code.js` are included, and server version is 0.9.0.
+  The stable manifest has name **Figma Design Relay**, id **figma-design-relay**, and allowed
+  domain `ws://localhost:1994`. The built UI targets port 1994, not 1996; no Dev manifest appears
+  at `plugin/dist/manifest.json`.
 
 SHA-256 hashes of the exact tested build:
 
@@ -97,5 +113,6 @@ SHA-256 hashes of the exact tested build:
 
 Independent review approved the full candidate through `ad1b0ba`, the documentation/DNS refresh
 `ad1b0ba..d059146`, and upstream refresh `d059146..1878eee`, with no remaining findings. The later
-main merge is tree-neutral. This final evidence update still needs independent review, followed
-by the release workflow dry run.
+main merge is tree-neutral. Subsequent final live evidence and restoration updates through
+`5c379e9` were independently approved. This release evidence update still needs independent
+review; PR review, CodeRabbit and required checks remain before merging.

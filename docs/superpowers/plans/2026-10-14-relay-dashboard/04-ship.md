@@ -141,6 +141,11 @@ with an "unverified" note.
 
 ### Task 4: Finish
 
+- [x] **Release dry-run gate:** [run 39200711903](https://github.com/SadhuG/figma-design-relay/actions/runs/39200711903)
+      passed on `5c379e9` with explicit `dry_run: true`; release creation was skipped. The downloaded
+      archive contains the four dashboard assets without the test file and the stable port-1994
+      plugin build. Full commit, artifact id and ZIP hash are in the live-check record.
+
 - [ ] **Step 1:** Run the `finish-task` skill. This is a finished feature, so it bumps the
       **minor** version to **0.9.0** (server and plugin) with a changelog entry under "Added": "A
       read-only relay dashboard at `http://localhost:<port>/`: connected files, recent tool calls and
