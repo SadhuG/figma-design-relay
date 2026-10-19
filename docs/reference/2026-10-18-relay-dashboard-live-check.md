@@ -1,7 +1,8 @@
 # Relay dashboard verification — 2026-10-18–19
 
-Status: **blocked; the required live Figma gate has not passed.** Do not open the dashboard PR or
-merge this candidate until the checks below pass, or the user explicitly grants an exception.
+Status: **all eight required live cases passed.** Final evidence review and the GitHub release
+workflow dry run remain before opening the PR. FigJam relaunch was requested from the user after
+the deliberate disconnect check; restoration has not yet been observed.
 
 ## Candidate and setup
 
@@ -23,27 +24,39 @@ plugin in Design, FigJam and Slides. The browser was opened through T3 `preview_
 
 | Plan case             | Result and evidence                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1. Connected files    | Passed initially: Design **Figma Design Relay**, FigJam **Untitled** and Slides **Untitled** displayed the correct badges, file keys and connected ages. The Design card showed its last-call age. [Connected screenshot](assets/relay-dashboard-2026-10-19/connected.png). A later session found all plugins disconnected; current reconnection and timestamp checks remain pending.                                                             |
+| 1. Connected files    | Passed: Design **Figma Design Relay**, FigJam **Untitled** and Slides **Untitled** displayed correct badges, file keys and connected ages. [Connected screenshot](assets/relay-dashboard-2026-10-19/connected.png). After user relaunch, the live DOM again showed all badges and current last-call ages; the in-flight timestamp check below also passed.                                                                                        |
 | 2. Local call         | Passed: original holder's `get_selection` appeared as **This relay**, **OK**, **8 ms**. Its attempted `get_node` used the obsolete `nodeIds` MCP argument and failed validation, so that attempt is not counted as a plugin error.                                                                                                                                                                                                                |
-| 3. Follower node call | Partial: follower process **10600** successfully called `get_selection` in all three editors and received real `get_node` errors for `nodeId: "999999:1"`. Dashboard rows showed its follower origin. A valid addressed-node result and its process row together are still pending.                                                                                                                                                               |
+| 3. Follower node call | Passed: follower **13164** sent MCP `get_node` with `nodeId: "6:5440"` and the Design file key. It returned the requested **6:5440**, **Board 6**, **TEXT**, `isError: false`. The dashboard DOM showed its **Follower 13164**, **23 ms**, **OK** row and process **13164** with **9** calls. `get_selection` also succeeded in all three editors.                                                                                                |
 | 4. Failure filtering  | Passed: real plugin errors said **Node not found: 999999:1**. Clicking **Only failed calls** left exactly three failed rows and zero OK rows. [Filter screenshot](assets/relay-dashboard-2026-10-19/failed-filter.png).                                                                                                                                                                                                                           |
-| 5. FigJam close       | Pending: deliberate close, next-poll card removal and user relaunch have not yet run.                                                                                                                                                                                                                                                                                                                                                             |
+| 5. FigJam close       | Passed: targeted `run_script` in FigJam file `unsaved-mverd7jw-l4ocpz7f` scheduled `figma.closePlugin()` after 300 ms. The next status had only Design and Slides. The live dashboard DOM then reported `figjamPresent: false`, displaying only Design and Slides cards. User relaunch was requested afterward.                                                                                                                                   |
 | 6. Relay handover     | Passed: stopped only verified dashboard owner 7788 and child leader 2640. The offline banner appeared. New hidden holder **37380**, child leader **10032**, took port 1996 and the same browser page recovered. `performance.timeOrigin` stayed **1792357018201.4** and navigation count stayed **1**, proving no reload. [Offline](assets/relay-dashboard-2026-10-19/offline.png), [recovered](assets/relay-dashboard-2026-10-19/recovered.png). |
 | 7. Host guard         | Passed: `curl.exe` to live `/api/status` with `Host: evil.example` returned **403**. The Node 24.20.0 malformed-target harness also passed after the tree-neutral main merge.                                                                                                                                                                                                                                                                     |
 | 8. Tool shape         | Passed: MCP `list_files` returned only `fileKey`, `fileName`, `editorType` for each file; neither `connectedAt` nor `lastCallAt` leaked into that tool's response.                                                                                                                                                                                                                                                                                |
 
 ## Remaining gates and current state
 
-The earlier native manifest-picker/plugin-environment problem was recovered by the user. After a
-multi-hour interruption, all three plugins had disconnected. Holder 37380 / leader 10032 is ready
-on 1996, awaiting user relaunch in Design and FigJam. No document mutations or blind keyboard input
-were performed. The original untracked `server/.smoke/dashboard-live.mjs` is preserved unchanged;
-the corrected probe is an ignored local helper under `server/logs/`.
+The user recovered the earlier native manifest-picker/plugin-environment problem and relaunched
+the Dev plugin in all three editors. Holder 37380 / leader 10032 remains on 1996. After the targeted
+FigJam close, Design and Slides remain connected; user FigJam relaunch was requested. No design
+nodes were created, changed or deleted; no blind keyboard input was performed. Temporary follower
+clients 12576 and 13164 and their verified probe parents were stopped after verification. The
+original untracked `server/.smoke/dashboard-live.mjs` is preserved unchanged; corrected probes are
+ignored local helpers under `server/logs/`.
+
+Live P2 verification used a read-only two-second promise in `run_script`: while it was still
+pending and absent from completed activity, Design `lastCallAt` advanced from **1792384419331** to
+**1792384475586**. After completion, it remained **1792384475586**. The browser displayed current
+last-call ages for Design, FigJam and Slides. Concurrency and history eviction are additionally
+covered by the regression tests.
 
 The continuous recovery browser tab was `tab_3_05bd8dd5-a0da-4f66-8d78-c89f598e6181`. A later input
-attempt returned **The calling provider no longer owns an active thread run**; browser input stopped.
-Re-establish browser control before the remaining valid-node, follower-process and deliberate
-FigJam-disconnect checks. Restore the failed-only filter and request FigJam relaunch afterward.
+attempt returned **The calling provider no longer owns an active thread run**. Fresh T3 tabs restored
+DOM evaluation for the remaining cases. Additional screenshots failed with
+**PreviewAutomationTimeoutError: snapshot timed out after 15000ms**, followed by
+**PreviewAutomationNoAvailableHostError**. A bounded `preview_status` / `preview_open` recovery
+restored live DOM inspection, including FigJam card absence. The fallback browser reported
+**Browser is not available: iab**. The four saved screenshots above remain valid evidence; no
+additional screenshot is claimed. The final new browser tabs used the default unchecked filter.
 
 ## Automated and packaging evidence
 
@@ -83,4 +96,5 @@ SHA-256 hashes of the exact tested build:
 
 Independent review approved the full candidate through `ad1b0ba`, the documentation/DNS refresh
 `ad1b0ba..d059146`, and upstream refresh `d059146..1878eee`, with no remaining findings. The later
-main merge is tree-neutral. The remaining live gates above still block opening the PR.
+main merge is tree-neutral. This final evidence update still needs independent review, followed
+by the release workflow dry run.
