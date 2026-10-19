@@ -57,9 +57,10 @@ Adding a tool? Use the `add-mcp-tool` skill — it is a checklist across both pa
   files live in `server/dashboard/` and are copied into the release by `release.yml`.
 - **Follower telemetry is bounded to 256 labels.** Every heartbeat or RPC observation expires
   labels silent for over 60 seconds, then refreshes the current label. At capacity, the least
-  recently observed label is evicted (observation order breaks clock ties). Expiry is opportunistic:
-  an idle relay retains at most 256 labels until another observation or dashboard read. Labels
-  are display-only, and telemetry eviction never changes follower routing or authentication.
+  recently observed label is evicted (observation order breaks clock ties). The registry prunes on
+  observations and reads; the leader also rechecks its panel follower count every five seconds,
+  expiring stale entries during idle traffic. Labels are display-only, and telemetry eviction
+  never changes follower routing or authentication.
 - **A leader keeps running the `dist` it started from.** After touching `schema.ts`, `leader.ts`,
   `bridge.ts` or `election.ts`, restart the client's relay before trusting a live probe.
 

@@ -16,34 +16,34 @@ Figma plugin ──ws://localhost:1994/ws──> leader server ──stdio──
 
 This file holds only what applies to every task. The rest loads when it is relevant:
 
-| Path                              | Loads                                                         | Holds                                                               |
-| --------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------- |
-| `.claude/rules/server.md`         | automatically, on `server/**`                                 | landmarks, ESM imports, loopback, filesystem and follower-hop rules |
-| `.claude/rules/plugin.md`         | automatically, on `plugin/**`                                 | landmarks, `figma` global, async access, capability table, manifest |
-| `.claude/rules/docs.md`           | automatically, on `docs/**`                                   | the HTML generator, checkbox state, moving docs                     |
-| `.claude/rules/release.md`        | on `CHANGELOG.md`, `package.json`, `.github/**`, `scripts/**` | versions, tags, release workflow, CI                                |
-| `.claude/skills/start-feature`    | **before every code task's first edit**                       | worktree, dev slot (plugin name + port), build, import, teardown    |
-| `.claude/skills/finish-task`      | **before every task's last commit**                           | verify, refresh facts, bump, agent review, merge → `dev` → `main`   |
-| `.claude/skills/add-mcp-tool`     | when adding or removing a tool                                | every place a tool must be wired, tested and documented             |
-| `.claude/skills/live-figma-check` | when testing against real Figma                               | smoke harness, the machine's relay setup, symptoms that cost time   |
-| `.claude/skills/sync-upstream`    | when merging `upstream/main`                                  | merge procedure, rename conflicts, old-name hunt                    |
-| `docs/README.md`                  | —                                                             | user guides, reference, and the specs/plans design history          |
+| Path                              | Loads                                                         | Holds                                                                            |
+| --------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `.claude/rules/server.md`         | automatically, on `server/**`                                 | landmarks, ESM imports, loopback, filesystem and follower-hop rules              |
+| `.claude/rules/plugin.md`         | automatically, on `plugin/**`                                 | landmarks, `figma` global, async access, capability table, manifest              |
+| `.claude/rules/docs.md`           | automatically, on `docs/**`                                   | the HTML generator, checkbox state, moving docs                                  |
+| `.claude/rules/release.md`        | on `CHANGELOG.md`, `package.json`, `.github/**`, `scripts/**` | versions, tags, release workflow, CI                                             |
+| `.claude/skills/start-feature`    | **before every code task's first edit**                       | worktree, dev slot (plugin name + port), build, import, teardown                 |
+| `.claude/skills/finish-task`      | **before every task's last commit**                           | verify, refresh facts, bump, GPT-6.1-Sol review, PR → `dev`, open `dev` → `main` |
+| `.claude/skills/add-mcp-tool`     | when adding or removing a tool                                | every place a tool must be wired, tested and documented                          |
+| `.claude/skills/live-figma-check` | when testing against real Figma                               | smoke harness, the machine's relay setup, symptoms that cost time                |
+| `.claude/skills/sync-upstream`    | when merging `upstream/main`                                  | merge procedure, rename conflicts, old-name hunt                                 |
+| `docs/README.md`                  | —                                                             | user guides, reference, and the specs/plans design history                       |
 
 ## Commands
 
 **Bun everywhere — never `npm` or `yarn`.**
 
-| Where     | Command                                   | Notes                                                                                                                                             |
-| --------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| root      | `bun install`                             | installs Husky's pre-commit hook (Prettier via lint-staged)                                                                                       |
-| root      | `bun run format` / `bun run format:check` | Prettier 3.9.6 over everything                                                                                                                    |
-| root      | `bun scripts/check-version.mjs`           | server + plugin versions agree and have a changelog entry                                                                                         |
-| root      | `bun scripts/dev-slot.mjs [name]`         | in a feature worktree: claim its dev plugin name and port (1995–2019)                                                                             |
-| `server/` | `bun run build`                           | `tsc` → `dist/`; this is the server's type-check                                                                                                  |
-| `server/` | `bun test`                                | 455 tests (2 Windows skips): schemas, transport, file safety, SVG loader, follower round trips, codegen, assets, Code Connect, Mermaid, dashboard |
-| `plugin/` | `bun run typecheck`                       | `tsc --noEmit`; must stay at zero errors                                                                                                          |
-| `plugin/` | `bun run build`                           | typecheck, then two Vite passes: UI, then `main`                                                                                                  |
-| `plugin/` | `bun test`                                | 381 tests: scripts, serializer, capability table, library tools, diagrams, prototypes, layout, batches, dispatch, HTML images and panel           |
+| Where     | Command                                   | Notes                                                                                                                                                           |
+| --------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| root      | `bun install`                             | installs Husky's pre-commit hook (Prettier via lint-staged)                                                                                                     |
+| root      | `bun run format` / `bun run format:check` | Prettier 3.9.6 over everything                                                                                                                                  |
+| root      | `bun scripts/check-version.mjs`           | server + plugin versions agree and have a changelog entry                                                                                                       |
+| root      | `bun scripts/dev-slot.mjs [name]`         | in a feature worktree: claim its dev plugin name and port (1995–2019)                                                                                           |
+| `server/` | `bun run build`                           | `tsc` → `dist/`; this is the server's type-check                                                                                                                |
+| `server/` | `bun test`                                | 459 tests (2 Windows skips): schemas, transport, file safety, SVG loader, follower round trips, codegen, assets, Code Connect, Mermaid, dashboard, relay-status |
+| `plugin/` | `bun run typecheck`                       | `tsc --noEmit`; must stay at zero errors                                                                                                                        |
+| `plugin/` | `bun run build`                           | typecheck, then two Vite passes: UI, then `main`                                                                                                                |
+| `plugin/` | `bun test`                                | 451 tests: scripts, serializer, read progress, capability table, library tools, diagrams, prototypes, layout, batches, dispatch, HTML images and panel          |
 
 Tests live beside the code as `*.test.ts` (excluded from both tsconfigs). CI (`.github/workflows/ci.yml`)
 runs all of the above on every push to every branch.
@@ -80,6 +80,7 @@ plugin/src/
   main/code.ts              request dispatcher, one switch case per tool
   main/layout-tree.ts       bounded absolute geometry for get_layout_tree
   main/serializer.ts        scene graph → JSON (async)
+  main/read-progress.ts     long-read progress: node count, reporter, yield-to-Figma pauses
   main/references.ts        variable + style ids → resolved names
   main/component-identity.ts component and instance identity
   main/intent.ts            layout intent, reactions, annotations, exports
@@ -163,7 +164,8 @@ the stable one, which dials 1994. Never drop the port from the name.
 - **Before the last commit of any task, run the `finish-task` skill** — unasked. It refreshes the
   facts in this file that drift with the code (test counts, landmarks, layout, tool count), bumps
   the version (minor per finished phase, patch per fix or tooling change, none for docs-only), and
-  prepares reviewed PRs from the branch into `dev`, then from `dev` into `main`, using merge commits.
+  lands the branch in `dev` through a reviewed PR (merge commit), then opens the `dev` → `main` PR
+  for the user to merge.
 - **Every change to `dev` or `main` must land through a properly reviewed GitHub PR targeting
   that branch.** This includes UI changes, docs, tooling, releases, upstream syncs, and branch
   promotions. Open a feature → `dev` PR and a separate `dev` → `main` PR; review and check each
@@ -177,12 +179,17 @@ the stable one, which dials 1994. Never drop the port from the name.
   A local agent review, passing tests, or a release tag does not replace the PR review gate.
   New commits require review of the changes and fresh checks before merging. If review or checks
   are unavailable, leave the PR open and report the blocker; never bypass the gate to finish.
-- **Nothing is merged into `dev` or `main` until a separate agent has reviewed it** — no feature
-  branch, no upstream sync, no catch-up from the other branch. Spawn a fresh agent to do a full code
-  review of exactly the diff that will land; the agent that wrote the code does not count, and fix
-  commits get reviewed too. Fix or answer every finding, re-verify, tell the user what the review
-  found and what was done, record the review in the PR, then merge through GitHub only after the
-  PR gate above passes. `finish-task` steps 4–5 hold the procedure.
+- **Nothing is merged into `dev` or `main` until an independent GPT-6.1-Sol agent has reviewed
+  it** — no feature branch, no upstream sync, no catch-up from the other branch. After
+  implementation, start the review through T3's `delegate_task` with
+  `target: { providerInstanceId: "codex", model: "gpt-6.1-sol" }` (a Claude subagent does not
+  count; neither does the agent that wrote the code). It reviews exactly the diff that will land.
+  Fix or answer every finding, re-verify, and send a fresh review round (a new `delegate_task`
+  carrying the brief, prior findings and responses) until the reviewer is satisfied; fix commits
+  get reviewed too. Tell the user what each round found and what was done, record the rounds in
+  the PR, then merge the feature → `dev` PR through GitHub once the PR gate above passes. Then
+  open (or update) the `dev` → `main` PR, put it through the same gate on its own diff, and
+  **leave it for the user to merge**. `finish-task` steps 4–5 hold the procedure.
 - **Keep the docs current as you work.** A durable fact, settled convention, new command or changed
   workflow goes into the right file — this one, a `.claude/` rule or skill, the README, or `docs/` —
   as part of the work. Anything left only in a conversation is lost. Keep volatile numbers to the

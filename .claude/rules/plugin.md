@@ -7,7 +7,7 @@ paths:
 
 ## Landmarks
 
-- `plugin/src/main/code.ts:509` — the dispatcher calls `assertEditorSupports` before any tool runs.
+- `plugin/src/main/code.ts:539` — the dispatcher calls `assertEditorSupports` before any tool runs.
 - `plugin/src/main/capabilities.ts:64` — `CAPABILITIES`; `:148` — `assertEditorSupports`, which
   takes the editor as a parameter rather than reading `figma.editorType`, so the gate is
   unit-testable. **The table is keyed by the request type the plugin receives, not the MCP tool
@@ -23,12 +23,12 @@ paths:
   apply), `layout-actions.ts` and `text-target.ts`. Batches and layout helpers check every input
   before the first write; the creators resolve `parentId` before creating and `removeOnFailure`
   after.
-- `plugin/src/main/serializer.ts:484` — `serializeNode`, `async` and awaited at four call sites in
+- `plugin/src/main/serializer.ts:506` — `serializeNode`, `async` and awaited at four call sites in
   `code.ts`. Only `get_design_context` type-errors if you forget an `await` — the other three type
   `data` as `unknown` and will happily ship an unresolved promise. The `figma` lookups it hands to
   `references.ts` live at `:412`; the helper modules never name the global.
   `docs/reference/serialized-nodes.md` documents the emitted shape — update it with the serializer.
-- `plugin/src/main/code.ts:2464` — the UI-collapse block that closes the file: window sizing, the
+- `plugin/src/main/code.ts:2506` — the UI-collapse block that closes the file: window sizing, the
   `ui-collapsed` `figma.clientStorage` key, and the `request-ui-state` / `set-ui-collapsed`
   messages. `figma.showUI` runs with `visible: false` and the panel is shown only once the stored
   state resolves, so anything that returns early before `figma.ui.show()` leaves the window
@@ -42,6 +42,14 @@ paths:
   panel copy to the live panel, not the board. "Lost the relay · retrying in 25 s" cut off beside
   Retry now and became "Relay lost · retry in 25 s". The panel's text and timing rules live in
   `src/ui/panel-state.ts`, unit-tested; `App.tsx` only wires them up.
+- **The main thread delivers messages to the panel only when it yields.** A walk of resolved
+  promises (the serializer) never does, so its `figma.ui.postMessage` calls all arrive with the
+  response. Long reads pass `readOptions` (`code.ts`) to `serializeNode`: the reporter in
+  `read-progress.ts` pauses the walk at `CHECKPOINTS_PER_NODE` points per node once per 200 ms
+  and resumes in batches. A clock check alone can't throttle it: a parent starts all its children
+  at once, and parked steps resume together before any has done its work. Panel events
+  (`selection-sent`, `diagram-drawn`, `read-progress`) are posted before the response they
+  belong to.
 - **Type-check stays at zero errors.** `vite build` strips types without checking them, so `build`
   runs `typecheck` first. If `tsc` complains, fix the code, not the tsconfig.
 - **`documentAccess: "dynamic-page"`** — synchronous accessors do not work. Use

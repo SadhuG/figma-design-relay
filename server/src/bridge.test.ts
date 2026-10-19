@@ -299,3 +299,65 @@ describe("the calling agent's name", () => {
     }
   });
 });
+
+// The panel's "Leader · 2 followers": the count goes only to plugins that ask for it.
+describe("relay-status", () => {
+  async function connectWith(query: string): Promise<{ socket: WebSocket; received: unknown[] }> {
+    const socket = new WebSocket(`ws://127.0.0.1:${leader.address()!.port}/ws?${query}`);
+    sockets.push(socket);
+    const received: unknown[] = [];
+    socket.on("message", (data) => received.push(JSON.parse(data.toString())));
+    await new Promise<void>((resolve, reject) => {
+      socket.once("open", resolve);
+      socket.once("error", reject);
+    });
+    return { socket, received };
+  }
+  /** Waits until every frame the server sent before now has arrived. */
+  const settle = (socket: WebSocket) =>
+    new Promise<void>((resolve) => {
+      socket.once("pong", () => resolve());
+      socket.ping();
+    });
+
+  test("an opted-in plugin gets the count on connect and on every change", async () => {
+    const { socket, received } = await connectWith("fileKey=a&relayStatus=1");
+    leader.getBridge().setFollowerCount(2);
+    await settle(socket);
+    expect(received).toEqual([
+      { type: "relay-status", followers: 0 },
+      { type: "relay-status", followers: 2 },
+    ]);
+  });
+
+  test("a plugin that didn't ask gets nothing", async () => {
+    const { socket, received } = await connectWith("fileKey=b");
+    leader.getBridge().setFollowerCount(3);
+    await settle(socket);
+    expect(received).toEqual([]);
+  });
+
+  test("an unchanged count is not sent again", async () => {
+    const { socket, received } = await connectWith("fileKey=c&relayStatus=1");
+    leader.getBridge().setFollowerCount(1);
+    leader.getBridge().setFollowerCount(1);
+    await settle(socket);
+    expect(received).toEqual([
+      { type: "relay-status", followers: 0 },
+      { type: "relay-status", followers: 1 },
+    ]);
+  });
+
+  test("a follower's ping raises the count the plugin sees", async () => {
+    const { socket, received } = await connectWith("fileKey=d&relayStatus=1");
+    await fetch(`http://127.0.0.1:${leader.address()!.port}/ping`, {
+      headers: { "x-relay-instance": "4242" },
+    });
+    await fetch(`http://127.0.0.1:${leader.address()!.port}/ping`);
+    await settle(socket);
+    expect(received).toEqual([
+      { type: "relay-status", followers: 0 },
+      { type: "relay-status", followers: 1 },
+    ]);
+  });
+});

@@ -308,6 +308,7 @@ Figma-Design-Relay/
 ├── plugin/       # Figma plugin (TypeScript/React); src/main/layout-tree.ts: bounded geometry;
 │                 # prototype.ts, svg.ts, node-properties.ts, layout-actions.ts and
 │                 # text-target.ts: the upstream-synced tools' Figma-free logic;
+│                 # read-progress.ts: long-read progress for the panel;
 │                 # dev-slot.ts: the slot rules the build uses
 └── server/       # MCP server (TypeScript/Node.js)
     ├── dashboard/ # Read-only status page: HTML, CSS, polling and tested render functions

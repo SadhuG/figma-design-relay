@@ -1,5 +1,6 @@
 import { getLayoutTree } from "./layout-tree";
-import { serializeNode } from "./serializer";
+import { CHECKPOINTS_PER_NODE, serializeNode, type SerializeOptions } from "./serializer";
+import { countNodes, progressReporter, type Countable } from "./read-progress";
 import { addLayersToFrame } from "../html-figma/figma";
 import { runScript } from "./script-runner";
 import { assertEditorSupports, type EditorType } from "./capabilities";
@@ -187,8 +188,37 @@ const sendStatus = () => {
       fileKey: getFileKey(),
       editorType: figma.editorType,
       selectionCount: figma.currentPage.selection.length,
+      /** Lets the panel tell whether the selection is still the one an agent just read. */
+      selectionIds: figma.currentPage.selection.map((node) => node.id),
     },
   });
+};
+
+/**
+ * Serializer options for a read the panel may show as "Syncing": counts the nodes the walk will
+ * visit, then posts the percent done as it goes and lets the walk yield so the posts arrive.
+ */
+const readOptions = (
+  requestId: string,
+  roots: readonly (SceneNode | PageNode)[],
+  maxDepth?: number
+): SerializeOptions => ({
+  maxDepth,
+  onNode: progressReporter(
+    countNodes(roots as unknown as readonly Countable[], maxDepth) * CHECKPOINTS_PER_NODE,
+    (percent) => figma.ui.postMessage({ type: "read-progress", requestId, percent }),
+    Date.now
+  ),
+});
+
+/** Tells the panel what an agent just read or drew. Posted before the response it belongs to. */
+const postPanelEvent = (
+  type: "selection-sent" | "diagram-drawn",
+  requestId: string,
+  nodes: readonly { id: string }[]
+) => {
+  if (nodes.length === 0) return;
+  figma.ui.postMessage({ type, requestId, nodeIds: nodes.map((node) => node.id) });
 };
 
 const serializeVariableValue = (value: VariableValue): unknown => {
@@ -512,14 +542,18 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
         return {
           type: request.type,
           requestId: request.requestId,
-          data: await serializeNode(figma.currentPage),
+          data: await serializeNode(
+            figma.currentPage,
+            readOptions(request.requestId, [figma.currentPage])
+          ),
         };
-      case "get_selection":
-        return {
-          type: request.type,
-          requestId: request.requestId,
-          data: await Promise.all(figma.currentPage.selection.map((node) => serializeNode(node))),
-        };
+      case "get_selection": {
+        const selection = [...figma.currentPage.selection];
+        const options = readOptions(request.requestId, selection);
+        const data = await Promise.all(selection.map((node) => serializeNode(node, options)));
+        postPanelEvent("selection-sent", request.requestId, selection);
+        return { type: request.type, requestId: request.requestId, data };
+      }
       case "get_layout_tree": {
         const rootId = request.nodeIds?.[0];
         if (!rootId) throw new Error("rootId is required");
@@ -551,7 +585,10 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
         if (node.type === "PAGE") {
           await node.loadAsync();
         }
-        const data = await serializeNode(node as SceneNode);
+        const data = await serializeNode(
+          node as SceneNode,
+          readOptions(request.requestId, [node as SceneNode | PageNode])
+        );
         if (!includePrototype) {
           return { type: request.type, requestId: request.requestId, data };
         }
@@ -680,8 +717,6 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
         const depth = typeof request.params?.depth === "number" ? request.params.depth : 2;
         // One bounded walk. Serializing every subtree in full and then discarding
         // the levels past the limit multiplied the async lookups by the depth.
-        const serializeWithDepth = (node: SceneNode | PageNode, currentDepth: number) =>
-          serializeNode(node, { maxDepth: depth }, currentDepth);
 
         const requestedId = request.nodeIds?.[0];
         let requested: BaseNode | null = null;
@@ -711,11 +746,14 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
         }
 
         const selection = figma.currentPage.selection;
-        const contextNodes = requested
-          ? [await serializeWithDepth(requested as SceneNode, 0)]
+        const roots: readonly (SceneNode | PageNode)[] = requested
+          ? [requested as SceneNode]
           : selection.length > 0
-            ? await Promise.all(selection.map((node) => serializeWithDepth(node, 0)))
-            : [await serializeWithDepth(figma.currentPage, 0)];
+            ? selection
+            : [figma.currentPage];
+        const options = readOptions(request.requestId, roots, depth);
+        const contextNodes = await Promise.all(roots.map((node) => serializeNode(node, options)));
+        if (!requested) postPanelEvent("selection-sent", request.requestId, selection);
 
         return {
           type: request.type,
@@ -846,6 +884,9 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
           })
         );
 
+        if (!request.nodeIds || request.nodeIds.length === 0) {
+          postPanelEvent("selection-sent", request.requestId, targetNodes);
+        }
         return {
           type: request.type,
           requestId: request.requestId,
@@ -2387,6 +2428,7 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
 
         figma.currentPage.selection = created;
         figma.viewport.scrollAndZoomIntoView(created);
+        postPanelEvent("diagram-drawn", request.requestId, created);
         return {
           type: request.type,
           requestId: request.requestId,
@@ -2501,6 +2543,27 @@ figma.on("selectionchange", () => {
   sendStatus();
 });
 
+/**
+ * The panel's Show in canvas (zoom only) and Select it (select, then zoom). Goes to the nodes'
+ * page first; nodes deleted since are skipped.
+ */
+const showNodes = async (nodeIds: unknown, select: boolean) => {
+  const ids = Array.isArray(nodeIds) ? nodeIds.filter((id) => typeof id === "string") : [];
+  const found = await Promise.all(ids.map((id) => figma.getNodeByIdAsync(id).catch(() => null)));
+  const nodes = found.filter(
+    (node): node is SceneNode => node !== null && node.type !== "DOCUMENT" && node.type !== "PAGE"
+  );
+  if (nodes.length === 0) {
+    figma.notify("Those layers are gone.");
+    return;
+  }
+  const page = pageOf(nodes[0]);
+  if (page && page.id !== figma.currentPage.id) await figma.setCurrentPageAsync(page);
+  const onPage = nodes.filter((node) => pageOf(node)?.id === figma.currentPage.id);
+  if (select) figma.currentPage.selection = onPage;
+  figma.viewport.scrollAndZoomIntoView(onPage);
+};
+
 figma.ui.onmessage = async (message) => {
   if (message.type === "ui-ready") {
     sendStatus();
@@ -2519,6 +2582,11 @@ figma.ui.onmessage = async (message) => {
     figma.clientStorage.setAsync(UI_COLLAPSED_KEY, uiCollapsed).catch(() => {
       // Persisting the preference is best-effort; the window is already resized.
     });
+    return;
+  }
+
+  if (message.type === "show-nodes") {
+    await showNodes(message.nodeIds, message.select === true);
     return;
   }
 

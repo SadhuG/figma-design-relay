@@ -57,7 +57,9 @@ const dispatch = async (type: string, nodeIds?: string[], params?: Record<string
   messages.length = 0;
   const requestId = `${type}-${Math.random()}`;
   await api.ui.onmessage({ type: "server-request", payload: { type, requestId, nodeIds, params } });
-  return messages.find((message) => message.requestId === requestId);
+  // Panel events (selection-sent, read-progress, …) carry the request id too; the response
+  // carries the request's own type.
+  return messages.find((message) => message.requestId === requestId && message.type === type);
 };
 beforeAll(async () => {
   globalThis.figma = api;
@@ -1263,4 +1265,117 @@ test("an off-page duplicate lands beside its original at the original's position
   ]);
   expect([made[0].x, made[0].y]).toEqual([original.x, original.y]);
   expect(current.children).toEqual([]);
+});
+
+// Board 10's "Later" states: the main thread tells the panel what the agent read and drew.
+const plainNode = (id: string) => ({
+  id,
+  name: id,
+  type: "RECTANGLE",
+  visible: true,
+  absoluteBoundingBox: { x: 0, y: 0, width: 10, height: 10 },
+  exportAsync: async () => new Uint8Array([1, 2, 3]),
+});
+const withSelection = async (selection: any[], run: () => Promise<void>) => {
+  const previous = api.currentPage;
+  api.currentPage = { id: "0:1", type: "PAGE", name: "Page", selection, children: selection };
+  try {
+    await run();
+  } finally {
+    api.currentPage = previous;
+  }
+};
+const panelMessage = (type: string) => messages.find((message) => message.type === type);
+
+test("get_selection tells the panel which nodes it sent, before the response", async () => {
+  await withSelection([plainNode("20:1"), plainNode("20:2")], async () => {
+    const response = await dispatch("get_selection");
+    expect(response.error).toBeUndefined();
+    const sent = panelMessage("selection-sent");
+    expect(sent).toMatchObject({ requestId: response.requestId, nodeIds: ["20:1", "20:2"] });
+    expect(messages.indexOf(sent)).toBeLessThan(messages.indexOf(response));
+  });
+});
+
+test("an empty selection sends nothing to the panel", async () => {
+  await withSelection([], async () => {
+    await dispatch("get_selection");
+    expect(panelMessage("selection-sent")).toBeUndefined();
+  });
+});
+
+test("get_design_context on the selection counts as sent; on a node id it doesn't", async () => {
+  await withSelection([plainNode("21:1")], async () => {
+    await dispatch("get_design_context");
+    expect(panelMessage("selection-sent")?.nodeIds).toEqual(["21:1"]);
+    nodes.set("21:9", plainNode("21:9"));
+    await dispatch("get_design_context", ["21:9"]);
+    expect(panelMessage("selection-sent")).toBeUndefined();
+  });
+});
+
+test("get_screenshot of the selection counts as sent; with node ids it doesn't", async () => {
+  await withSelection([plainNode("22:1")], async () => {
+    stub("base64Encode", () => "AQID");
+    const response = await dispatch("get_screenshot");
+    expect(response.error).toBeUndefined();
+    expect(panelMessage("selection-sent")?.nodeIds).toEqual(["22:1"]);
+    nodes.set("22:9", plainNode("22:9"));
+    await dispatch("get_screenshot", ["22:9"]);
+    expect(panelMessage("selection-sent")).toBeUndefined();
+  });
+});
+
+test("plugin status carries the selection's ids", async () => {
+  await withSelection([plainNode("23:1")], async () => {
+    messages.length = 0;
+    await api.ui.onmessage({ type: "request-ui-state" });
+    expect(panelMessage("plugin-status")?.payload.selectionIds).toEqual(["23:1"]);
+  });
+});
+
+test("show-nodes zooms to the nodes that still exist, without selecting", async () => {
+  await withSelection([], async () => {
+    const zoomed: any[] = [];
+    stub("viewport", { scrollAndZoomIntoView: (list: any[]) => zoomed.push(list) });
+    const node = { ...plainNode("24:1"), parent: api.currentPage };
+    nodes.set("24:1", node);
+    nodes.set("24:2", null);
+    await api.ui.onmessage({ type: "show-nodes", nodeIds: ["24:1", "24:2"], select: false });
+    expect(zoomed).toEqual([[node]]);
+    expect(api.currentPage.selection).toEqual([]);
+  });
+});
+
+test("show-nodes with select selects them too", async () => {
+  await withSelection([], async () => {
+    stub("viewport", { scrollAndZoomIntoView: () => {} });
+    const node = { ...plainNode("25:1"), parent: api.currentPage };
+    nodes.set("25:1", node);
+    await api.ui.onmessage({ type: "show-nodes", nodeIds: ["25:1"], select: true });
+    expect(api.currentPage.selection).toEqual([node]);
+  });
+});
+
+test("show-nodes switches to the nodes' page first", async () => {
+  await withSelection([], async () => {
+    stub("viewport", { scrollAndZoomIntoView: () => {} });
+    const other: any = { id: "26:0", type: "PAGE", name: "Other", selection: [] };
+    const node = { ...plainNode("26:1"), parent: other };
+    nodes.set("26:1", node);
+    stub("setCurrentPageAsync", async (target: any) => {
+      api.currentPage = target;
+    });
+    await api.ui.onmessage({ type: "show-nodes", nodeIds: ["26:1"], select: true });
+    expect(api.currentPage).toBe(other);
+    expect(other.selection).toEqual([node]);
+  });
+});
+
+test("show-nodes says so when every node is gone", async () => {
+  const notes: string[] = [];
+  stub("notify", (text: string) => notes.push(text));
+  nodes.set("27:1", null);
+  await api.ui.onmessage({ type: "show-nodes", nodeIds: ["27:1"], select: false });
+  expect(notes).toEqual(["Those layers are gone."]);
 });

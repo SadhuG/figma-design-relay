@@ -22,6 +22,9 @@ import { LOOPBACK_HOST } from "./types.js";
 import type { RPCRequest, RPCResponse } from "./types.js";
 import { VERSION } from "./version.js";
 
+/** How often the leader rechecks its follower count for the plugin panel. */
+const FOLLOWER_RECHECK_MS = 5_000;
+
 /**
  * Leader owns the WebSocket bridge to Figma and exposes HTTP endpoints for followers.
  * Endpoints:
@@ -35,6 +38,8 @@ export class Leader {
   private bridge: Bridge;
   private server: http.Server | null = null;
   private followers = new FollowerRegistry();
+  /** Followers age out without a request, so the plugin panel's count is rechecked on a timer. */
+  private followerTimer: ReturnType<typeof setInterval> | null = null;
   private startedAt = 0;
 
   constructor(private port: number) {
@@ -63,6 +68,7 @@ export class Leader {
       const server = http.createServer((req, res) => {
         if (req.url === "/ping" && req.method === "GET") {
           this.followers.touch(readInstance(req.headers[INSTANCE_HEADER]), false);
+          this.publishFollowerCount();
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ status: "ok", version: VERSION }));
           return;
@@ -138,6 +144,7 @@ export class Leader {
 
       server.listen(this.port, LOOPBACK_HOST, () => {
         this.server = server;
+        this.followerTimer = setInterval(() => this.publishFollowerCount(), FOLLOWER_RECHECK_MS);
         this.startedAt = Date.now();
         console.error(`Leader listening on ${LOOPBACK_HOST}:${this.port}`);
         console.error(`Dashboard: http://${LOOPBACK_HOST}:${this.address()?.port ?? this.port}/`);
@@ -146,10 +153,16 @@ export class Leader {
     });
   }
 
+  /** Tells the plugin panels how many followers were heard from in the last minute. */
+  private publishFollowerCount(): void {
+    this.bridge.setFollowerCount(this.followers.active().length);
+  }
+
   /** Validate a follower RPC, attribute its origin and forward its call or return a protocol error. */
   private handleRPC(req: http.IncomingMessage, res: http.ServerResponse): void {
     const instance = readInstance(req.headers[INSTANCE_HEADER]);
     this.followers.touch(instance, true);
+    this.publishFollowerCount();
     const origin: CallOrigin = { kind: "follower", instance };
     let body = "";
     req.on("data", (chunk: Buffer) => {
@@ -275,6 +288,10 @@ export class Leader {
   }
 
   stop(): void {
+    if (this.followerTimer) {
+      clearInterval(this.followerTimer);
+      this.followerTimer = null;
+    }
     this.bridge.close();
     if (this.server) {
       this.server.close();

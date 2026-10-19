@@ -1,5 +1,8 @@
 # Dashboard review follow-up verification — 2026-10-19
 
+The sections below record successive candidates. The current merged candidate is **0.10.1**;
+see the final integration section. Earlier 0.9.1 observations and dry runs are historical.
+
 Candidate: `fix/dashboard-review-followup`, based on `891566dd7a23c28a5b9abe37d789b0173a111600`.
 Package versions are 0.9.1; the existing relay process still reports its startup version 0.9.0.
 Only dashboard CSS, documentation and package version metadata changed.
@@ -98,3 +101,52 @@ or MCP configuration was changed. The stable port was not operated on.
 The CSS verification above remains applicable because this subsequent fix changes only registry
 retention. The earlier release dry run on `5dc8a234` predates this runtime fix and does not verify
 its compiled artifact. The new commit still belongs to the pending 0.9.1 follow-up release.
+
+## Integration after panel-later-states landed in dev
+
+Merged `origin/dev` **996db70aafe6d5cbacfc9d4c42dd1d35668b332a** into the follow-up feature
+branch using a merge commit. Conflicts were limited to `.claude/CLAUDE.md`, `CHANGELOG.md` and
+the two package versions. The dev release is 0.10.0, so these fixes now advance both packages
+to **0.10.1**, retaining the 0.10.0 and 0.9.0 history. The earlier unshipped 0.9.1 follow-up entry
+is replaced by 0.10.1. The current dev guidance, including user-controlled dev-to-main merge,
+is preserved. `origin/main` at `2a43cfb22b48292a9d8ee26a02be1c258d2f11d1` is already an ancestor.
+
+Source comparisons show no changes from dev in `plugin/src/`, `server/src/leader.ts` or
+`server/src/bridge.ts`. The follower registry, its regression tests and dashboard CSS are unchanged
+from reviewed `f77b0420`. Dev's new leader rechecks follower count every five seconds through
+`active()`, so the runtime now expires idle stale entries on that existing timer as well as on
+observations and status reads. The registry itself remains timer-free and hard-capped at 256.
+
+Full root `bun run check` passed on the merged sources: server **457 passed, 2 Windows skips,
+0 failed** (459 tests, 31 files); plugin **451 passed, 0 failed** (25 files); builds, plugin type
+check, version agreement and formatting passed. Raw output is retained in
+`dashboard-merged-check.log`. CLAUDE.md's test-count table was refreshed from this run.
+
+The worktree leader alone was restarted after rebuilding: holder **44300**, leader **13920**,
+`127.0.0.1:1996`, version 0.10.1. Slides reconnected automatically under
+`unsaved-mvf08sy9-czengl0e`. The compiled activity hash remains
+`6F53646F74CAC5FC115E2B270D7864A3049B0CDCC3196251D71E33625F350F55`;
+compiled leader and bridge hashes are respectively
+`BC915A621B5F10701533732B52405D1FA2E128213C6CDFDAAAE25FB44B1652DB` and
+`9E693B6DC2405CC42258FE1138B38F45F3F1AA6FF10D2766F74726FD87400124`.
+
+- A **synthetic WebSocket client**, requesting `relayStatus=1`, received follower count **0**
+  on connect. After 300 distinct HTTP ping labels `910000`–`910299`, the registry retained
+  **256** entries, evicting the oldest and retaining the newest. The client's final and maximum
+  published follower counts were both **256**. This verifies the merged server protocol; it is
+  not a screenshot or visual verification of the Figma panel.
+- After the labels aged beyond 60 seconds without refresh, a second opted-in synthetic socket
+  received the leader's cached follower count **1** on connect, before requesting a snapshot.
+  The following status read confirmed one recent follower and zero remaining synthetic labels,
+  verifying idle timer expiry of the synthetic population.
+- Real MCP follower **7032** called `get_node` with explicit Slides file key and node `1:42`.
+  The plugin returned the requested slide, `isError: false`; recorded origin was follower 7032,
+  outcome successful, registry call count **1**.
+- No manual plugin relaunch or new panel screenshot was performed. The panel implementation is
+  identical to dev, whose prior visual/live results remain in
+  [panel integration evidence](../superpowers/plans/2026-10-19-panel-later-states/live-check.md).
+  The current automatic reconnect and node probe verify transport integration, not the full panel
+  visual matrix or library-token timing.
+
+Local raw integration observations are retained in `dashboard-merged-live.log` and the holder
+logs. Previous release dry runs predate this merged candidate and do not verify its 0.10.1 archive.
