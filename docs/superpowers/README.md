@@ -128,3 +128,7 @@ Drive it with `superpowers:subagent-driven-development` or `superpowers:executin
   plugin panel, its connection states and named agents. The spec is the Figma frame "Board 10:
   Plugin UI, final states". This plan is a folder: an overview plus one file per phase. Delivered
   in 0.8.0; its live check is in `live-check.md` beside the plan.
+- [`plans/2026-10-19-panel-later-states/`](plans/2026-10-19-panel-later-states/00-overview.md):
+  Board 10's four "Later" states (Selection sent, Syncing layers with real read progress, Diagram
+  drawn, Leader and followers), built after the user's decisions of 2026-10-19. A folder plan;
+  delivered in 0.9.0, live check in `live-check.md` beside the plan.

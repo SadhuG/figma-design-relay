@@ -17,7 +17,7 @@ Overview decision table; the board cards for exact spacing and colours.
       like the existing chip icons. Keep the board's two-colour treatment (`#1e1e1e` plus the tone).
 - [x] **2. CSS** in `index.css`: chip tones `sent #ff4f1a`, `syncing #7c5cff`, `diagram #d62828`,
       `leader #3d5afe`, each text in the tone and background at 12% alpha, like the existing
-      tones. `.button.primary-diagram` filled `#d62828`, white text, no border. Show in canvas uses
+      tones. `.button.diagram` filled `#d62828`, white text, no border. Show in canvas uses
       the existing `.button`.
 - [x] **3. Wiring** in `App.tsx`:
   - Hold a `NoticeBoard` and a `ReadProgressLog` in refs beside `ActivityLog`; feed them from

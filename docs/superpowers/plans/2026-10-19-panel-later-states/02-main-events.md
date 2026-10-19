@@ -29,9 +29,11 @@ Overview rows 04 trigger, 05 trigger, 06 trigger and "Panel ↔ main messages".
   only when the percent changed and at least 200 ms passed since the last post (the first
   post waits 200 ms too). `total` 0 never posts. Tests cover depth, hidden children, throttling,
   no-change suppression.
-- [x] **2. Serializer hook.** Add `onNode?: () => void` to `SerializeOptions` in `serializer.ts`;
-      call it once per node serialized. Test in `serializer.test.ts` that a two-child frame calls
-      it three times and that hidden children don't count.
+- [x] **2. Serializer hook.** Add `onNode?: () => Promise<void> | undefined` to `SerializeOptions`
+      in `serializer.ts`; call and await it at each of `CHECKPOINTS_PER_NODE` (4) checkpoints per
+      node: on entry and after each design lookup. Tests in `serializer.test.ts` count the calls
+      and check hidden children don't count. (The live check showed one call per node, after the
+      design, could not make the walk yield; see [live-check.md](live-check.md).)
 - [x] **3. Wire progress** in `code.ts` for `get_document`, `get_selection`, `get_node`,
       `get_design_context`: compute `total` with `countNodes` over the roots it will serialize (with
       the same `maxDepth`), make the reporter with

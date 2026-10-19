@@ -303,6 +303,7 @@ Figma-Design-Relay/
 ├── plugin/       # Figma plugin (TypeScript/React); src/main/layout-tree.ts: bounded geometry;
 │                 # prototype.ts, svg.ts, node-properties.ts, layout-actions.ts and
 │                 # text-target.ts: the upstream-synced tools' Figma-free logic;
+│                 # read-progress.ts: long-read progress for the panel;
 │                 # dev-slot.ts: the slot rules the build uses
 └── server/       # MCP server (TypeScript/Node.js)
     └── src/
@@ -325,6 +326,7 @@ Figma-Design-Relay/
         ├── mermaid/      # Parses the Mermaid subset and lays diagrams out for FigJam
         ├── search/       # Searches every open design file and merges the answers
         ├── agent.ts      # Cleans the calling client's name for the plugin panel
+        ├── followers.ts  # Counts follower processes for the plugin panel
         └── types.ts      # Shared types
 ```
 
