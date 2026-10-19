@@ -123,7 +123,8 @@ review with a local merge, test results, a tag, or permission inferred from the 
 
 ## 6. Tear down the dev slot
 
-Once the user has merged `dev` → `main`, a task built in a feature worktree ends by removing its slot — the Dev plugin import in Figma, its
-MCP entry, then the worktree and branch — and rebuilding the main checkout so the stable plugin
+Once the user has merged `dev` → `main`, a task built in a feature worktree ends by removing its
+slot — the Dev plugin import in Figma, its MCP entry, then the worktree and branch (`git branch -d`,
+never `-D`) — and rebuilding the main checkout so the stable plugin
 carries the change. The `start-feature` skill's step 4 has the commands. Ask the user to remove the
 Figma import and to confirm before you edit their MCP config.

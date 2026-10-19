@@ -30,7 +30,9 @@
 - [ ] **5. Review:** GPT-6.1-Sol on the full branch diff against `origin/dev`; fix, re-verify,
       re-review until satisfied. Rerun affected live checks if the plugin or server changed.
 - [ ] **6. PR** feature → `dev` with the review rounds and live-check record; CodeRabbit review and
-      CI green; merge (merge commit). Open or update `dev` → `main`. Update overview statuses.
+      CI green; merge (merge commit). Open or update `dev` → `main` and give it its own gate on its
+      actual diff (a GPT-6.1-Sol round, CodeRabbit, required checks) before handing it to the user.
+      Update overview statuses.
 
 ## Acceptance
 

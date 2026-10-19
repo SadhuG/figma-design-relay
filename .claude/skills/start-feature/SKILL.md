@@ -61,8 +61,10 @@ Follow CLAUDE.md's workflow as usual; `finish-task` merges from here.
 Once `finish-task` has merged the branch into `main`:
 
 1. Remove the Dev plugin from Figma's Development menu, and its entry from the MCP client config.
-2. From the main checkout: `git worktree remove ../figma-design-relay-<feature>` and delete the
-   branch. The slot file goes with the worktree, and its port is free for the next feature.
+2. From the main checkout, after `git pull`: `git worktree remove ../figma-design-relay-<feature>`
+   (never `--force`), then `git branch -d <branch>` (never `-D`: Git refuses to delete a branch
+   that has not been merged, and that refusal is the point). The slot file goes with the worktree,
+   and its port is free for the next feature.
 3. Rebuild the main checkout (`git pull`, both builds) so the stable plugin carries the feature.
 
 A slot left behind is harmless but uses up a port and clutters the Development menu; `git worktree
