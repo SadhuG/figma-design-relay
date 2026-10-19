@@ -118,10 +118,10 @@ git commit -m "docs: the relay dashboard"
 Server routing changed and the bridge now wraps every call, so CLAUDE.md requires a live check
 before the PR. Run the `live-figma-check` skill against this worktree's build and dev slot.
 
-- [ ] **Step 1: Build and restart** — `bun run build` in `server/` and `plugin/`; restart the dev
+- [x] **Step 1: Build and restart** — `bun run build` in `server/` and `plugin/`; restart the dev
       relay (a leader keeps running the `dist` it started from); relaunch the Dev plugin in one design
       file and one FigJam board.
-- [ ] **Step 2: Exercise every path** — open `http://127.0.0.1:<dev port>/` and record each result:
+- [x] **Step 2: Exercise every path** — open `http://127.0.0.1:<dev port>/` and record each result:
   1. Both files appear with the right badge (Design, FigJam) and "Connected … ago".
   2. A local call (`get_selection` from the agent) appears as "This relay", OK, with a duration.
   3. A follower call (`node .smoke/call.mjs get_node …` against the dev port, which joins as a
@@ -132,7 +132,7 @@ before the PR. Run the `live-figma-check` skill against this worktree's build an
   6. Stopping the relay shows the banner; a new relay taking the port clears it without a reload.
   7. `curl -i -H "Host: evil.example" http://127.0.0.1:<dev port>/api/status` → `403`.
   8. `list_files` from the agent returns the same shape as before (no `connectedAt`).
-- [ ] **Step 3: Record** — write `docs/reference/<date>-relay-dashboard-live-check.md` in the shape
+- [x] **Step 3: Record** — write `docs/reference/<date>-relay-dashboard-live-check.md` in the shape
       of `2026-10-01-dev-name-port-live-check.md`: tested commit, setup, cases 1–8 with results, and a
       screenshot of the page. Commit with `docs: record relay dashboard live check`.
 
