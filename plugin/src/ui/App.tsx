@@ -309,6 +309,20 @@ export default function App() {
     });
   };
 
+  /**
+   * Forgets every request of the socket that is going away: their responses will never reach the
+   * agent, so neither their working state nor a late Sent, Diagram or progress event may show.
+   * Runs whenever a socket closes or is replaced, including the deliberate replacements below,
+   * which detach the old socket's onclose first.
+   */
+  const forgetRequests = () => {
+    activity.current.clear();
+    notices.current.clear();
+    progress.current.clear();
+    setFollowers(0);
+    bumpActivity();
+  };
+
   // Connect/reconnect WebSocket when fileKey changes
   useEffect(() => {
     if (!status.fileKey) return;
@@ -326,6 +340,7 @@ export default function App() {
         previousSocket.onmessage = null;
         previousSocket.close();
       }
+      forgetRequests();
 
       const wsUrl = `${WS_BASE_URL}?fileKey=${encodeURIComponent(status.fileKey)}&fileName=${encodeURIComponent(status.fileName)}&editorType=${encodeURIComponent(status.editorType ?? "")}&relayStatus=1`;
       const ws = new WebSocket(wsUrl);
@@ -352,12 +367,7 @@ export default function App() {
       ws.onclose = () => {
         if (disposed || socketRef.current !== ws) return;
         clearConnectTimer();
-        // Responses to requests still in flight will never arrive.
-        activity.current.clear();
-        notices.current.clear();
-        progress.current.clear();
-        setFollowers(0);
-        bumpActivity();
+        forgetRequests();
         setConnected(false);
         setHasFailed(true);
         if (reconnectTimer.current === null) {
@@ -401,6 +411,7 @@ export default function App() {
     return () => {
       disposed = true;
       connectNow.current = null;
+      forgetRequests();
       if (reconnectTimer.current !== null) {
         window.clearTimeout(reconnectTimer.current);
         reconnectTimer.current = null;
