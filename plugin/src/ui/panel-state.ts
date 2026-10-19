@@ -209,6 +209,7 @@ export class NoticeBoard {
   /** Recent finishes, so an event that arrives after its own response still gets its clock. */
   private finished = new Map<string, number>();
 
+  /** Accept notices only for this socket's known requests; start diagram expiry immediately. */
   record(kind: NoticeKind, requestId: string, nodeIds: string[], now: number): void {
     if (!this.running.has(requestId) && !this.finished.has(requestId)) return;
     const notice = { kind, requestId, nodeIds };
@@ -256,6 +257,7 @@ export class NoticeBoard {
     this.finished.clear();
   }
 
+  /** Return unexpired notices; a sent notice awaiting its response has no expiry yet. */
   current(now: number): { diagram: Notice | null; sent: Notice | null } {
     this.prune(now);
     return {
@@ -295,6 +297,7 @@ export class ReadProgressLog {
     this.reads.set(requestId, { startedAt: now, percent: null });
   }
 
+  /** Clamp progress to an integer percentage; ignore updates for untracked requests. */
   progress(requestId: string, percent: number): void {
     const read = this.reads.get(requestId);
     if (read) read.percent = Math.min(100, Math.max(0, Math.floor(percent)));
