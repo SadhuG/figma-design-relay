@@ -150,3 +150,9 @@ compiled leader and bridge hashes are respectively
 
 Local raw integration observations are retained in `dashboard-merged-live.log` and the holder
 logs. Previous release dry runs predate this merged candidate and do not verify its 0.10.1 archive.
+
+## Socket-replacement clearing
+
+The live check for `0e79d29` (forget requests when a socket is replaced, not only closed),
+requested by the PR #23 promotion review, is recorded in
+[its own file](2026-10-19-socket-replacement-live-check.md).
