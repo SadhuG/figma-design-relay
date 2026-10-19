@@ -18,6 +18,17 @@ with its tag.
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-10-19
+
+### Fixed
+
+- Bound follower telemetry to 256 recently observed labels and expire stale labels on heartbeat
+  and RPC observations, so memory stays bounded while the dashboard is unused.
+- Give dashboard success and error text sufficient contrast in both themes, with a separate
+  background and text color for the offline banner.
+- Use the relay's IPv4 listening address in the dashboard Quick Start, and preserve the agent
+  argument in the activity plan's `sendWithParams` interface and examples.
+
 ## [0.10.0] - 2026-10-19
 
 The plugin panel's four "Later" states from Board 10, built after the decisions of 2026-10-19

@@ -27,12 +27,16 @@
 - [x] **4. finish-task:** refresh CLAUDE.md facts (test counts, layout: `followers.ts`,
       `read-progress.ts`), bump to **0.10.0** (0.9.0 went to the relay dashboard, which reached `dev` first) with a CHANGELOG entry, `bun scripts/check-version.mjs`,
       format, all tests and builds.
-- [ ] **5. Review:** GPT-6.1-Sol on the full branch diff against `origin/dev`; fix, re-verify,
-      re-review until satisfied. Rerun affected live checks if the plugin or server changed.
-- [ ] **6. PR** feature → `dev` with the review rounds and live-check record; CodeRabbit review and
-      CI green; merge (merge commit). Open or update `dev` → `main` and give it its own gate on its
-      actual diff (a GPT-6.1-Sol round, CodeRabbit, required checks) before handing it to the user.
-      Update overview statuses.
+- [x] **5. Review:** GPT-6.1-Sol reviewed the full branch diff against `origin/dev`; findings
+      were fixed, re-verified and re-reviewed until satisfied. Affected live checks are recorded
+      in [live-check.md](live-check.md).
+- [x] **6. PR feature → `dev`:** [PR #22](https://github.com/SadhuG/figma-design-relay/pull/22)
+      recorded the review rounds and live checks, passed CodeRabbit review and CI, and merged
+      into `dev` as `996db70`.
+- [ ] **7. `dev` → `main` gate:** [PR #23](https://github.com/SadhuG/figma-design-relay/pull/23)
+      needs its own GPT-6.1-Sol review, CodeRabbit review and required checks on the actual latest
+      diff before handoff. The user merges it. Keep phase 5 in progress until this gate passes,
+      then update the overview status.
 
 ## Acceptance
 

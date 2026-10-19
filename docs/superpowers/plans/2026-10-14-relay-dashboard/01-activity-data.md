@@ -27,8 +27,9 @@ None. Run `start-feature` first (slug `relay-dashboard`); all commands run from 
   `sendWithParams` calls it) so the log gets the file name.
 - `listConnectedFiles()` keeps its exact shape: it is the `list_files` tool's output. Connection
   times go through a new `describeConnections()`.
-- The origin is a new optional 5th parameter of `Bridge.sendWithParams`, defaulting to
-  `{ kind: "local" }`, so `Node` and every existing caller stay unchanged.
+- The origin is a new optional 6th parameter of `Bridge.sendWithParams`, after the existing
+  optional `agent` parameter, defaulting to `{ kind: "local" }`, so `Node` and every existing
+  caller stay unchanged.
 
 ## Tasks
 
@@ -305,7 +306,7 @@ git commit -m "feat(server): in-memory activity log and follower registry"
 - Consumes: `ActivityLog`, `CallOrigin` from Task 1.
 - Produces: `new Bridge(activity?: ActivityLog)`; `Bridge.getActivity(): ActivityLog`;
   `Bridge.describeConnections(): Array<ConnectedFile & { connectedAt: number }>`;
-  `Bridge.sendWithParams(requestType, nodeIds?, params?, fileKey?, origin: CallOrigin = { kind: "local" })`.
+  `Bridge.sendWithParams(requestType, nodeIds?, params?, fileKey?, agent?, origin: CallOrigin = { kind: "local" })`.
 
 - [x] **Step 1: Append the failing tests to `server/src/bridge.test.ts`**
 
@@ -322,7 +323,7 @@ test("records each call's tool, file, origin and outcome", async () => {
   });
   const bridge = leader.getBridge();
   await bridge.send("get_node", ["1:1"], "target");
-  await bridge.sendWithParams("get_screenshot", ["9:9"], undefined, "target", {
+  await bridge.sendWithParams("get_screenshot", ["9:9"], undefined, "target", undefined, {
     kind: "follower",
     instance: "4242",
   });
@@ -424,6 +425,7 @@ Replace the top of `sendWithParams`, up to and including the `readyState` check,
     nodeIds?: string[],
     params?: Record<string, unknown>,
     fileKey?: string,
+    agent?: string,
     origin: CallOrigin = { kind: "local" }
   ): Promise<BridgeResponse> {
     return new Promise((resolveCall, rejectCall) => {
@@ -588,8 +590,8 @@ this.followers.touch(instance, true);
 const origin: CallOrigin = { kind: "follower", instance };
 ```
 
-Pass `origin` as the fifth argument to both `this.bridge.sendWithParams(…)` calls in `handleRPC`
-(the `save_screenshots` sender and the general forward).
+Pass `origin` as the sixth argument to both `this.bridge.sendWithParams(…)` calls in `handleRPC`
+(the `save_screenshots` sender and the general forward), preserving `agent` as the fifth argument.
 
 - [x] **Step 4: Run the server suite and the type-check**
 
