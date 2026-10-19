@@ -114,6 +114,10 @@ Drive it with `superpowers:subagent-driven-development` or `superpowers:executin
 - [`specs/2026-09-27-cross-file-design-search-design.md`](specs/2026-09-27-cross-file-design-search-design.md)
   — `search_design_system` across every open design file (R40's last gap). Delivered in 0.7.5 by
   [`plans/2026-09-27-cross-file-design-search.md`](plans/2026-09-27-cross-file-design-search.md).
+- [`specs/2026-10-14-relay-dashboard-design.md`](specs/2026-10-14-relay-dashboard-design.md) — the
+  leader's read-only status page (D1–D11). Built by
+  [`plans/2026-10-14-relay-dashboard/00-overview.md`](plans/2026-10-14-relay-dashboard/00-overview.md).
+
 - [`specs/2026-10-18-upstream-relay-audit-design.md`](specs/2026-10-18-upstream-relay-audit-design.md)
   — audit of upstream through v0.0.24 and the contracts for adopting it (U1–U7, D1–D4): prototype
   reads, `create_svg`, property batches, seven layout helpers, FigJam text editing, creator
@@ -131,4 +135,4 @@ Drive it with `superpowers:subagent-driven-development` or `superpowers:executin
 - [`plans/2026-10-19-panel-later-states/`](plans/2026-10-19-panel-later-states/00-overview.md):
   Board 10's four "Later" states (Selection sent, Syncing layers with real read progress, Diagram
   drawn, Leader and followers), built after the user's decisions of 2026-10-19. A folder plan;
-  delivered in 0.9.0, live check in `live-check.md` beside the plan.
+  delivered in 0.10.0, live check in `live-check.md` beside the plan.

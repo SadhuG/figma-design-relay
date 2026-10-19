@@ -18,7 +18,7 @@ with its tag.
 
 ## [Unreleased]
 
-## [0.9.0] - 2026-10-19
+## [0.10.0] - 2026-10-19
 
 The plugin panel's four "Later" states from Board 10, built after the decisions of 2026-10-19
 ([plan](docs/superpowers/plans/2026-10-19-panel-later-states/00-overview.md)).
@@ -33,7 +33,21 @@ The plugin panel's four "Later" states from Board 10, built after the decisions 
 ### Changed
 
 - Long layer-tree reads now pause briefly every 200 ms so Figma can deliver the progress messages and stay responsive; on a 30,000-layer page a read takes about 10% longer.
+- The leader pushes the dashboard's follower count (followers heard from in the last minute) to the panel too.
 - The relay only sends its `relay-status` message to plugins that ask for it (`relayStatus=1`), so older plugins are unaffected.
+
+## [0.9.0] - 2026-10-18
+
+### Added
+
+- A read-only relay dashboard at `http://localhost:<port>/`: connected files, recent tool calls
+  and follower processes. The status page follows the relay's dev slot, polls every two seconds,
+  and ships with release archives.
+
+### Fixed
+
+- Malformed dashboard request targets cannot terminate the relay. Each file's last-call time
+  updates as a request is dispatched and survives concurrent completions and activity-log eviction.
 
 ## [0.8.2] - 2026-10-18
 

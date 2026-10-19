@@ -25,7 +25,7 @@
       review is a GPT-6.1-Sol agent through T3 `delegate_task` (`codex`, `gpt-6.1-sol`), re-run
       until satisfied; the agent merges feature → `dev` and opens `dev` → `main` for the user.
 - [x] **4. finish-task:** refresh CLAUDE.md facts (test counts, layout: `followers.ts`,
-      `read-progress.ts`), bump to **0.9.0** with a CHANGELOG entry, `bun scripts/check-version.mjs`,
+      `read-progress.ts`), bump to **0.10.0** (0.9.0 went to the relay dashboard, which reached `dev` first) with a CHANGELOG entry, `bun scripts/check-version.mjs`,
       format, all tests and builds.
 - [ ] **5. Review:** GPT-6.1-Sol on the full branch diff against `origin/dev`; fix, re-verify,
       re-review until satisfied. Rerun affected live checks if the plugin or server changed.

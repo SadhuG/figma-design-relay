@@ -49,3 +49,11 @@ Overview rows 08 tracking and 08 delivery.
 
 Tests and build pass; with `hold-leader.mjs` plus a probe running, the plugin receives
 `relay-status` (phase 5).
+
+## After merging `dev` (2026-10-19)
+
+`feat/relay-dashboard` reached `dev` first with the same header and registry in
+`server/src/activity.ts`. When `dev` was merged into this branch, `followers.ts` and its tests
+were dropped: the leader now publishes `FollowerRegistry.active().length` from `activity.ts`
+(touched on `/ping` and `/rpc` by the dashboard's code) after each touch and every 5 s. The
+`relay-status` push and its bridge tests are unchanged.

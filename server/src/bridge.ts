@@ -2,6 +2,8 @@ import { WebSocketServer, WebSocket } from "ws";
 import type { IncomingMessage } from "node:http";
 import type { Duplex } from "node:stream";
 import { EDITOR_TYPES } from "./types.js";
+import { ActivityLog } from "./activity.js";
+import type { CallOrigin } from "./activity.js";
 import type { BridgeRequest, BridgeResponse, ConnectedFile, EditorType } from "./types.js";
 
 interface PendingRequest {
@@ -19,6 +21,8 @@ interface ConnectionEntry {
   isAlive: boolean;
   /** Dialled with `relayStatus=1`: the plugin understands `relay-status` frames. */
   wantsStatus: boolean;
+  connectedAt: number;
+  lastCallAt?: number;
 }
 
 export class Bridge {
@@ -29,7 +33,7 @@ export class Bridge {
   private pingTimer: ReturnType<typeof setInterval> | null = null;
   private followerCount = 0;
 
-  constructor() {
+  constructor(private activity: ActivityLog = new ActivityLog()) {
     this.wss = new WebSocketServer({ noServer: true });
     this.wss.on("error", (err) => {
       console.error("WebSocketServer error:", err);
@@ -95,6 +99,7 @@ export class Bridge {
       editorType,
       isAlive: true,
       wantsStatus,
+      connectedAt: Date.now(),
     });
     console.error(`Plugin connected: ${fileName} (${fileKey})`);
     if (wantsStatus) this.sendStatus(ws);
@@ -162,7 +167,7 @@ export class Bridge {
    * - If only one file is connected and no fileKey given, use it (backward compat).
    * - If multiple files connected and no fileKey, throw with a helpful message.
    */
-  private resolveConnection(fileKey?: string): WebSocket {
+  private resolveConnection(fileKey?: string): ConnectionEntry {
     if (fileKey) {
       const entry = this.connections.get(fileKey);
       if (!entry) {
@@ -173,7 +178,7 @@ export class Bridge {
             : " No files are currently connected.";
         throw new Error(`No plugin connected for fileKey "${fileKey}".${hint}`);
       }
-      return entry.ws;
+      return entry;
     }
 
     if (this.connections.size === 0) {
@@ -182,7 +187,7 @@ export class Bridge {
 
     if (this.connections.size === 1) {
       const entry = this.connections.values().next().value!;
-      return entry.ws;
+      return entry;
     }
 
     const files = this.listConnectedFiles();
@@ -205,6 +210,23 @@ export class Bridge {
     ws.send(JSON.stringify({ type: "relay-status", followers: this.followerCount }));
   }
 
+  /** Expose this bridge's bounded completed-call history to the leader's status snapshot. */
+  getActivity(): ActivityLog {
+    return this.activity;
+  }
+
+  /** Return connection and latest-dispatch times for dashboard cards, without changing list_files. */
+  describeConnections(): Array<ConnectedFile & { connectedAt: number; lastCallAt?: number }> {
+    return [...this.connections.values()].map((entry) => ({
+      fileKey: entry.fileKey,
+      fileName: entry.fileName,
+      ...(entry.editorType ? { editorType: entry.editorType } : {}),
+      connectedAt: entry.connectedAt,
+      ...(entry.lastCallAt === undefined ? {} : { lastCallAt: entry.lastCallAt }),
+    }));
+  }
+
+  /** Return public file identities and editor types, omitting dashboard timing fields. */
   listConnectedFiles(): ConnectedFile[] {
     return [...this.connections.values()].map((entry) => ({
       fileKey: entry.fileKey,
@@ -213,30 +235,57 @@ export class Bridge {
     }));
   }
 
+  /** Send a local request without params or an agent label, using the normal activity tracking. */
   send(requestType: string, nodeIds?: string[], fileKey?: string): Promise<BridgeResponse> {
     return this.sendWithParams(requestType, nodeIds, undefined, fileKey);
   }
 
+  /**
+   * Dispatch to the selected file and record one outcome, including timeout or disconnect errors.
+   * Agent labels travel to the plugin; origin metadata stays in the leader's activity history.
+   */
   sendWithParams(
     requestType: string,
     nodeIds?: string[],
     params?: Record<string, unknown>,
     fileKey?: string,
-    agent?: string
+    agent?: string,
+    origin: CallOrigin = { kind: "local" }
   ): Promise<BridgeResponse> {
-    return new Promise((resolve, reject) => {
-      let conn: WebSocket;
+    return new Promise((resolveCall, rejectCall) => {
+      let entry: ConnectionEntry;
       try {
-        conn = this.resolveConnection(fileKey);
+        entry = this.resolveConnection(fileKey);
       } catch (err) {
-        reject(err);
+        this.activity.start(requestType, origin, null)((err as Error).message);
+        rejectCall(err);
         return;
       }
+
+      // Every way this promise settles goes through these two, so each call is
+      // logged exactly once, timeouts and disconnects included.
+      const finish = this.activity.start(requestType, origin, {
+        fileKey: entry.fileKey,
+        fileName: entry.fileName,
+      });
+      const resolve = (resp: BridgeResponse): void => {
+        finish(resp.error);
+        resolveCall(resp);
+      };
+      const reject = (err: Error): void => {
+        finish(err.message);
+        rejectCall(err);
+      };
+      const conn = entry.ws;
 
       if (conn.readyState !== WebSocket.OPEN) {
         reject(new Error("Plugin not connected"));
         return;
       }
+
+      // Connection state outlives the bounded completed-call log, and updates
+      // when a request leaves rather than when concurrent calls finish.
+      entry.lastCallAt = Date.now();
 
       const requestId = this.nextId();
       const request: BridgeRequest = {
