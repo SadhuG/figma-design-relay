@@ -22,7 +22,7 @@ beforeAll(() => {
   };
 });
 
-const { serializeNode } = await import("./serializer");
+const { CHECKPOINTS_PER_NODE, serializeNode } = await import("./serializer");
 
 const rectangle = {
   id: "1:5",
@@ -168,6 +168,22 @@ describe("serializeNode depth limit", () => {
     const out = await serializeNode(root);
     expect(out.children?.[0].children?.[0].id).toBe("3:3");
   });
+
+  // The panel's read progress counts these calls against countNodes.
+  test("onNode fires at every checkpoint of every visible node", async () => {
+    let calls = 0;
+    await serializeNode(root, { onNode: () => calls++ });
+    expect(calls).toBe(3 * CHECKPOINTS_PER_NODE);
+  });
+
+  test("onNode stops at the depth limit too", async () => {
+    let calls = 0;
+    await serializeNode(root, { maxDepth: 1, onNode: () => calls++ });
+    expect(calls).toBe(2 * CHECKPOINTS_PER_NODE);
+  });
+
+  test("four checkpoints per node: entry, then after each design lookup", () =>
+    expect(CHECKPOINTS_PER_NODE).toBe(4));
 });
 
 type SerializedNodeWithCount = Awaited<ReturnType<typeof serializeNode>> & { childCount?: number };

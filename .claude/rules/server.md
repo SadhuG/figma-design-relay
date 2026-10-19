@@ -50,6 +50,17 @@ Adding a tool? Use the `add-mcp-tool` skill — it is a checklist across both pa
   (`pickFigmaFileKey`) and lets the caller pass the key from the file's URL, as
   `add_code_connect_map`'s `figmaFileKey` does.
 - The bridge times out a request after **180 seconds** (`src/bridge.ts`).
+- **The dashboard is read-only and same-origin.** `GET /` and `/api/status` (`src/dashboard-http.ts`)
+  refuse any `Host` but `127.0.0.1:<port>`/`localhost:<port>` (DNS rebinding), the API refuses
+  foreign `Origin` and cross-site `Sec-Fetch-Site`, and every reply carries a strict CSP. Never add
+  a route that calls a tool, and never log a call's params or results in `ActivityLog`. The page's
+  files live in `server/dashboard/` and are copied into the release by `release.yml`.
+- **Follower telemetry is bounded to 256 labels.** Every heartbeat or RPC observation expires
+  labels silent for over 60 seconds, then refreshes the current label. At capacity, the least
+  recently observed label is evicted (observation order breaks clock ties). The registry prunes on
+  observations and reads; the leader also rechecks its panel follower count every five seconds,
+  expiring stale entries during idle traffic. Labels are display-only, and telemetry eviction
+  never changes follower routing or authentication.
 - **A leader keeps running the `dist` it started from.** After touching `schema.ts`, `leader.ts`,
   `bridge.ts` or `election.ts`, restart the client's relay before trusting a live probe.
 
