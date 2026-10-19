@@ -257,7 +257,7 @@ export class NoticeBoard {
     this.finished.clear();
   }
 
-  /** Return unexpired notices; a sent notice awaiting its response has no expiry yet. */
+  /** Return unexpired notices; sent notices may have no expiry until a tracked request finishes. */
   current(now: number): { diagram: Notice | null; sent: Notice | null } {
     this.prune(now);
     return {
