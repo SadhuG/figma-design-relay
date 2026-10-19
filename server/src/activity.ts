@@ -28,6 +28,7 @@ export interface FollowerSeen {
 export const ACTIVITY_LIMIT = 200;
 export const ERROR_TEXT_LIMIT = 300;
 export const FOLLOWER_STALE_MS = 60_000;
+export const FOLLOWER_LIMIT = 256;
 
 /** Followers and the election name their process on every request to the leader. */
 export const INSTANCE_HEADER = "x-relay-instance";
@@ -90,28 +91,40 @@ export class ActivityLog {
   }
 }
 
-/** Process labels heard from recently enough to appear in the dashboard. */
+/** Bounded, least-recently-observed telemetry; labels never authorize or route requests. */
 export class FollowerRegistry {
   private seen = new Map<string, FollowerSeen>();
 
   /** Use the supplied epoch-millisecond clock for refresh and expiry. */
   constructor(private now: () => number = Date.now) {}
 
-  /** Refresh a known label and count RPC requests; ignore unidentified processes. */
+  /** Expire stale telemetry on every observation, then refresh a label and count RPC requests. */
   touch(instance: string | null, isCall: boolean): void {
+    const now = this.now();
+    this.prune(now);
     if (instance === null) return;
     const entry = this.seen.get(instance) ?? { instance, lastSeen: 0, calls: 0 };
-    entry.lastSeen = this.now();
+    entry.lastSeen = now;
     if (isCall) entry.calls++;
+    // Map insertion order tracks observations, including ties in the clock.
+    this.seen.delete(instance);
     this.seen.set(instance, entry);
+    if (this.seen.size > FOLLOWER_LIMIT) {
+      this.seen.delete(this.seen.keys().next().value!);
+    }
+  }
+
+  /** Remove expired labels without requiring a dashboard snapshot or a background timer. */
+  private prune(now: number): void {
+    const cutoff = now - FOLLOWER_STALE_MS;
+    for (const [instance, entry] of this.seen) {
+      if (entry.lastSeen < cutoff) this.seen.delete(instance);
+    }
   }
 
   /** Expire stale labels and return copies of active entries, most recently heard first. */
   active(): FollowerSeen[] {
-    const cutoff = this.now() - FOLLOWER_STALE_MS;
-    for (const [instance, entry] of this.seen) {
-      if (entry.lastSeen < cutoff) this.seen.delete(instance);
-    }
+    this.prune(this.now());
     return [...this.seen.values()]
       .sort((a, b) => b.lastSeen - a.lastSeen)
       .map((entry) => ({ ...entry }));

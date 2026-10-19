@@ -56,3 +56,45 @@ running relay process.
 
 No Figma dispatch, schema, tool or plugin UI implementation changed, so the prior live editor
 matrix remains relevant; this follow-up verifies the changed browser CSS directly.
+
+## Subsequent follower telemetry review fix
+
+The architecture concern in [promotion review #23](https://github.com/SadhuG/figma-design-relay/pull/23#issuecomment-6260097799)
+was confirmed: distinct numeric heartbeat labels grew an uncapped map, and expiry previously ran
+only when a dashboard snapshot was read. The follow-up now caps this display-only registry at
+**256 labels**, enough for far more concurrent local AI sessions than a typical workstation.
+Each heartbeat or RPC observation (including an unidentified heartbeat) prunes labels silent for
+over 60 seconds. Observations refresh map insertion order; the least recently observed label is
+evicted at capacity, with observation order breaking clock ties. Normal active labels retain their
+call counts. Eviction never affects routing or authorization. No timer was added: expiry is
+opportunistic, so an idle relay retains at most 256 labels until another observation or status read.
+
+Three fake-clock regressions failed before the implementation: 300 entries instead of 256; an
+expired returning label retaining its old call count; and a refreshed label not protected by
+eviction. All three pass after the change, along with the existing normal counting/expiry tests.
+Full root `bun run check` passed: server **453 passed, 2 Windows skips, 0 failed** (455 tests,
+31 files); plugin **381 passed, 0 failed** (23 files), both builds, type check, version and format
+checks. Raw output remains in the ignored `dashboard-telemetry-check.log`.
+
+For fresh live checks, the old worktree holder 37380 and child 10032 were stopped after verifying
+their command lines and port. A rebuilt holder 43808 started leader **27224 on 127.0.0.1:1996**,
+version 0.9.1. Its compiled `server/dist/activity.js` SHA-256 was
+`6F53646F74CAC5FC115E2B270D7864A3049B0CDCC3196251D71E33625F350F55`.
+The existing Slides plugin automatically reconnected as `unsaved-mvet24rj-1qquzuq1`; no Figma UI
+or MCP configuration was changed. The stable port was not operated on.
+
+- 300 HTTP `GET /ping` requests with distinct labels `900000` through `900299` returned success.
+  The next snapshot showed exactly **256** followers: `900000` was evicted and `900299` remained.
+- The synthetic labels were not refreshed. More than 60 seconds later, a new heartbeat and status
+  read showed **zero** remaining synthetic labels, alongside recent real follower labels.
+- Real MCP follower **25072** called `get_selection` through the rebuilt leader and returned
+  `isError: false`, including selected slide `1:42`. Dashboard activity retained its follower
+  origin, successful outcome and call count **1** (32.727-second plugin response).
+- Real MCP follower **37424** called `get_node` with `nodeId: "1:42"` and the explicit Slides file
+  key. It returned `isError: false` and the requested slide, while its telemetry count was **1**.
+  An earlier probe incorrectly supplied the MCP argument `nodeIds`; schema validation rejected
+  that probe before forwarding. The corrected probe above passed.
+
+The CSS verification above remains applicable because this subsequent fix changes only registry
+retention. The earlier release dry run on `5dc8a234` predates this runtime fix and does not verify
+its compiled artifact. The new commit still belongs to the pending 0.9.1 follow-up release.

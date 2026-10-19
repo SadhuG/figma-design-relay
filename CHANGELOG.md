@@ -22,6 +22,8 @@ with its tag.
 
 ### Fixed
 
+- Bound follower telemetry to 256 recently observed labels and expire stale labels on heartbeat
+  and RPC observations, so memory stays bounded while the dashboard is unused.
 - Give dashboard success and error text sufficient contrast in both themes, with a separate
   background and text color for the offline banner.
 - Use the relay's IPv4 listening address in the dashboard Quick Start, and preserve the agent

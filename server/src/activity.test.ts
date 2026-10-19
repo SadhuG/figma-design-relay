@@ -74,6 +74,39 @@ describe("ActivityLog", () => {
 });
 
 describe("FollowerRegistry", () => {
+  test("bounds distinct follower observations without dashboard reads", () => {
+    const c = clock();
+    const registry = new FollowerRegistry(c.now);
+    for (let i = 0; i < 300; i++) registry.touch(String(i), false);
+    const active = registry.active();
+    expect(active).toHaveLength(256);
+    expect(active.some((entry) => entry.instance === "0")).toBe(false);
+    expect(active.some((entry) => entry.instance === "299")).toBe(true);
+  });
+
+  test("expires a stale returning follower on observation without a prior snapshot", () => {
+    const c = clock();
+    const registry = new FollowerRegistry(c.now);
+    registry.touch("4242", true);
+    c.advance(FOLLOWER_STALE_MS + 1);
+    registry.touch("4242", false);
+    expect(registry.active()).toEqual([{ instance: "4242", lastSeen: c.now(), calls: 0 }]);
+  });
+
+  test("evicts the least recently observed label and preserves refreshed call counts", () => {
+    const c = clock();
+    const registry = new FollowerRegistry(c.now);
+    for (let i = 0; i < 256; i++) registry.touch(String(i), true);
+    c.advance(1);
+    registry.touch("0", true);
+    registry.touch("256", false);
+    const active = registry.active();
+    expect(active).toHaveLength(256);
+    expect(active.find((entry) => entry.instance === "0")?.calls).toBe(2);
+    expect(active.some((entry) => entry.instance === "1")).toBe(false);
+    expect(active.some((entry) => entry.instance === "256")).toBe(true);
+  });
+
   test("counts calls and forgets followers silent for a minute", () => {
     const c = clock();
     const registry = new FollowerRegistry(c.now);
