@@ -189,8 +189,7 @@ the stable one, which dials 1994. Never drop the port from the name.
   get reviewed too. Tell the user what each round found and what was done, record the rounds in
   the PR, then merge the feature → `dev` PR through GitHub once the PR gate above passes. Then
   open (or update) the `dev` → `main` PR, put it through the same gate on its own diff, and
-  **leave it for the user to merge**. `finish-task`
-  steps 4–5 hold the procedure.
+  **leave it for the user to merge**. `finish-task` steps 4–5 hold the procedure.
 - **Keep the docs current as you work.** A durable fact, settled convention, new command or changed
   workflow goes into the right file — this one, a `.claude/` rule or skill, the README, or `docs/` —
   as part of the work. Anything left only in a conversation is lost. Keep volatile numbers to the
