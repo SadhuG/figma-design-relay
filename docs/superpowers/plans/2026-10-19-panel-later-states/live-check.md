@@ -67,3 +67,10 @@ when it closes. The rebuilt plugin hot-reloaded and reconnected through the chan
 path, and `get_selection` through a follower answered normally. The panel itself wasn't
 screenshotted again: the machine was in use and Figma could not be brought to the front. The
 change only adds clearing calls; the visible states were checked after round 1.
+
+## After merging `dev` (relay dashboard)
+
+`e3cdff4` folds the follower count into the dashboard's `activity.ts` registry. The relay was
+restarted from that build; the Dev plugin in the design file reconnected on its own. A test
+WebSocket client dialling `relayStatus=1` received `relay-status` 0 on connect and 1 when a
+follower probe (`call.mjs list_files`) called in. The panel was not screenshotted (machine in use).
