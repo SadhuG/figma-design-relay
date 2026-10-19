@@ -353,7 +353,7 @@ git commit -m "feat(server): in-memory activity log and follower registry"
 
 - Consumes: `ActivityLog`, `CallOrigin` from Task 1.
 - Produces: `new Bridge(activity?: ActivityLog)`; `Bridge.getActivity(): ActivityLog`;
-  `Bridge.describeConnections(): Array<ConnectedFile & { connectedAt: number }>`;
+  `Bridge.describeConnections(): Array<ConnectedFile & { connectedAt: number; lastCallAt?: number }>`;
   `Bridge.sendWithParams(requestType, nodeIds?, params?, fileKey?, agent?, origin: CallOrigin = { kind: "local" })`.
 
 - [x] **Step 1: Append the failing tests to `server/src/bridge.test.ts`**
@@ -419,7 +419,63 @@ test("describes each connection with when it connected, list_files unchanged", a
   expect(file.connectedAt).toBeGreaterThanOrEqual(before);
   expect(bridge.listConnectedFiles()).toEqual([{ fileKey: "target", fileName: "Unknown" }]);
 });
+
+test("lastCallAt reflects receipt while calls run and cannot regress on completion", async () => {
+  const target = await connect("target");
+  const bridge = leader.getBridge();
+  const firstReceived = new Promise<BridgeRequest>((resolve) =>
+    target.once("message", (data) => resolve(JSON.parse(data.toString())))
+  );
+  const first = bridge.send("get_selection", undefined, "target");
+  const a = await firstReceived;
+  const firstTime = bridge.describeConnections()[0].lastCallAt;
+  await Bun.sleep(2);
+  const secondReceived = new Promise<BridgeRequest>((resolve) =>
+    target.once("message", (data) => resolve(JSON.parse(data.toString())))
+  );
+  const second = bridge.send("get_selection", undefined, "target");
+  const b = await secondReceived;
+  const whileRunning = bridge.describeConnections()[0].lastCallAt;
+  target.send(JSON.stringify({ ...b, data: "second" }));
+  await second;
+  target.send(JSON.stringify({ ...a, data: "first" }));
+  await first;
+  expect(firstTime).toBeNumber();
+  expect(whileRunning).toBeGreaterThan(firstTime!);
+  expect(bridge.describeConnections()[0].lastCallAt).toBe(whileRunning);
+  expect(bridge.listConnectedFiles()).toEqual([{ fileKey: "target", fileName: "Unknown" }]);
+});
+
+test("a file's lastCallAt survives other files evicting its activity entry", async () => {
+  const target = await connect("target");
+  const other = await connect("other");
+  const bridge = leader.getBridge();
+  const received = nextRequest(target);
+  await bridge.send("get_selection", undefined, "target");
+  await received;
+  const lastCallAt = bridge
+    .describeConnections()
+    .find((file) => file.fileKey === "target")!.lastCallAt;
+  other.on("message", (data) => {
+    const request = JSON.parse(data.toString());
+    other.send(JSON.stringify({ ...request, data: "ok" }));
+  });
+  for (let i = 0; i < 201; i++) await bridge.send("get_selection", undefined, "other");
+  expect(
+    bridge
+      .getActivity()
+      .recent()
+      .some((entry) => entry.fileKey === "target")
+  ).toBe(false);
+  expect(lastCallAt).toBeNumber();
+  expect(bridge.describeConnections().find((file) => file.fileKey === "target")!.lastCallAt).toBe(
+    lastCallAt
+  );
+});
 ```
+
+The file's existing `nextRequest` helper answers the target's request; add
+`import type { BridgeRequest } from "./types.js";` to its imports.
 
 - [x] **Step 2: Run the tests and see them fail**
 
@@ -436,8 +492,8 @@ import { ActivityLog } from "./activity.js";
 import type { CallOrigin } from "./activity.js";
 ```
 
-`ConnectionEntry` gains `connectedAt: number;`, and `handleConnection` sets
-`connectedAt: Date.now(),` in the object it stores.
+`ConnectionEntry` gains `connectedAt: number;` and `lastCallAt?: number;`, and `handleConnection`
+sets `connectedAt: Date.now(),` in the object it stores.
 
 The constructor takes the log, and two accessors join `listConnectedFiles`:
 
@@ -450,13 +506,14 @@ The constructor takes the log, and two accessors join `listConnectedFiles`:
     return this.activity;
   }
 
-  /** list_files plus when each file connected — for the dashboard, not the tool. */
-  describeConnections(): Array<ConnectedFile & { connectedAt: number }> {
+  /** list_files plus when each file connected and last got a call — for the dashboard, not the tool. */
+  describeConnections(): Array<ConnectedFile & { connectedAt: number; lastCallAt?: number }> {
     return [...this.connections.values()].map((entry) => ({
       fileKey: entry.fileKey,
       fileName: entry.fileName,
       ...(entry.editorType ? { editorType: entry.editorType } : {}),
       connectedAt: entry.connectedAt,
+      ...(entry.lastCallAt === undefined ? {} : { lastCallAt: entry.lastCallAt }),
     }));
   }
 ```
@@ -465,7 +522,8 @@ The constructor takes the log, and two accessors join `listConnectedFiles`:
 `private resolveConnection(fileKey?: string): ConnectionEntry` and both `return entry.ws;` lines to
 `return entry;`.
 
-Replace the top of `sendWithParams`, up to and including the `readyState` check, with:
+Replace the top of `sendWithParams`, up to and including the `readyState` check, with the
+following. It also stamps the connection's `lastCallAt` as the request leaves:
 
 ```ts
   sendWithParams(
@@ -506,6 +564,10 @@ Replace the top of `sendWithParams`, up to and including the `readyState` check,
         reject(new Error("Plugin not connected"));
         return;
       }
+
+      // Connection state outlives the bounded completed-call log, and updates
+      // when a request leaves rather than when concurrent calls finish.
+      entry.lastCallAt = Date.now();
 ```
 
 The rest of the method is unchanged; it already calls `resolve`/`reject` by those names.
@@ -513,7 +575,7 @@ The rest of the method is unchanged; it already calls `resolve`/`reject` by thos
 - [x] **Step 4: Run the server suite and the type-check**
 
 Run: `cd server && bun test && bun run build`
-Expected: all tests PASS (the four new ones included); `tsc` exits 0.
+Expected: all tests PASS (the six new ones included); `tsc` exits 0.
 
 - [x] **Step 5: Commit**
 
