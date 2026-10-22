@@ -110,7 +110,7 @@ function AppIcon({ size, faded }: { size: number; faded: boolean }) {
   );
 }
 
-/** Live and Connecting show a dot; every other state has a mark of its own. */
+/** Live and Connecting are text alone; every other state has a mark of its own. */
 const CHIP_ICONS: Partial<Record<ChipTone, (props: { size: number }) => React.JSX.Element>> = {
   working: CursorIcon,
   lost: LostIcon,
@@ -134,7 +134,7 @@ function Chip({
   const Icon = CHIP_ICONS[tone];
   return (
     <span className={`chip ${tone}${Icon ? " has-icon" : ""}`} title={title}>
-      {Icon ? <Icon size={iconSize} /> : <span className="dot" />}
+      {Icon ? <Icon size={iconSize} /> : null}
       <span className="chip-text">{text}</span>
     </span>
   );
@@ -471,7 +471,7 @@ export default function App() {
             </div>
             <div className="row">
               <span className="row-label">Relay</span>
-              <span className="row-value">{relayRowText(RELAY_ADDRESS, !lost)}</span>
+              <span className="row-value mono">{relayRowText(RELAY_ADDRESS, !lost)}</span>
             </div>
           </div>
 
