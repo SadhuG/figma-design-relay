@@ -17,7 +17,7 @@ roles, and Rising sun chips, pill and buttons.
   time (the manifest allows only localhost).
 - Font stacks: UI `"Zen Kaku Gothic New", system-ui, -apple-system, sans-serif`; mono
   `"M PLUS 1 Code", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`.
-- Body text 11 px, line height 140 % (15.4 px); collapsed-bar chips 10 px.
+- Body text 11 px, line height 15 px: the screens give 140 % (15.4 px) but draw 15 px rows, and the 121 px window depends on them; collapsed-bar chips 10 px.
 - Every colour in `index.css` comes from a role variable named in the overview's colour table. The
   Board 10 variables (`--bg`, `--live`, `--working-bg`, …) are gone.
 - Chips: radius 2 px, background `--surface-well`, no dot. Text colours: connecting

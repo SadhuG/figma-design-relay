@@ -49,7 +49,7 @@ import {
 } from "./layout-actions";
 import { assertTextPropertiesSupported, getTextTargetById, type TextTarget } from "./text-target";
 import { UI_COLLAPSED_HEIGHT, UI_WIDTH, uiExpandedHeight } from "./panel-size";
-import { THEME_OVERRIDE_KEY, parseThemeOverride, type ThemeOverride } from "../theme-override";
+import { loadThemeOverride, saveThemeOverride, type ThemeOverride } from "../theme-override";
 
 export type RequestType =
   | "get_document"
@@ -2505,8 +2505,12 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
   }
 };
 
-/** Set only in a dev slot's build (mainDefine, dev-slot.ts); its panel has an extra Theme row. */
-const UI_EXPANDED_HEIGHT = uiExpandedHeight(Boolean(import.meta.env.VITE_FIGMA_DESIGN_RELAY_SLOT));
+/**
+ * Set only in a dev slot's build (mainDefine, dev-slot.ts). Its panel has an extra Theme row, and
+ * only it reads, posts or stores a theme override.
+ */
+const DEV_BUILD = Boolean(import.meta.env.VITE_FIGMA_DESIGN_RELAY_SLOT);
+const UI_EXPANDED_HEIGHT = uiExpandedHeight(DEV_BUILD);
 const UI_COLLAPSED_KEY = "ui-collapsed";
 
 let uiCollapsed = false;
@@ -2519,10 +2523,11 @@ const postUiCollapseState = () => {
   figma.ui.postMessage({ type: "ui-collapse-state", payload: { collapsed: uiCollapsed } });
 };
 
-/** A dev build's theme override (theme-override.ts); a stable panel never sets one. */
+/** A dev build's theme override (theme-override.ts); always null in a stable build. */
 let themeOverride: ThemeOverride = null;
 
 const postUiThemeOverride = () => {
+  if (!DEV_BUILD) return;
   figma.ui.postMessage({ type: "ui-theme-override", payload: { override: themeOverride } });
 };
 
@@ -2546,14 +2551,9 @@ Promise.all([
     .catch(() => {
       uiCollapsed = false;
     }),
-  figma.clientStorage
-    .getAsync(THEME_OVERRIDE_KEY)
-    .then((stored) => {
-      themeOverride = parseThemeOverride(stored);
-    })
-    .catch(() => {
-      themeOverride = null;
-    }),
+  loadThemeOverride(DEV_BUILD, (key) => figma.clientStorage.getAsync(key)).then((stored) => {
+    themeOverride = stored;
+  }),
 ]).then(() => {
   applyUiSize();
   postUiCollapseState();
@@ -2601,10 +2601,9 @@ figma.ui.onmessage = async (message) => {
   }
 
   if (message.type === "set-theme-override") {
-    themeOverride = parseThemeOverride(message.override);
-    figma.clientStorage.setAsync(THEME_OVERRIDE_KEY, themeOverride).catch(() => {
-      // Best-effort, like the collapsed state: the panel has already switched.
-    });
+    themeOverride = await saveThemeOverride(DEV_BUILD, message.override, (key, value) =>
+      figma.clientStorage.setAsync(key, value)
+    );
     return;
   }
 

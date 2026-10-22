@@ -92,6 +92,23 @@ const customProperties = (body: string): Record<string, string> =>
 const outsideRoot = (css: string): string =>
   css.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(?<=^|})\s*:root[^{]*{[^}]*}/g, "");
 
+const COLOUR_PROPERTY =
+  /^(color|background(-color)?|border(-(top|right|bottom|left))?(-color)?|outline(-color)?|fill|stroke|box-shadow|caret-color)$/;
+
+/** What a colour declaration may hold besides a role: sizes, styles and keywords with no hue. */
+const NOT_A_COLOUR = new RegExp(
+  String.raw`var\(--(${Object.keys(LIGHT).join("|")})\)|${FOCUS_RING}|\b(transparent|currentColor|none|inherit|solid)\b|-?\d*\.?\d+(px|%)?`,
+  "gi"
+);
+
+/** Colour declarations outside :root that name anything but a role. */
+const colourProblems = (css: string): string[] =>
+  [...outsideRoot(css).matchAll(/([a-z-]+):\s*([^;{}]+);/g)]
+    .filter(([, property]) => COLOUR_PROPERTY.test(property))
+    .map(([, property, value]) => [property, value.trim()] as const)
+    .filter(([, value]) => value.replace(NOT_A_COLOUR, "").trim() !== "")
+    .map(([property, value]) => `${property}: ${value}`);
+
 describe("index.css", () => {
   const css = read("index.css");
 
@@ -116,6 +133,13 @@ describe("index.css", () => {
     expect([...used].filter((name) => !allowed.has(name))).toEqual([]);
     const literals = outsideRoot(css).match(/#[0-9a-f]{3,8}\b|rgba?\(/gi) ?? [];
     expect(literals.filter((literal) => literal.toLowerCase() !== FOCUS_RING)).toEqual([]);
+    expect(colourProblems(css)).toEqual([]);
+  });
+
+  test("the colour check catches named colours and other colour functions", () => {
+    expect(
+      colourProblems(".a { color: red; } .b { background: hsl(0 0% 0%); } .c { fill: none; }")
+    ).toEqual(["color: red", "background: hsl(0 0% 0%)"]);
   });
 
   test("every font stack ends in a system fallback", () => {
