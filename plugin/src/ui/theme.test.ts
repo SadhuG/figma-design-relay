@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { figmaTheme, type Theme, watchFigmaTheme } from "./theme";
+import {
+  figmaTheme,
+  nextOverride,
+  resolveTheme,
+  type Theme,
+  themeRowText,
+  watchFigmaTheme,
+} from "./theme";
 
 /** Stands in for the browser's MutationObserver: `fire` plays a class change back. */
 class FakeObserver {
@@ -74,5 +81,49 @@ describe("figmaTheme", () => {
 
   test("matches a whole class only", () => {
     expect(figmaTheme("figma-darker")).toBe("light");
+  });
+});
+
+describe("resolveTheme", () => {
+  test("follows Figma with no override", () => {
+    expect(resolveTheme("light", null)).toBe("light");
+    expect(resolveTheme("dark", null)).toBe("dark");
+  });
+
+  test("an override wins whatever Figma uses", () => {
+    expect(resolveTheme("light", "dark")).toBe("dark");
+    expect(resolveTheme("dark", "light")).toBe("light");
+    expect(resolveTheme("light", "light")).toBe("light");
+    expect(resolveTheme("dark", "dark")).toBe("dark");
+  });
+});
+
+describe("nextOverride", () => {
+  test("flipping away from Figma's theme overrides it", () => {
+    expect(nextOverride("light", null)).toBe("dark");
+    expect(nextOverride("dark", null)).toBe("light");
+  });
+
+  test("flipping back onto Figma's theme follows Figma again", () => {
+    expect(nextOverride("light", "dark")).toBeNull();
+    expect(nextOverride("dark", "light")).toBeNull();
+  });
+
+  test("an override Figma has since caught up with flips away from Figma", () => {
+    expect(nextOverride("dark", "dark")).toBe("light");
+    expect(nextOverride("light", "light")).toBe("dark");
+  });
+});
+
+describe("themeRowText", () => {
+  test("names the theme and where it comes from", () => {
+    expect(themeRowText("dark", null)).toBe("Dark · Figma");
+    expect(themeRowText("light", null)).toBe("Light · Figma");
+    expect(themeRowText("light", "dark")).toBe("Dark · override");
+    expect(themeRowText("dark", "light")).toBe("Light · override");
+  });
+
+  test("an override stays an override when Figma matches it", () => {
+    expect(themeRowText("dark", "dark")).toBe("Dark · override");
   });
 });
