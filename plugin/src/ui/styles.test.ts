@@ -14,7 +14,8 @@ const faces = (css: string) =>
   [...css.matchAll(/@font-face\s*{([^}]*)}/g)].map(([, body]) => ({
     family: /font-family:\s*"([^"]+)"/.exec(body)?.[1],
     weight: /font-weight:\s*(\d+)/.exec(body)?.[1],
-    src: /src:\s*([^;]+);/.exec(body)?.[1].trim(),
+    // Prettier wraps a long src onto two lines.
+    src: /src:\s*([^;]+);/.exec(body)?.[1].replace(/\s+/g, " ").trim(),
   }));
 
 describe("fonts.css", () => {
