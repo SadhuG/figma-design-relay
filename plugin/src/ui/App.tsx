@@ -3,11 +3,13 @@ import {
   AppIcon as AppMark,
   ChevronIcon,
   DartsIcon,
+  MoonIcon,
   MovedIcon,
   OutlineStackIcon,
   PixelCursorIcon,
   SelectionOutIcon,
   ShapeRelayIcon,
+  SunIcon,
 } from "./icons";
 import {
   ActivityLog,
@@ -26,7 +28,8 @@ import {
   workingLabel,
   type ChipTone,
 } from "./panel-state";
-import { type Theme, watchFigmaTheme } from "./theme";
+import { nextOverride, resolveTheme, type Theme, themeRowText, watchFigmaTheme } from "./theme";
+import { parseThemeOverride, type ThemeOverride } from "../theme-override";
 
 type RequestType =
   | "get_document"
@@ -149,6 +152,25 @@ function DevPill() {
   return DEV_SLOT ? <span className="dev-pill">Dev: {DEV_SLOT}</span> : null;
 }
 
+/** The dev Theme row's switch: on is dark. */
+function ThemeSwitch({ theme, onFlip }: { theme: Theme; onFlip: () => void }) {
+  const dark = theme === "dark";
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={dark}
+      aria-label="Dark theme"
+      className="theme-switch"
+      onClick={onFlip}
+    >
+      <span className="theme-switch-knob">
+        {dark ? <MoonIcon size={10} /> : <SunIcon size={10} />}
+      </span>
+    </button>
+  );
+}
+
 export default function App() {
   const [connected, setConnected] = useState(false);
   /** An attempt has failed or a connection dropped; until then the panel is just connecting. */
@@ -190,6 +212,22 @@ export default function App() {
   const [figmaUiTheme, setFigmaUiTheme] = useState<Theme>("light");
 
   useEffect(() => watchFigmaTheme(document.documentElement, setFigmaUiTheme), []);
+  /** A dev build's override, from the main thread's storage; always null in a stable build. */
+  const [themeOverride, setThemeOverride] = useState<ThemeOverride>(null);
+
+  // data-theme wins over Figma's class in index.css. Only a dev build ever sets it.
+  useEffect(() => {
+    if (!DEV_SLOT) return;
+    const root = document.documentElement;
+    if (themeOverride) root.dataset.theme = themeOverride;
+    else delete root.dataset.theme;
+  }, [themeOverride]);
+
+  const flipTheme = () => {
+    const next = nextOverride(figmaUiTheme, themeOverride);
+    setThemeOverride(next);
+    parent.postMessage({ pluginMessage: { type: "set-theme-override", override: next } }, "*");
+  };
 
   const now = Date.now();
   const agents = activity.current.activeAgents(now);
@@ -264,6 +302,11 @@ export default function App() {
 
       if (msg.type === "ui-collapse-state") {
         setCollapsed(msg.payload?.collapsed === true);
+        return;
+      }
+
+      if (msg.type === "ui-theme-override") {
+        if (DEV_SLOT) setThemeOverride(parseThemeOverride(msg.payload?.override));
         return;
       }
 
@@ -482,6 +525,15 @@ export default function App() {
               <span className="row-label">Relay</span>
               <span className="row-value mono">{relayRowText(RELAY_ADDRESS, !lost)}</span>
             </div>
+            {DEV_SLOT ? (
+              <div className="row theme">
+                <span className="row-label">Theme</span>
+                <ThemeSwitch theme={resolveTheme(figmaUiTheme, themeOverride)} onFlip={flipTheme} />
+                <span className="row-value theme-value">
+                  {themeRowText(figmaUiTheme, themeOverride)}
+                </span>
+              </div>
+            ) : null}
           </div>
 
           <div className="footer">

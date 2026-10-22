@@ -5,11 +5,13 @@ import {
   AppIcon,
   ChevronIcon,
   DartsIcon,
+  MoonIcon,
   MovedIcon,
   OutlineStackIcon,
   PixelCursorIcon,
   SelectionOutIcon,
   ShapeRelayIcon,
+  SunIcon,
 } from "./icons";
 
 // The Rising sun icons (Figma "Brand kit: Rising sun"): colours come from the theme, never from
@@ -91,4 +93,18 @@ describe("AppIcon", () => {
     expect(markup).toContain('width="20"');
     expect(markup).toContain('viewBox="0 0 16 16"');
   });
+});
+
+describe("theme switch glyphs", () => {
+  for (const [name, Glyph] of Object.entries({ SunIcon, MoonIcon })) {
+    test(`${name} is a 10 px glyph painted with currentColor`, () => {
+      const markup = renderToStaticMarkup(createElement(Glyph, { size: 10 }));
+      expect(markup).toContain('viewBox="0 0 10 10"');
+      expect(markup).not.toMatch(/#[0-9a-f]{3,8}/i);
+      expect(paints(markup).filter((value) => value !== "none")).not.toHaveLength(0);
+      expect(paints(markup).every((value) => value === "none" || value === "currentColor")).toBe(
+        true
+      );
+    });
+  }
 });

@@ -49,6 +49,7 @@ import {
 } from "./layout-actions";
 import { assertTextPropertiesSupported, getTextTargetById, type TextTarget } from "./text-target";
 import { UI_COLLAPSED_HEIGHT, UI_WIDTH, uiExpandedHeight } from "./panel-size";
+import { THEME_OVERRIDE_KEY, parseThemeOverride, type ThemeOverride } from "../theme-override";
 
 export type RequestType =
   | "get_document"
@@ -2518,6 +2519,13 @@ const postUiCollapseState = () => {
   figma.ui.postMessage({ type: "ui-collapse-state", payload: { collapsed: uiCollapsed } });
 };
 
+/** A dev build's theme override (theme-override.ts); a stable panel never sets one. */
+let themeOverride: ThemeOverride = null;
+
+const postUiThemeOverride = () => {
+  figma.ui.postMessage({ type: "ui-theme-override", payload: { override: themeOverride } });
+};
+
 // Start hidden so the window never flashes at full height before the stored
 // collapsed state is restored. The iframe still loads and runs while hidden. themeColors puts
 // figma-light or figma-dark on the iframe's <html>, which the panel's CSS follows.
@@ -2528,19 +2536,30 @@ figma.showUI(__html__, {
   themeColors: true,
 });
 
-figma.clientStorage
-  .getAsync(UI_COLLAPSED_KEY)
-  .then((stored) => {
-    uiCollapsed = stored === true;
-  })
-  .catch(() => {
-    uiCollapsed = false;
-  })
-  .then(() => {
-    applyUiSize();
-    postUiCollapseState();
-    figma.ui.show();
-  });
+// Each read falls back on its own, so a failed one never keeps the window hidden.
+Promise.all([
+  figma.clientStorage
+    .getAsync(UI_COLLAPSED_KEY)
+    .then((stored) => {
+      uiCollapsed = stored === true;
+    })
+    .catch(() => {
+      uiCollapsed = false;
+    }),
+  figma.clientStorage
+    .getAsync(THEME_OVERRIDE_KEY)
+    .then((stored) => {
+      themeOverride = parseThemeOverride(stored);
+    })
+    .catch(() => {
+      themeOverride = null;
+    }),
+]).then(() => {
+  applyUiSize();
+  postUiCollapseState();
+  postUiThemeOverride();
+  figma.ui.show();
+});
 sendStatus();
 
 figma.on("selectionchange", () => {
@@ -2576,7 +2595,16 @@ figma.ui.onmessage = async (message) => {
 
   if (message.type === "request-ui-state") {
     postUiCollapseState();
+    postUiThemeOverride();
     sendStatus();
+    return;
+  }
+
+  if (message.type === "set-theme-override") {
+    themeOverride = parseThemeOverride(message.override);
+    figma.clientStorage.setAsync(THEME_OVERRIDE_KEY, themeOverride).catch(() => {
+      // Best-effort, like the collapsed state: the panel has already switched.
+    });
     return;
   }
 

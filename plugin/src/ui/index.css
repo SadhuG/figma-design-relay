@@ -271,3 +271,51 @@ body {
 .button.diagram:hover {
   opacity: 0.85;
 }
+
+/* The dev build's Theme row (App.tsx): a switch as Figma's "Theme toggle", Size=Small. The track's
+   1 px border sits inside its 32 × 18, so the knob's 2 px inset is 1 px from the border. */
+.theme-switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 32px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--line-hairline);
+  border-radius: 9px;
+  background: var(--surface-well);
+  cursor: pointer;
+}
+
+.theme-switch:focus-visible {
+  outline: 2px solid #0d99ff;
+  outline-offset: 1px;
+}
+
+.theme-switch-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 7px;
+  background: var(--surface-raised);
+  color: var(--sun-rising);
+  transition: left 150ms ease-out;
+}
+
+.theme-switch[aria-checked="true"] .theme-switch-knob {
+  left: 15px;
+  color: var(--text-primary);
+}
+
+.row.theme {
+  align-items: center;
+  height: 18px;
+}
+
+.theme-value {
+  color: var(--text-secondary);
+}

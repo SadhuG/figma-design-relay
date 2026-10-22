@@ -147,3 +147,27 @@ describe("fonts.css", () => {
     }
   });
 });
+
+describe("the dev Theme switch", () => {
+  const css = read("index.css");
+  const declarations = (selector: string) =>
+    Object.fromEntries(
+      [...ruleBody(css, selector).matchAll(/([a-z-]+):\s*([^;]+);/g)].map(([, name, value]) => [
+        name,
+        value.trim(),
+      ])
+    );
+
+  test("the switch is 32 × 18 with a 14 px knob, as Theme toggle's Small variants", () => {
+    expect(declarations(".theme-switch")).toMatchObject({ width: "32px", height: "18px" });
+    expect(declarations(".theme-switch-knob")).toMatchObject({ width: "14px", height: "14px" });
+  });
+
+  test("the knob travels 14 px to the right for dark", () => {
+    const light = Number.parseFloat(declarations(".theme-switch-knob").left);
+    const dark = Number.parseFloat(
+      declarations('.theme-switch[aria-checked="true"] .theme-switch-knob').left
+    );
+    expect(dark - light).toBe(14);
+  });
+});

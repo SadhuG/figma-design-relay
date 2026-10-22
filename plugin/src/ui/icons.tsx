@@ -278,3 +278,36 @@ export function ChevronIcon({ size, direction }: IconProps & { direction: "up" |
     </svg>
   );
 }
+
+/** The dev Theme switch's light mark, from Figma's "Theme toggle" (Size=Small). */
+export function SunIcon({ size }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 10 10" fill="none" aria-hidden="true">
+      <path
+        d="M6.875 5C6.875 6.03553 6.03553 6.875 5 6.875C3.96447 6.875 3.125 6.03553 3.125 5C3.125 3.96447 3.96447 3.125 5 3.125C6.03553 3.125 6.875 3.96447 6.875 5Z"
+        stroke={C}
+        strokeWidth="1.25"
+      />
+      <path
+        d="M5 0.625V1.45833M5 8.54167V9.375M0.625 5H1.45833M8.54167 5H9.375M1.90833 1.90833L2.49167 2.49167M7.50833 7.50833L8.09167 8.09167M1.90833 8.09167L2.49167 7.50833M7.50833 2.49167L8.09167 1.90833"
+        stroke={C}
+        strokeWidth="1.25"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+/** The dev Theme switch's dark mark. */
+export function MoonIcon({ size }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 10 10" fill="none" aria-hidden="true">
+      <path
+        d="M8.75002 6.08333C8.57323 6.7571 8.22177 7.37229 7.73114 7.86676C7.24051 8.36123 6.62808 8.71747 5.95571 8.89951C5.28334 9.08155 4.57484 9.08293 3.90176 8.90351C3.22869 8.7241 2.61488 8.37025 2.12232 7.87769C1.62977 7.38514 1.27591 6.77133 1.0965 6.09825C0.917088 5.42518 0.918469 4.71667 1.1005 4.0443C1.28254 3.37193 1.63878 2.75951 2.13325 2.26888C2.62773 1.77824 3.24291 1.42679 3.91668 1.25C3.27574 1.89094 2.91567 2.76024 2.91567 3.66667C2.91567 4.57309 3.27574 5.44239 3.91668 6.08333C4.55762 6.72427 5.42692 7.08435 6.33335 7.08435C7.23977 7.08435 8.10908 6.72427 8.75002 6.08333Z"
+        stroke={C}
+        strokeWidth="1.25"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
