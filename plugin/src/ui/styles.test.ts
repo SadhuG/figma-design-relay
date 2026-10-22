@@ -37,6 +37,40 @@ const LIGHT: Record<string, string> = {
   "status-error": "#bc002d",
 };
 
+/** The same roles, dark values. */
+const DARK: Record<string, string> = {
+  "surface-paper": "#121110",
+  "surface-well": "#1c1a17",
+  "surface-raised": "#24211d",
+  "surface-ink": "#f7f4ee",
+  "text-primary": "#f7f4ee",
+  "text-secondary": "#a39c8f",
+  "text-on-ink": "#1a1a1a",
+  "text-on-sun": "#f7f4ee",
+  "sun-rising": "#d0103a",
+  "sun-set": "#8a8376",
+  "sun-on-ink": "#1a1a1a",
+  "line-hairline": "#38342e",
+  "line-horizon": "#f7f4ee",
+  "status-connected": "#82ad66",
+  "status-error": "#e8475f",
+};
+
+/** Dark when Figma is dark and the dev override doesn't say light, or when it says dark. */
+const DARK_SELECTOR = ':root.figma-dark:not([data-theme="light"]), :root[data-theme="dark"]';
+
+/** The declarations of the rule whose selector list, whitespace collapsed, is `selector`. */
+const ruleBody = (css: string, selector: string): string => {
+  for (const [, selectors, body] of css.matchAll(/([^{}]+){([^}]*)}/g)) {
+    const list = selectors
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (list === selector) return body;
+  }
+  return "";
+};
+
 /** Figma's own focus ring, not a brand colour. */
 const FOCUS_RING = "#0d99ff";
 
@@ -56,7 +90,7 @@ const customProperties = (body: string): Record<string, string> =>
 
 /** Every rule but the ones on :root, where the role values live. */
 const outsideRoot = (css: string): string =>
-  css.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|})\s*:root[^{]*{[^}]*}/g, "$1");
+  css.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(?<=^|})\s*:root[^{]*{[^}]*}/g, "");
 
 describe("index.css", () => {
   const css = read("index.css");
@@ -64,6 +98,16 @@ describe("index.css", () => {
   test(":root defines every light role with the overview's value", () => {
     const root = customProperties(block(css, ":root"));
     for (const [role, value] of Object.entries(LIGHT)) expect(root[role]).toBe(value);
+  });
+
+  test("the dark block defines every role with the overview's dark value", () => {
+    const dark = customProperties(ruleBody(css, DARK_SELECTOR));
+    expect(Object.keys(dark).sort()).toEqual(Object.keys(DARK).sort());
+    for (const [role, value] of Object.entries(DARK)) expect(dark[role]).toBe(value);
+  });
+
+  test("the dark selector is exactly the overview's", () => {
+    expect(ruleBody(css, DARK_SELECTOR)).not.toBe("");
   });
 
   test("uses only role variables", () => {

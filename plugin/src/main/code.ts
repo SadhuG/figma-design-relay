@@ -2523,8 +2523,14 @@ const postUiCollapseState = () => {
 };
 
 // Start hidden so the window never flashes at full height before the stored
-// collapsed state is restored. The iframe still loads and runs while hidden.
-figma.showUI(__html__, { width: UI_WIDTH, height: UI_EXPANDED_HEIGHT, visible: false });
+// collapsed state is restored. The iframe still loads and runs while hidden. themeColors puts
+// figma-light or figma-dark on the iframe's <html>, which the panel's CSS follows.
+figma.showUI(__html__, {
+  width: UI_WIDTH,
+  height: UI_EXPANDED_HEIGHT,
+  visible: false,
+  themeColors: true,
+});
 
 figma.clientStorage
   .getAsync(UI_COLLAPSED_KEY)

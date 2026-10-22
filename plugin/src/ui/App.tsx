@@ -26,6 +26,7 @@ import {
   workingLabel,
   type ChipTone,
 } from "./panel-state";
+import { type Theme, watchFigmaTheme } from "./theme";
 
 type RequestType =
   | "get_document"
@@ -185,6 +186,10 @@ export default function App() {
   // Bumped whenever the activity log changes or an entry leaves its window.
   const [activityVersion, setActivityVersion] = useState(0);
   const bumpActivity = () => setActivityVersion((version) => version + 1);
+  /** Figma's theme. CSS follows it on its own; the dev Theme row reads it. */
+  const [figmaUiTheme, setFigmaUiTheme] = useState<Theme>("light");
+
+  useEffect(() => watchFigmaTheme(document.documentElement, setFigmaUiTheme), []);
 
   const now = Date.now();
   const agents = activity.current.activeAgents(now);

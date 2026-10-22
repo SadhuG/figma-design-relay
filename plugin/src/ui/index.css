@@ -20,6 +20,27 @@
   --font-mono: "M PLUS 1 Code", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
+/* Dark: Figma puts figma-dark on <html> (themeColors in code.ts). A dev build's override sets
+   data-theme, which wins either way; the stable build never sets it. */
+:root.figma-dark:not([data-theme="light"]),
+:root[data-theme="dark"] {
+  --surface-paper: #121110;
+  --surface-well: #1c1a17;
+  --surface-raised: #24211d;
+  --surface-ink: #f7f4ee;
+  --text-primary: #f7f4ee;
+  --text-secondary: #a39c8f;
+  --text-on-ink: #1a1a1a;
+  --text-on-sun: #f7f4ee;
+  --sun-rising: #d0103a;
+  --sun-set: #8a8376;
+  --sun-on-ink: #1a1a1a;
+  --line-hairline: #38342e;
+  --line-horizon: #f7f4ee;
+  --status-connected: #82ad66;
+  --status-error: #e8475f;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;

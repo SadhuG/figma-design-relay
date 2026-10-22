@@ -9,3 +9,18 @@ export type Theme = "light" | "dark";
 export function figmaTheme(className: string): Theme {
   return className.split(/\s+/).includes("figma-dark") ? "dark" : "light";
 }
+
+/**
+ * Calls `onChange` with Figma's theme now and again each time Figma changes it. Returns the
+ * unsubscribe. `Observer` is injectable so the rule can run under Bun, which has no DOM.
+ */
+export function watchFigmaTheme(
+  root: HTMLElement,
+  onChange: (theme: Theme) => void,
+  Observer: typeof MutationObserver = MutationObserver
+): () => void {
+  onChange(figmaTheme(root.className));
+  const observer = new Observer(() => onChange(figmaTheme(root.className)));
+  observer.observe(root, { attributes: true, attributeFilter: ["class"] });
+  return () => observer.disconnect();
+}
