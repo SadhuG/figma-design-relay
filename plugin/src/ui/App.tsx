@@ -1,14 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
+  AppIcon as AppMark,
   ChevronIcon,
-  CursorIcon,
   DartsIcon,
-  DiagramIcon,
-  LayersIcon,
-  LostIcon,
-  PlaneIcon,
-  SelectionIcon,
-  SunIcon,
+  MovedIcon,
+  OutlineStackIcon,
+  PixelCursorIcon,
+  SelectionOutIcon,
+  ShapeRelayIcon,
 } from "./icons";
 import {
   ActivityLog,
@@ -99,24 +98,29 @@ const RELAY_ADDRESS = relayAddress(WS_BASE_URL);
 const RELAY_PORT = relayPort(WS_BASE_URL);
 
 const VERSION = import.meta.env.VITE_FIGMA_DESIGN_RELAY_VERSION ?? "";
-/** Set only in a dev slot's build; it switches on the plane icon and the Dev pill. */
+/** Set only in a dev slot's build; it switches on the Dev app icon and the Dev pill. */
 const DEV_SLOT = import.meta.env.VITE_FIGMA_DESIGN_RELAY_SLOT;
 
-function AppIcon({ size, faded }: { size: number; faded: boolean }) {
+/** The sun is up only while the relay answers; connecting and lost both show it set. */
+function AppIcon({ size, live }: { size: number; live: boolean }) {
   return (
-    <span className={`app-icon${faded ? " faded" : ""}`}>
-      {DEV_SLOT ? <PlaneIcon size={size} /> : <SunIcon size={size} />}
+    <span className="app-icon">
+      <AppMark
+        channel={DEV_SLOT ? "dev" : "stable"}
+        state={live ? "live" : "offline"}
+        size={size}
+      />
     </span>
   );
 }
 
 /** Live and Connecting are text alone; every other state has a mark of its own. */
 const CHIP_ICONS: Partial<Record<ChipTone, (props: { size: number }) => React.JSX.Element>> = {
-  working: CursorIcon,
-  lost: LostIcon,
-  sent: SelectionIcon,
-  syncing: LayersIcon,
-  diagram: DiagramIcon,
+  working: PixelCursorIcon,
+  lost: MovedIcon,
+  sent: SelectionOutIcon,
+  syncing: OutlineStackIcon,
+  diagram: ShapeRelayIcon,
   leader: DartsIcon,
 };
 
@@ -446,12 +450,12 @@ export default function App() {
         aria-label={collapsed ? "Expand" : "Collapse"}
         aria-expanded={!collapsed}
       >
-        <ChevronIcon size={9} direction={collapsed ? "down" : "up"} />
+        <ChevronIcon size={14} direction={collapsed ? "down" : "up"} />
       </button>
 
       {collapsed ? (
         <div className="bar">
-          <AppIcon size={20} faded={lost} />
+          <AppIcon size={20} live={connected} />
           <span className="grow" />
           <DevPill />
           <Chip tone={chip.tone} text={chip.short} title={chipTitle} iconSize={12} />
@@ -476,7 +480,7 @@ export default function App() {
           </div>
 
           <div className="footer">
-            <AppIcon size={16} faded={lost} />
+            <AppIcon size={16} live={connected} />
             <Chip tone={chip.tone} text={chip.text} title={chipTitle} iconSize={14} />
             <span className="grow" />
             {lost ? (

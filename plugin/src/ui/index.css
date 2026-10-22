@@ -138,10 +138,6 @@ body {
   flex-shrink: 0;
 }
 
-.app-icon.faded {
-  opacity: 0.4;
-}
-
 /* The state is what the panel is for: the chip keeps its width (up to a cap, then truncates) and the
    Dev pill gives way instead. */
 .chip {
