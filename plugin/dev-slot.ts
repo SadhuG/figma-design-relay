@@ -118,10 +118,21 @@ export function uiDefine(slot: DevSlot | null, version: string): Record<string, 
     "import.meta.env.VITE_FIGMA_DESIGN_RELAY_VERSION": JSON.stringify(version),
   };
   if (slot) {
-    define["import.meta.env.VITE_FIGMA_DESIGN_RELAY_SLOT"] = JSON.stringify(slot.name);
+    define[SLOT_ENV_KEY] = JSON.stringify(slot.name);
     define["import.meta.env.VITE_FIGMA_DESIGN_RELAY_WS"] = JSON.stringify(slotWsUrl(slot));
   }
   return define;
+}
+
+/** Where both builds find the slot's name; absent in a stable build. */
+const SLOT_ENV_KEY = "import.meta.env.VITE_FIGMA_DESIGN_RELAY_SLOT";
+
+/**
+ * The main build's `define` map: in a slotted checkout, the slot's name, so the main thread can
+ * size the window for the dev panel's extra row. Nothing in a stable build.
+ */
+export function mainDefine(slot: DevSlot | null): Record<string, string> {
+  return slot ? { [SLOT_ENV_KEY]: JSON.stringify(slot.name) } : {};
 }
 
 /** The relay a slotted UI dials. */

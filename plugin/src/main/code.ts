@@ -48,6 +48,7 @@ import {
   type LayoutParams,
 } from "./layout-actions";
 import { assertTextPropertiesSupported, getTextTargetById, type TextTarget } from "./text-target";
+import { UI_COLLAPSED_HEIGHT, UI_WIDTH, uiExpandedHeight } from "./panel-size";
 
 export type RequestType =
   | "get_document"
@@ -2503,13 +2504,8 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
   }
 };
 
-const UI_WIDTH = 320;
-/**
- * The open panel: rows 81 + spacer 4 + footer 36. Every state fits it, so the window never jumps.
- */
-const UI_EXPANDED_HEIGHT = 121;
-/** Just the status bar: the collapsed window. */
-const UI_COLLAPSED_HEIGHT = 36;
+/** Set only in a dev slot's build (mainDefine, dev-slot.ts); its panel has an extra Theme row. */
+const UI_EXPANDED_HEIGHT = uiExpandedHeight(Boolean(import.meta.env.VITE_FIGMA_DESIGN_RELAY_SLOT));
 const UI_COLLAPSED_KEY = "ui-collapsed";
 
 let uiCollapsed = false;

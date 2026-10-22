@@ -7,6 +7,7 @@ import {
   LAST_SLOT_PORT,
   SLOT_FILE,
   devManifest,
+  mainDefine,
   parseDevSlot,
   pickSlotPort,
   readDevSlot,
@@ -116,5 +117,20 @@ describe("uiDefine", () => {
       "import.meta.env.VITE_FIGMA_DESIGN_RELAY_SLOT": '"panel-redesign"',
       "import.meta.env.VITE_FIGMA_DESIGN_RELAY_WS": '"ws://localhost:1999/ws"',
     });
+  });
+});
+
+describe("mainDefine", () => {
+  test("a stable build gets nothing, so the main thread sees no slot", () => {
+    expect(mainDefine(null)).toEqual({});
+  });
+
+  test("a slotted build gets the slot name, under the same key as the UI's", () => {
+    const slot = { name: "panel-theme", port: 1995 };
+    expect(mainDefine(slot)).toEqual({
+      "import.meta.env.VITE_FIGMA_DESIGN_RELAY_SLOT": '"panel-theme"',
+    });
+    const key = "import.meta.env.VITE_FIGMA_DESIGN_RELAY_SLOT";
+    expect(mainDefine(slot)[key]).toBe(uiDefine(slot, "0.0.0")[key]);
   });
 });
