@@ -103,13 +103,13 @@ task named.
 
 | #   | Phase                                           | Summary                                                                                                                                                  | Status      |
 | --- | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| 1   | [Figma design](01-figma-design.md)              | Finish the spec in Figma: the body-row variants become the dev panel (Dev pill, Dev icon, final row text); the footer variants are marked as not chosen. | not started |
-| 2   | [Fonts and light styles](02-fonts-and-light.md) | Bundle the four woff2 faces, replace the Board 10 palette with the light Rising sun roles, restyle chips, buttons and pill; stable height 113 → 121.     | not started |
-| 3   | [Icons](03-icons.md)                            | Swap `icons.tsx` for the Rising sun app icon and glyphs, coloured through the role variables.                                                            | not started |
-| 4   | [Follow Figma's theme](04-follow-figma.md)      | `themeColors: true`, the dark role values, and `theme.ts`'s rules for reading Figma's theme.                                                             | not started |
-| 5   | [Dev build height](05-dev-height.md)            | `mainDefine` plus `panel-size.ts`: the main build learns it is a dev build and opens at 145.                                                             | not started |
-| 6   | [Dev theme override](06-dev-override.md)        | The `theme-override` storage and messages, the override rules, and the Theme row in dev builds.                                                          | not started |
-| 7   | [Ship](07-ship.md)                              | Live check in both builds and both Figma themes, docs and rules, then `finish-task`.                                                                     | not started |
+| 1   | [Figma design](01-figma-design.md)              | Finish the spec in Figma: the body-row variants become the dev panel (Dev pill, Dev icon, final row text); the footer variants are marked as not chosen. | done        |
+| 2   | [Fonts and light styles](02-fonts-and-light.md) | Bundle the four woff2 faces, replace the Board 10 palette with the light Rising sun roles, restyle chips, buttons and pill; stable height 113 → 121.     | done        |
+| 3   | [Icons](03-icons.md)                            | Swap `icons.tsx` for the Rising sun app icon and glyphs, coloured through the role variables.                                                            | done        |
+| 4   | [Follow Figma's theme](04-follow-figma.md)      | `themeColors: true`, the dark role values, and `theme.ts`'s rules for reading Figma's theme.                                                             | done        |
+| 5   | [Dev build height](05-dev-height.md)            | `mainDefine` plus `panel-size.ts`: the main build learns it is a dev build and opens at 145.                                                             | done        |
+| 6   | [Dev theme override](06-dev-override.md)        | The `theme-override` storage and messages, the override rules, and the Theme row in dev builds.                                                          | done        |
+| 7   | [Ship](07-ship.md)                              | Live check in both builds and both Figma themes, docs and rules, then `finish-task`.                                                                     | in progress |
 
 Phases 2–4 change the stable panel; 5 and 6 only the dev build. Phase 5 does not depend on 2–4 and
 can run any time before 6.
