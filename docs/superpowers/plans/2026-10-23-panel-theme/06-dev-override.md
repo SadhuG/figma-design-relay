@@ -5,7 +5,7 @@ Back to [the overview](00-overview.md).
 ## Goal and scope
 
 A dev build shows a **Theme** row under Relay whose switch overrides Figma's theme and remembers it.
-The stable build has none of it.
+The stable build shows, applies and stores none of it.
 
 - **In:** `plugin/src/theme-override.ts` (new, shared by main and UI), override rules in
   `plugin/src/ui/theme.ts`, the storage and messages in `code.ts`, the row and switch in `App.tsx`

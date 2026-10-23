@@ -31,7 +31,7 @@ with its tag.
 
 - The panel follows Figma's light or dark theme, switching live when Figma's changes.
 - Dev builds show a Theme row under Relay whose switch overrides Figma's theme for testing
-  designs, remembered between launches. The stable build has none of it, and a dev build's window
+  designs, remembered between launches. The stable build shows and stores none of it, and a dev build's window
   opens at 145 px to fit the row.
 
 ## [0.10.1] - 2026-10-19
