@@ -46,3 +46,23 @@ export async function saveThemeOverride(
   }
   return override;
 }
+
+/**
+ * The main thread's saver for the panel's clicks. It returns the new override at once, so the
+ * main thread's copy is always the latest click, and stores the clicks one at a time in order:
+ * Figma doesn't promise that overlapping clientStorage writes finish in the order they started,
+ * so two quick clicks could otherwise leave the older value stored.
+ */
+export function createThemeOverrideSaver(
+  devBuild: boolean,
+  write: Write
+): (value: unknown) => ThemeOverride {
+  let queue: Promise<unknown> = Promise.resolve();
+  return (value) => {
+    if (!devBuild) return null;
+    const override = parseThemeOverride(value);
+    // saveThemeOverride never rejects, so one failed write can't stall the queue.
+    queue = queue.then(() => saveThemeOverride(true, override, write));
+    return override;
+  };
+}

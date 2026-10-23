@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   THEME_OVERRIDE_KEY,
+  createThemeOverrideSaver,
   loadThemeOverride,
   parseThemeOverride,
   saveThemeOverride,
@@ -80,5 +81,70 @@ describe("saveThemeOverride", () => {
 
   test("a failed write still returns the new value", async () => {
     expect(await saveThemeOverride(true, "dark", storage(null, true).write)).toBe("dark");
+  });
+});
+
+describe("createThemeOverrideSaver", () => {
+  /** Writes that finish only when the test says so, in any order it likes. */
+  const deferredWrites = () => {
+    const pending: { value: unknown; finish: () => void }[] = [];
+    const stored: unknown[] = [];
+    const write = (_key: string, value: unknown) =>
+      new Promise<void>((resolve) => {
+        pending.push({
+          value,
+          finish: () => {
+            stored.push(value);
+            resolve();
+          },
+        });
+      });
+    return { pending, stored, write };
+  };
+  const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  test("takes the new override at once", () => {
+    const save = createThemeOverrideSaver(true, deferredWrites().write);
+    expect(save("dark")).toBe("dark");
+    expect(save("nonsense")).toBeNull();
+  });
+
+  test("rapid clicks are stored in click order, so the last one wins", async () => {
+    const io = deferredWrites();
+    const save = createThemeOverrideSaver(true, io.write);
+    save("dark");
+    save("light");
+    await tick();
+    // Only the first write may be in flight; the second waits for it.
+    expect(io.pending.map((write) => write.value)).toEqual(["dark"]);
+    io.pending[0].finish();
+    await tick();
+    expect(io.pending.map((write) => write.value)).toEqual(["dark", "light"]);
+    io.pending[1].finish();
+    await tick();
+    expect(io.stored).toEqual(["dark", "light"]);
+  });
+
+  test("a failed write doesn't stop the next one", async () => {
+    let calls = 0;
+    const stored: unknown[] = [];
+    const save = createThemeOverrideSaver(true, async (_key, value) => {
+      calls += 1;
+      if (calls === 1) throw new Error("storage unavailable");
+      stored.push(value);
+    });
+    save("dark");
+    save("light");
+    await tick();
+    await tick();
+    expect(stored).toEqual(["light"]);
+  });
+
+  test("a stable build stores nothing and stays on Figma's theme", async () => {
+    const io = deferredWrites();
+    const save = createThemeOverrideSaver(false, io.write);
+    expect(save("dark")).toBeNull();
+    await tick();
+    expect(io.pending).toEqual([]);
   });
 });

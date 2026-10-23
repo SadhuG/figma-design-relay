@@ -49,7 +49,7 @@ import {
 } from "./layout-actions";
 import { assertTextPropertiesSupported, getTextTargetById, type TextTarget } from "./text-target";
 import { UI_COLLAPSED_HEIGHT, UI_WIDTH, uiExpandedHeight } from "./panel-size";
-import { loadThemeOverride, saveThemeOverride, type ThemeOverride } from "../theme-override";
+import { createThemeOverrideSaver, loadThemeOverride, type ThemeOverride } from "../theme-override";
 
 export type RequestType =
   | "get_document"
@@ -2525,6 +2525,10 @@ const postUiCollapseState = () => {
 
 /** A dev build's theme override (theme-override.ts); always null in a stable build. */
 let themeOverride: ThemeOverride = null;
+/** Stores the panel's clicks one at a time, in click order. */
+const saveThemeOverride = createThemeOverrideSaver(DEV_BUILD, (key, value) =>
+  figma.clientStorage.setAsync(key, value)
+);
 
 const postUiThemeOverride = () => {
   if (!DEV_BUILD) return;
@@ -2601,9 +2605,7 @@ figma.ui.onmessage = async (message) => {
   }
 
   if (message.type === "set-theme-override") {
-    themeOverride = await saveThemeOverride(DEV_BUILD, message.override, (key, value) =>
-      figma.clientStorage.setAsync(key, value)
-    );
+    themeOverride = saveThemeOverride(message.override);
     return;
   }
 
