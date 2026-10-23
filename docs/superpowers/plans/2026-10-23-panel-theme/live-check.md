@@ -2,8 +2,9 @@
 
 Back to [the overview](00-overview.md).
 
-**Candidate:** `be23b3d` (0.11.0) on `feat/panel-theme`, approved by GPT-6.1-Sol review round 2. No
-code changed after it; this file and its screenshots are the only additions.
+**Candidates:** `be23b3d` (0.11.0) on `feat/panel-theme` for sections 1 and 2. Section 3 re-checks
+the override on `745ab92`, the only code change since: CodeRabbit's fix that stores quick clicks
+in order (`createThemeOverrideSaver`). It touches nothing but the override's saving.
 
 **Setup (2026-10-23):** Figma desktop on Windows 11. The dev build ran as **Figma Design Relay (Dev:
 panel-theme, port 1995)**, imported from the worktree's `plugin/dist/manifest.json`, against the
@@ -11,6 +12,8 @@ worktree's relay (`server/dist/index.js`, leader on 1995). The stable build was 
 built with `.dev-slot.json` moved aside, copied into a scratch folder with `plugin/manifest.json`,
 imported temporarily, and checked against the stable relay on 1994. Afterwards the main checkout's
 `plugin/manifest.json` was imported again and ran as v0.10.1.
+
+## 1. Theme, editors and builds
 
 Steps 1–5 were checked by the user, by eye. Steps 6–9 were run by a Codex agent with computer use,
 which saved the screenshots. Calls went through `server/.smoke/call.mjs`, which joins the leader
@@ -40,3 +43,46 @@ panel-the…") at 320 px. That bar is Figma's own chrome, and a Dev name must ca
 
 Screenshots: [`live-check/`](live-check/): FigJam dark, Slides light and dark, the Japanese file
 name, stable dark and light.
+
+## 2. Every panel state, both themes
+
+Run by the Codex agent on the `be23b3d` build (worktree head `160d88a`, docs only after it), Dev
+plugin in the design file "Figma Design Relay", Theme row on `· Figma`. Each state was raised for
+real: the relay stopped (lost), the plugin relaunched with no relay (connecting), an 8 s
+`run_script` (working), `get_document` on the page "Shortlist directions" (syncing), `get_selection`
+with one layer selected (sent), a second relay process as follower (leader), and `generate_diagram`
+in a scratch FigJam board (diagram, FigJam is light only). Nothing was clipped in any capture.
+
+| State      | Text seen                                                                           | Light | Dark |
+| ---------- | ----------------------------------------------------------------------------------- | ----- | ---- |
+| lost       | `Relay lost · retry in N s`, Moved glyph, red; `(no answer)`; outlined Retry now    | pass  | pass |
+| connecting | `Connecting…`, secondary text                                                       | pass  | pass |
+| live       | `Live on port 1995`, green                                                          | pass  | pass |
+| working    | `tool-smoke is working`, ink chip, pixel cursor                                     | pass  | pass |
+| syncing    | `Reading the layer tree… NN%`, outline-stack glyph                                  | pass  | pass |
+| sent       | `Sent to your agent`, selection glyph; row `1 node · sent just now`; Show in canvas | pass  | pass |
+| leader     | `Leader · 1 follower`, darts glyph                                                  | pass  | pass |
+| diagram    | `Diagram drawn on this page`, shapes glyph; filled Select it                        | pass  | —    |
+
+During syncing the Dev pill shortens to `Dev: panel-the…`: it gives way so the state stays
+readable (`.dev-pill`'s `flex-shrink: 100`), as designed. The agent's brief expected the sent row as
+`1 · sent just now`; the shipped text, `1 node · sent just now`, is `selectionRowText`'s, so that
+was the brief's error.
+
+## 3. The override on `745ab92`
+
+After CodeRabbit's fix, the Dev plugin was rebuilt from `745ab92`, closed and run again, and checked
+by the Codex agent in the design file "Figma Design Relay" (Figma on Dark):
+
+| Case                                                            | Before → after relaunch                   | Result |
+| --------------------------------------------------------------- | ----------------------------------------- | ------ |
+| `list_files`, then `get_node` `97:868` through the follower hop | "Theme toggle"; chip back to Live on 1995 | pass   |
+| One click                                                       | `Light · override` → `Light · override`   | pass   |
+| Three clicks in ~400 ms (override → Figma → override)           | `Light · override` → `Light · override`   | pass   |
+| Two clicks in ~250 ms                                           | `Light · override` → `Light · override`   | pass   |
+| Clicked back to Figma                                           | `Dark · Figma` → `Dark · Figma`           | pass   |
+| Figma flipped Dark → Light → Dark while overriding              | panel stayed `Light · override`           | pass   |
+
+The agent left the row on `· Figma` and Figma on Dark.
+
+Screenshots for sections 2 and 3 are in [`live-check/`](live-check/) too, named by state and theme.
