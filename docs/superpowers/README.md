@@ -140,3 +140,6 @@ Drive it with `superpowers:subagent-driven-development` or `superpowers:executin
   the Rising sun brand with bundled fonts, following Figma's light or dark theme, plus a dev-build
   Theme row that overrides it. The spec is the Figma page "Plugin UI screens". A folder plan; live
   check in `live-check.md` beside the plan.
+- [`plans/2026-10-24-release-downloads/`](plans/2026-10-24-release-downloads/00-overview.md): a
+  GitHub Release with one Node-only archive (`figma-design-relay.zip`) for every version merged to
+  `main`, and README download, setup and update instructions. A folder plan; not started.
