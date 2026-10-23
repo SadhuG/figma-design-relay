@@ -20,24 +20,24 @@ Prove the candidate in real Figma, bring the docs and rules up to date, and land
 
 ## Tasks
 
-- [ ] **Step 1:** Run the full suite: `bun run format:check` at the root, then
+- [x] **Step 1:** Run the full suite: `bun run format:check` at the root, then
       `bun run build && bun test` in `server/` and in `plugin/`. Expected: all pass.
-- [ ] **Step 2:** Live, dev build, design file: in each Figma theme, check the connecting,
+- [x] **Step 2:** Live, dev build, design file: in each Figma theme, check the connecting,
       connected, working, lost and syncing states against the screens; the four Theme row texts;
       the override surviving a relaunch; and the override ignoring a Figma theme change. Also make
       one follower call through a second relay process, so the leader state shows.
-- [ ] **Step 3:** Live, dev build: the same theme flip in a FigJam board and a Slides deck.
-- [ ] **Step 4:** Live: a file named in Japanese (for example `デザイン`) shows its name in the
+- [x] **Step 3:** Live, dev build: the same theme flip in a FigJam board and a Slides deck.
+- [x] **Step 4:** Live: a file named in Japanese (for example `デザイン`) shows its name in the
       system font with no boxes.
-- [ ] **Step 5:** Live, stable build: no Theme row, opens at 121, follows Figma's theme both ways.
-- [ ] **Step 6:** Measure the live expanded panels. If they aren't 121 and 145, fix
+- [x] **Step 5:** Live, stable build: no Theme row, opens at 121, follows Figma's theme both ways.
+- [x] **Step 6:** Measure the live expanded panels. If they aren't 121 and 145, fix
       `panel-size.ts` and its test, and correct the overview's Window height decision.
-- [ ] **Step 7:** Write `live-check.md`: the commit tested, the setup, each case and its result.
-- [ ] **Step 8:** Update `.claude/rules/plugin.md`. The "no Inter" constraint now says the panel
+- [x] **Step 7:** Write `live-check.md`: the commit tested, the setup, each case and its result.
+- [x] **Step 8:** Update `.claude/rules/plugin.md`. The "no Inter" constraint now says the panel
       bundles its fonts (Latin only), and the design source is the Rising sun Plugin UI screens
       page, no longer Board 10. Add a constraint for `themeColors` and `data-theme`, and update the
       `code.ts:2506` landmark for `panel-size.ts` and `theme-override`.
-- [ ] **Step 9:** Add this plan to `docs/superpowers/README.md`'s plan list, and mark phases 1–7
+- [x] **Step 9:** Add this plan to `docs/superpowers/README.md`'s plan list, and mark phases 1–7
       done in the overview.
 - [ ] **Step 10:** Run `finish-task`. It refreshes the CLAUDE.md facts (test counts, layout gains
       `theme-override.ts`, `panel-size.ts` and `theme.ts`), bumps the minor version with a

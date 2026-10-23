@@ -42,11 +42,11 @@ The stable build has none of it.
 - Produces: `type ThemeOverride = "light" | "dark" | null`;
   `THEME_OVERRIDE_KEY = "theme-override"`; `parseThemeOverride(value: unknown): ThemeOverride`.
 
-- [ ] **Step 1: Write the failing tests:** `"light"` → `"light"`, `"dark"` → `"dark"`, and `null`,
+- [x] **Step 1: Write the failing tests:** `"light"` → `"light"`, `"dark"` → `"dark"`, and `null`,
       `undefined`, `"blue"`, `1`, `{}` and `"Dark"` → `null`.
-- [ ] **Step 2:** Run `cd plugin && bun test src/theme-override.test.ts`. Expected: FAIL.
-- [ ] **Step 3:** Implement.
-- [ ] **Step 4:** Run. Expected: PASS. Commit `feat(plugin): parse the stored theme override`.
+- [x] **Step 2:** Run `cd plugin && bun test src/theme-override.test.ts`. Expected: FAIL.
+- [x] **Step 3:** Implement.
+- [x] **Step 4:** Run. Expected: PASS. Commit `feat(plugin): parse the stored theme override`.
 
 ### Task 2: The override rules
 
@@ -61,14 +61,14 @@ The stable build has none of it.
   `nextOverride(figma: Theme, override: ThemeOverride): ThemeOverride`;
   `themeRowText(figma: Theme, override: ThemeOverride): string`.
 
-- [ ] **Step 1: Write the failing tests.** `resolveTheme`: all six combinations. `nextOverride`:
+- [x] **Step 1: Write the failing tests.** `resolveTheme`: all six combinations. `nextOverride`:
       `("light", null) → "dark"`, `("dark", null) → "light"`, `("light", "dark") → null`,
       `("dark", "light") → null`, `("dark", "dark") → "light"` (an override left equal by a Figma
       change flips away from Figma). `themeRowText`: `("dark", null) → "Dark · Figma"`,
       `("light", "dark") → "Dark · override"`, `("dark", "dark") → "Dark · override"`.
-- [ ] **Step 2:** Run `bun test src/ui/theme.test.ts`. Expected: FAIL.
-- [ ] **Step 3:** Implement the three functions.
-- [ ] **Step 4:** Run. Expected: PASS. Commit `feat(plugin): theme override rules`.
+- [x] **Step 2:** Run `bun test src/ui/theme.test.ts`. Expected: FAIL.
+- [x] **Step 3:** Implement the three functions.
+- [x] **Step 4:** Run. Expected: PASS. Commit `feat(plugin): theme override rules`.
 
 ### Task 3: Storage, messages and the Theme row
 
@@ -77,27 +77,27 @@ The stable build has none of it.
 - Modify: `plugin/src/main/code.ts` (sizing block), `plugin/src/ui/App.tsx`,
   `plugin/src/ui/icons.tsx`, `plugin/src/ui/index.css`, `plugin/src/ui/styles.test.ts`
 
-- [ ] **Step 1:** Extend `styles.test.ts`: `.theme-switch uses only role variables` (covered by the
+- [x] **Step 1:** Extend `styles.test.ts`: `.theme-switch uses only role variables` (covered by the
       existing rule once the class exists) and `the switch is 32 × 18 with a 14 px knob`. Run it.
       Expected: FAIL.
-- [ ] **Step 2:** In `code.ts`, read `THEME_OVERRIDE_KEY` alongside `UI_COLLAPSED_KEY` before
+- [x] **Step 2:** In `code.ts`, read `THEME_OVERRIDE_KEY` alongside `UI_COLLAPSED_KEY` before
       `figma.ui.show()`, holding `themeOverride` parsed with `parseThemeOverride`. Add
       `postUiThemeOverride()` and call it wherever `postUiCollapseState()` runs. Handle
       `set-theme-override` the same way as `set-ui-collapsed`: parse, keep, and store best-effort.
       A failed read keeps `null` and still shows the window.
-- [ ] **Step 3:** In `App.tsx`, behind `DEV_SLOT`: `override` state set from `ui-theme-override`;
+- [x] **Step 3:** In `App.tsx`, behind `DEV_SLOT`: `override` state set from `ui-theme-override`;
       an effect that writes or removes `data-theme`; and a fourth row `Theme` with a `ThemeSwitch`
       showing `resolveTheme(figma, override)` and the `themeRowText` value. Clicking computes
       `nextOverride`, sets the state and posts `set-theme-override`. Add `SunIcon` and `MoonIcon`
       (10 px glyphs, `currentColor`) to `icons.tsx`, drawn as in `Theme toggle` (`97:795`).
-- [ ] **Step 4:** Add `.theme-switch` styles, with a 150 ms knob transition. Run `bun test` and
+- [x] **Step 4:** Add `.theme-switch` styles, with a 150 ms knob transition. Run `bun test` and
       `bun run build`. Expected: PASS, zero type errors.
-- [ ] **Step 5:** Build checks. Dev `dist/index.html` contains `· override`. Built with
+- [x] **Step 5:** Build checks. Dev `dist/index.html` contains `· override`. Built with
       `.dev-slot.json` moved aside, it doesn't, and neither does `role="switch"`. Restore and
       rebuild.
-- [ ] **Step 6:** Relaunch the Dev plugin and run through all four row texts. Close and reopen the
+- [x] **Step 6:** Relaunch the Dev plugin and run through all four row texts. Close and reopen the
       plugin: the override survives. Flip Figma's theme while overriding: the panel stays put.
-- [ ] **Step 7:** Commit `feat(plugin): dev builds can override the panel theme`.
+- [x] **Step 7:** Commit `feat(plugin): dev builds can override the panel theme`.
 
 ## Implementation notes
 

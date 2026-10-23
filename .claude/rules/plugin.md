@@ -52,7 +52,9 @@ paths:
   `:root.figma-dark:not([data-theme="light"]), :root[data-theme="dark"]`. `figma-dark` comes from
   `showUI`'s `themeColors: true` and changes live; `data-theme` is the dev build's override and
   is never set by a stable build. Don't key anything on Figma's class beyond that selector and
-  `theme.ts`: Figma rewrites it.
+  `theme.ts`: Figma rewrites it. **FigJam has no dark UI**, so there the class stays
+  `figma-light` whatever Figma's theme preference says; a light panel in a dark-preference FigJam
+  is correct (seen live on 2026-10-23), not a bug.
 - **Dev-only UI is gated on `VITE_FIGMA_DESIGN_RELAY_SLOT`**, set by `uiDefine` (UI) and
   `mainDefine` (main) in `dev-slot.ts` and absent from a stable build, so the stable bundle
   carries none of the dev code. A dev build opens at 145 px instead of 121 for its Theme row

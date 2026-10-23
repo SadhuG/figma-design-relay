@@ -26,16 +26,16 @@ Finish the spec in Figma before any code, so every later phase can check itself 
 
 ## Tasks
 
-- [ ] **Step 1:** Run `list_files` and confirm "Figma Design Relay" is connected; if not, stop and
+- [x] **Step 1:** Run `list_files` and confirm "Figma Design Relay" is connected; if not, stop and
       ask the user.
-- [ ] **Step 2:** In both body-row variants, swap the footer's app icon to the Dev / Live variant
+- [x] **Step 2:** In both body-row variants, swap the footer's app icon to the Dev / Live variant
       and replace the `v0.7.8` text with an instance or copy of the Dev pill from
       `02 Dev slot · connected` (`80:96988`).
-- [ ] **Step 3:** Set the Theme row value texts and add the following/overriding examples.
-- [ ] **Step 4:** Rename the section label and the footer prototype frame.
-- [ ] **Step 5:** Re-check the body-row panel's content height: it was 145 (rows 4 × 15 + 18,
+- [x] **Step 3:** Set the Theme row value texts and add the following/overriding examples.
+- [x] **Step 4:** Rename the section label and the footer prototype frame.
+- [x] **Step 5:** Re-check the body-row panel's content height: it was 145 (rows 4 × 15 + 18,
       footer 36). Note any change in the overview's Window height decision.
-- [ ] **Step 6:** Screenshot the section with `save_screenshots` into the worktree's `.shots/`
+- [x] **Step 6:** Screenshot the section with `save_screenshots` into the worktree's `.shots/`
       (delete it after), check it, and show it to the user.
 
 ## Implementation notes

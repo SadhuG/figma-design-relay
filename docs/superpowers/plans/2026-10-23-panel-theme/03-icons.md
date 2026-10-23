@@ -33,28 +33,28 @@ they change with the theme.
 - Modify: `plugin/src/ui/icons.tsx`, `plugin/src/ui/App.tsx`
 - Test: `plugin/src/ui/icons.test.ts` (create)
 
-- [ ] **Step 1:** Export each needed variant of `Icon` (`71:93456`, page "Brand kit: Rising sun")
+- [x] **Step 1:** Export each needed variant of `Icon` (`71:93456`, page "Brand kit: Rising sun")
       and of `App icon` as SVG with `get_screenshot` (`format: "SVG"`), the instance ids taken from
       the light screens. Keep the path data; drop `width`/`height` attributes and hard-coded
       `stroke`/`fill` colours.
-- [ ] **Step 2: Write the failing test** `icons.test.ts`: render each exported component with
+- [x] **Step 2: Write the failing test** `icons.test.ts`: render each exported component with
       `renderToStaticMarkup` from `react-dom/server` and assert "no icon markup contains a hex
       colour" and "every glyph strokes with currentColor". For `AppIcon`, assert that
       `{ channel: "dev", state: "live" }` references `var(--surface-ink)` and `var(--sun-on-ink)`,
       and `{ channel: "stable", state: "offline" }` references `var(--sun-set)`.
-- [ ] **Step 3:** Run `cd plugin && bun test src/ui/icons.test.ts`. Expected: FAIL.
-- [ ] **Step 4:** Write `AppIcon({ channel, state, size })`, `PixelCursorIcon`, `MovedIcon`,
+- [x] **Step 3:** Run `cd plugin && bun test src/ui/icons.test.ts`. Expected: FAIL.
+- [x] **Step 4:** Write `AppIcon({ channel, state, size })`, `PixelCursorIcon`, `MovedIcon`,
       `SelectionOutIcon`, `OutlineStackIcon`, `ShapeRelayIcon`, `DartsIcon` and `ChevronIcon` (all
       `IconProps = { size: number }`, Chevron keeps `direction`). Use the 12 px drawing at size 12
       and the 14 px one otherwise; the set draws them separately.
-- [ ] **Step 5:** In `App.tsx`, point `CHIP_ICONS` at the new glyphs. `AppIcon` gets
+- [x] **Step 5:** In `App.tsx`, point `CHIP_ICONS` at the new glyphs. `AppIcon` gets
       `channel={DEV_SLOT ? "dev" : "stable"}` and `state={connected ? "live" : "offline"}`. Delete
       the old icons.
-- [ ] **Step 6:** Run `bun test` and `bun run build` in `plugin/`. Expected: PASS, zero type
+- [x] **Step 6:** Run `bun test` and `bun run build` in `plugin/`. Expected: PASS, zero type
       errors.
-- [ ] **Step 7:** Relaunch the Dev plugin and compare its connecting, live, working and lost
+- [x] **Step 7:** Relaunch the Dev plugin and compare its connecting, live, working and lost
       states with `00b`, `02`, `03d` and `07c` (dev slot screens).
-- [ ] **Step 8:** Commit `feat(plugin): draw the Rising sun app icon and glyphs`.
+- [x] **Step 8:** Commit `feat(plugin): draw the Rising sun app icon and glyphs`.
 
 ## Implementation notes
 

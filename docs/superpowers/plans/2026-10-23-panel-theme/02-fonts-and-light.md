@@ -40,21 +40,21 @@ roles, and Rising sun chips, pill and buttons.
 - Create: `plugin/src/ui/fonts.css`, `plugin/src/ui/styles.test.ts`
 - Modify: `plugin/src/ui/main.tsx`, `plugin/package.json`, `plugin/bun.lock`
 
-- [ ] **Step 1:** `cd plugin && bun add -d @fontsource/zen-kaku-gothic-new@5.3.1 @fontsource/m-plus-1-code@5.3.1`.
-- [ ] **Step 2: Write the failing test** `styles.test.ts`, reading the CSS files as text:
+- [x] **Step 1:** `cd plugin && bun add -d @fontsource/zen-kaku-gothic-new@5.3.1 @fontsource/m-plus-1-code@5.3.1`.
+- [x] **Step 2: Write the failing test** `styles.test.ts`, reading the CSS files as text:
       `fonts.css declares exactly four woff2 faces` (families and weights 400/500 each, every `src`
       a single `url(...latin-<weight>-normal.woff2) format("woff2")`, no `.woff"` fallback).
-- [ ] **Step 3:** Run `cd plugin && bun test src/ui/styles.test.ts`. Expected: FAIL, `fonts.css`
+- [x] **Step 3:** Run `cd plugin && bun test src/ui/styles.test.ts`. Expected: FAIL, `fonts.css`
       missing.
-- [ ] **Step 4:** Write `fonts.css` with four `@font-face` rules, `font-display: block`, each
+- [x] **Step 4:** Write `fonts.css` with four `@font-face` rules, `font-display: block`, each
       pointing at `../../node_modules/@fontsource/<family>/files/<family>-latin-<weight>-normal.woff2`.
       Import it first in `main.tsx`. The package's own `latin-400.css` also lists a `.woff`
       fallback, which would double the bundle, so don't import it.
-- [ ] **Step 5:** Run the test again. Expected: PASS.
-- [ ] **Step 6:** `bun run build`, then check `dist/index.html`: `grep -c "data:font/woff2"`
+- [x] **Step 5:** Run the test again. Expected: PASS.
+- [x] **Step 6:** `bun run build`, then check `dist/index.html`: `grep -c "data:font/woff2"`
       gives 4, and there is no `url(` to a `.woff2` file path. Note the file's size growth (about
       55 KB expected) for the PR.
-- [ ] **Step 7:** Commit `feat(plugin): bundle the Rising sun panel fonts`.
+- [x] **Step 7:** Commit `feat(plugin): bundle the Rising sun panel fonts`.
 
 ### Task 2: Light roles and Rising sun styles
 
@@ -63,23 +63,23 @@ roles, and Rising sun chips, pill and buttons.
 - Modify: `plugin/src/ui/index.css`, `plugin/src/ui/App.tsx` (dot removal only),
   `plugin/src/main/code.ts:2507-2508`
 
-- [ ] **Step 1:** Extend `styles.test.ts` with three tests. "index.css uses only role
+- [x] **Step 1:** Extend `styles.test.ts` with three tests. "index.css uses only role
       variables": every `var(--…)` is one of the overview's 15 roles, `--font-ui` or
       `--font-mono`, with no hex or `rgba(` outside the `:root` block. ":root defines every light
       role with the overview's value". "every font stack ends in a system fallback": each
       `font-family` value ends in `sans-serif` or `monospace`. Run it. Expected: FAIL.
-- [ ] **Step 2:** Rewrite `:root` with the 15 light roles plus `--font-ui` and `--font-mono`, and
+- [x] **Step 2:** Rewrite `:root` with the 15 light roles plus `--font-ui` and `--font-mono`, and
       restyle `body`, `.rows`, `.row-*`, `.footer`, `.bar`, `.chip.*`, `.dev-pill`, `.button`,
       `.button.diagram`, `.version` and `.toggle` per the requirements. Focus rings stay
       `#0d99ff`: they are Figma's own, not the brand's.
-- [ ] **Step 3:** In `App.tsx`, `Chip` renders no `.dot` for icon-less tones.
-- [ ] **Step 4:** In `code.ts`, `UI_EXPANDED_HEIGHT = 121`, with the comment updated to "rows 81 + spacer 4 + footer 36".
-- [ ] **Step 5:** Run `bun test` and `bun run build` in `plugin/`. Expected: all pass, zero type
+- [x] **Step 3:** In `App.tsx`, `Chip` renders no `.dot` for icon-less tones.
+- [x] **Step 4:** In `code.ts`, `UI_EXPANDED_HEIGHT = 121`, with the comment updated to "rows 81 + spacer 4 + footer 36".
+- [x] **Step 5:** Run `bun test` and `bun run build` in `plugin/`. Expected: all pass, zero type
       errors.
-- [ ] **Step 6:** Relaunch the Dev plugin and compare it with `01 Stable · connected` (`80:96946`)
+- [x] **Step 6:** Relaunch the Dev plugin and compare it with `01 Stable · connected` (`80:96946`)
       and `03a One agent, named` (`81:97172`) side by side. Fix padding until rows, chip and footer
       line up with the screens.
-- [ ] **Step 7:** Commit `feat(plugin): restyle the panel in the light Rising sun palette`.
+- [x] **Step 7:** Commit `feat(plugin): restyle the panel in the light Rising sun palette`.
 
 ## Implementation notes
 

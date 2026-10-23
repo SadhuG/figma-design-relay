@@ -34,15 +34,15 @@ and switches live when the user changes Figma's theme.
   `watchFigmaTheme(root: HTMLElement, onChange: (theme: Theme) => void): () => void`, which calls
   `onChange` with the current theme at once and again on each change, and returns an unsubscribe.
 
-- [ ] **Step 1: Write the failing tests:** `figmaTheme("figma-dark") === "dark"`,
+- [x] **Step 1: Write the failing tests:** `figmaTheme("figma-dark") === "dark"`,
       `figmaTheme("figma-light") === "light"`, `figmaTheme("") === "light"`,
       `figmaTheme("foo figma-dark bar") === "dark"`, `figmaTheme("figma-darker") === "light"`
       (a whole class only).
-- [ ] **Step 2:** Run `cd plugin && bun test src/ui/theme.test.ts`. Expected: FAIL, module
+- [x] **Step 2:** Run `cd plugin && bun test src/ui/theme.test.ts`. Expected: FAIL, module
       missing.
-- [ ] **Step 3:** Implement `figmaTheme` by splitting on whitespace.
-- [ ] **Step 4:** Run. Expected: PASS.
-- [ ] **Step 5:** Commit `feat(plugin): read Figma's theme from the iframe class`.
+- [x] **Step 3:** Implement `figmaTheme` by splitting on whitespace.
+- [x] **Step 4:** Run. Expected: PASS.
+- [x] **Step 5:** Commit `feat(plugin): read Figma's theme from the iframe class`.
 
 ### Task 2: Watch it and apply the dark roles
 
@@ -51,22 +51,22 @@ and switches live when the user changes Figma's theme.
 - Modify: `plugin/src/ui/theme.ts`, `plugin/src/ui/theme.test.ts`, `plugin/src/ui/index.css`,
   `plugin/src/ui/styles.test.ts`, `plugin/src/ui/App.tsx`, `plugin/src/main/code.ts:2525`
 
-- [ ] **Step 1: Write the failing tests.** `watchFigmaTheme` takes the `MutationObserver`
+- [x] **Step 1: Write the failing tests.** `watchFigmaTheme` takes the `MutationObserver`
       constructor as an optional third parameter so Bun can pass a fake: "reports the current
       theme at once", "reports a class change" (the fake fires its callback after `className`
       changes), "stops after unsubscribe". In `styles.test.ts`: "the dark block defines every role
       with the overview's dark value" and "the dark selector is exactly the overview's".
-- [ ] **Step 2:** Run both test files. Expected: FAIL.
-- [ ] **Step 3:** Implement `watchFigmaTheme`, observing `attributeFilter: ["class"]` only. Add
+- [x] **Step 2:** Run both test files. Expected: FAIL.
+- [x] **Step 3:** Implement `watchFigmaTheme`, observing `attributeFilter: ["class"]` only. Add
       the dark block to `index.css`.
-- [ ] **Step 4:** In `App.tsx`, add `const [figma, setFigma] = useState<Theme>("light")` and a
+- [x] **Step 4:** In `App.tsx`, add `const [figma, setFigma] = useState<Theme>("light")` and a
       `useEffect` that subscribes with `watchFigmaTheme(document.documentElement, setFigma)`.
-- [ ] **Step 5:** In `code.ts`, add `themeColors: true` to the `showUI` options.
-- [ ] **Step 6:** Run `bun test` and `bun run build` in `plugin/`. Expected: PASS, zero type
+- [x] **Step 5:** In `code.ts`, add `themeColors: true` to the `showUI` options.
+- [x] **Step 6:** Run `bun test` and `bun run build` in `plugin/`. Expected: PASS, zero type
       errors.
-- [ ] **Step 7:** Relaunch the Dev plugin. Switch Figma's theme (Figma menu → Theme) and check
+- [x] **Step 7:** Relaunch the Dev plugin. Switch Figma's theme (Figma menu → Theme) and check
       that the panel matches `01 Stable · connected`'s dark twin in `84:99390` without a relaunch.
-- [ ] **Step 8:** Commit `feat(plugin): follow Figma's light or dark theme`.
+- [x] **Step 8:** Commit `feat(plugin): follow Figma's light or dark theme`.
 
 ## Implementation notes
 
