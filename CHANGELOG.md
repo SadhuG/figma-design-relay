@@ -18,6 +18,22 @@ with its tag.
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-23
+
+### Changed
+
+- The plugin panel wears the Rising sun brand: cream paper, the rising-sun app icon and new
+  glyphs, Zen Kaku Gothic New and M PLUS 1 Code. The fonts are bundled (Latin only, about 52 KB),
+  since the plugin can reach nothing but localhost; other scripts fall back to the system font.
+  The open window grows from 113 to 121 px.
+
+### Added
+
+- The panel follows Figma's light or dark theme, switching live when Figma's changes.
+- Dev builds show a Theme row under Relay whose switch overrides Figma's theme for testing
+  designs, remembered between launches. The stable build shows and stores none of it, and a dev build's window
+  opens at 145 px to fit the row.
+
 ## [0.10.1] - 2026-10-19
 
 ### Fixed

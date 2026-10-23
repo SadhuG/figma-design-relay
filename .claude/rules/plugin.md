@@ -28,20 +28,42 @@ paths:
   `data` as `unknown` and will happily ship an unresolved promise. The `figma` lookups it hands to
   `references.ts` live at `:412`; the helper modules never name the global.
   `docs/reference/serialized-nodes.md` documents the emitted shape — update it with the serializer.
-- `plugin/src/main/code.ts:2506` — the UI-collapse block that closes the file: window sizing, the
-  `ui-collapsed` `figma.clientStorage` key, and the `request-ui-state` / `set-ui-collapsed`
-  messages. `figma.showUI` runs with `visible: false` and the panel is shown only once the stored
-  state resolves, so anything that returns early before `figma.ui.show()` leaves the window
-  invisible. Came from upstream `ef0cf04`; leave it alone when editing the dispatcher above it.
+- `plugin/src/main/code.ts:2508` — the UI block that closes the file: window sizing (numbers in
+  `panel-size.ts`), the `ui-collapsed` and `theme-override` `figma.clientStorage` keys, and the
+  `request-ui-state` / `set-ui-collapsed` / `set-theme-override` messages. `figma.showUI` runs
+  with `visible: false` and the panel is shown only once both stored values resolve, so anything
+  that returns early before `figma.ui.show()` leaves the window invisible. Came from upstream
+  `ef0cf04`; leave it alone when editing the dispatcher above it.
 
 ## Constraints
 
 - **Imports are extensionless** (`./serializer`); Vite resolves them.
-- **The panel's design source is Figma's "Board 10: Plugin UI, final states"**, but the iframe has
-  no Inter: text renders in the system font, which runs wider than the board's measurements. Fit
-  panel copy to the live panel, not the board. "Lost the relay · retrying in 25 s" cut off beside
-  Retry now and became "Relay lost · retry in 25 s". The panel's text and timing rules live in
-  `src/ui/panel-state.ts`, unit-tested; `App.tsx` only wires them up.
+- **The panel's design source is the Rising sun "Plugin UI screens" page** of the Figma file
+  "Figma Design Relay" (light screens, a dark copy beside them, and the dev Theme row in section
+  "Theme toggle"); Board 10 is history. The panel bundles its fonts (`src/ui/fonts.css`: Zen Kaku
+  Gothic New and M PLUS 1 Code, 400/500, Latin woff2 inlined), so Latin text measures as on the
+  board; other scripts fall back to the system font, which runs wider. Fit copy to the live
+  panel. "Lost the relay · retrying in 25 s" cut off beside Retry now and became "Relay lost ·
+  retry in 25 s". The panel's text and timing rules live in `src/ui/panel-state.ts`, unit-tested;
+  `App.tsx` only wires them up.
+- **Every panel colour is a Rising sun role** (`--surface-paper`, … in `src/ui/index.css`),
+  checked by `styles.test.ts`: no literal colour outside the `:root` blocks except Figma's
+  `#0d99ff` focus ring. Light is on `:root`; dark applies on
+  `:root.figma-dark:not([data-theme="light"]), :root[data-theme="dark"]`. `figma-dark` comes from
+  `showUI`'s `themeColors: true` and changes live; `data-theme` is the dev build's override and
+  is never set by a stable build. Don't key anything on Figma's class beyond that selector and
+  `theme.ts`: Figma rewrites it. **FigJam has no dark UI**, so there the class stays
+  `figma-light` whatever Figma's theme preference says; a light panel in a dark-preference FigJam
+  is correct (seen live on 2026-10-23), not a bug.
+- **Dev-only UI is gated on `VITE_FIGMA_DESIGN_RELAY_SLOT`**, set by `uiDefine` (UI) and
+  `mainDefine` (main) in `dev-slot.ts` and absent from a stable build. In the stable UI the
+  Theme row and override never render or run. The stable `code.js` still contains the override
+  helpers and its message handler: `DEV_BUILD` is `Boolean(import.meta.env.…)`, a value Rollup's
+  tree-shaking doesn't fold, and the unminified main bundle keeps those guarded paths. The guards
+  keep it from reading, storing or posting an override. Test that behaviour
+  (`theme-override.test.ts`'s stable cases), not the bundle text. A dev build opens at 145 px
+  instead of 121 for its Theme row (`src/main/panel-size.ts`); change both if the panel's rows
+  change.
 - **The main thread delivers messages to the panel only when it yields.** A walk of resolved
   promises (the serializer) never does, so its `figma.ui.postMessage` calls all arrive with the
   response. Long reads pass `readOptions` (`code.ts`) to `serializeNode`: the reporter in

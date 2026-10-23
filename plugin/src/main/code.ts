@@ -48,6 +48,8 @@ import {
   type LayoutParams,
 } from "./layout-actions";
 import { assertTextPropertiesSupported, getTextTargetById, type TextTarget } from "./text-target";
+import { UI_COLLAPSED_HEIGHT, UI_WIDTH, uiExpandedHeight } from "./panel-size";
+import { createThemeOverrideSaver, loadThemeOverride, type ThemeOverride } from "../theme-override";
 
 export type RequestType =
   | "get_document"
@@ -2503,11 +2505,12 @@ const handleRequest = async (request: ServerRequest): Promise<PluginResponse> =>
   }
 };
 
-const UI_WIDTH = 320;
-/** The open panel: three rows and the footer. Every state fits it, so the window never jumps. */
-const UI_EXPANDED_HEIGHT = 113;
-/** Just the status bar: the collapsed window. */
-const UI_COLLAPSED_HEIGHT = 36;
+/**
+ * Set only in a dev slot's build (mainDefine, dev-slot.ts). Its panel has an extra Theme row, and
+ * only it reads, posts or stores a theme override.
+ */
+const DEV_BUILD = Boolean(import.meta.env.VITE_FIGMA_DESIGN_RELAY_SLOT);
+const UI_EXPANDED_HEIGHT = uiExpandedHeight(DEV_BUILD);
 const UI_COLLAPSED_KEY = "ui-collapsed";
 
 let uiCollapsed = false;
@@ -2520,23 +2523,47 @@ const postUiCollapseState = () => {
   figma.ui.postMessage({ type: "ui-collapse-state", payload: { collapsed: uiCollapsed } });
 };
 
-// Start hidden so the window never flashes at full height before the stored
-// collapsed state is restored. The iframe still loads and runs while hidden.
-figma.showUI(__html__, { width: UI_WIDTH, height: UI_EXPANDED_HEIGHT, visible: false });
+/** A dev build's theme override (theme-override.ts); always null in a stable build. */
+let themeOverride: ThemeOverride = null;
+/** Stores the panel's clicks one at a time, in click order. */
+const saveThemeOverride = createThemeOverrideSaver(DEV_BUILD, (key, value) =>
+  figma.clientStorage.setAsync(key, value)
+);
 
-figma.clientStorage
-  .getAsync(UI_COLLAPSED_KEY)
-  .then((stored) => {
-    uiCollapsed = stored === true;
-  })
-  .catch(() => {
-    uiCollapsed = false;
-  })
-  .then(() => {
-    applyUiSize();
-    postUiCollapseState();
-    figma.ui.show();
-  });
+const postUiThemeOverride = () => {
+  if (!DEV_BUILD) return;
+  figma.ui.postMessage({ type: "ui-theme-override", payload: { override: themeOverride } });
+};
+
+// Start hidden so the window never flashes at full height before the stored
+// collapsed state is restored. The iframe still loads and runs while hidden. themeColors puts
+// figma-light or figma-dark on the iframe's <html>, which the panel's CSS follows.
+figma.showUI(__html__, {
+  width: UI_WIDTH,
+  height: UI_EXPANDED_HEIGHT,
+  visible: false,
+  themeColors: true,
+});
+
+// Each read falls back on its own, so a failed one never keeps the window hidden.
+Promise.all([
+  figma.clientStorage
+    .getAsync(UI_COLLAPSED_KEY)
+    .then((stored) => {
+      uiCollapsed = stored === true;
+    })
+    .catch(() => {
+      uiCollapsed = false;
+    }),
+  loadThemeOverride(DEV_BUILD, (key) => figma.clientStorage.getAsync(key)).then((stored) => {
+    themeOverride = stored;
+  }),
+]).then(() => {
+  applyUiSize();
+  postUiCollapseState();
+  postUiThemeOverride();
+  figma.ui.show();
+});
 sendStatus();
 
 figma.on("selectionchange", () => {
@@ -2572,7 +2599,13 @@ figma.ui.onmessage = async (message) => {
 
   if (message.type === "request-ui-state") {
     postUiCollapseState();
+    postUiThemeOverride();
     sendStatus();
+    return;
+  }
+
+  if (message.type === "set-theme-override") {
+    themeOverride = saveThemeOverride(message.override);
     return;
   }
 

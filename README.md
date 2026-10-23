@@ -286,7 +286,8 @@ cd plugin && bun test       # run_script, serializer and its helpers (FigJam nod
                             # bounded absolute layout geometry, dev slot rules and the dev manifest,
                             # page-loading dispatch, UI startup status and HTML image imports,
                             # prototype scans and traces, SVG placement, property batches,
-                            # layout helpers, FigJam text targets and creators
+                            # layout helpers, FigJam text targets and creators,
+                            # the panel's theme rules, stylesheet roles, fonts and icons
 cd plugin && bun run typecheck   # tsc --noEmit; also runs as part of `bun run build`
 ```
 
@@ -309,6 +310,8 @@ Figma-Design-Relay/
 │                 # prototype.ts, svg.ts, node-properties.ts, layout-actions.ts and
 │                 # text-target.ts: the upstream-synced tools' Figma-free logic;
 │                 # read-progress.ts: long-read progress for the panel;
+│                 # panel-size.ts: the window's heights; src/ui/theme.ts and
+│                 # src/theme-override.ts: Figma's theme and the dev override;
 │                 # dev-slot.ts: the slot rules the build uses
 └── server/       # MCP server (TypeScript/Node.js)
     ├── dashboard/ # Read-only status page: HTML, CSS, polling and tested render functions

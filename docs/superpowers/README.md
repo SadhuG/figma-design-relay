@@ -136,3 +136,7 @@ Drive it with `superpowers:subagent-driven-development` or `superpowers:executin
   Board 10's four "Later" states (Selection sent, Syncing layers with real read progress, Diagram
   drawn, Leader and followers), built after the user's decisions of 2026-10-19. A folder plan;
   delivered in 0.10.0, live check in `live-check.md` beside the plan.
+- [`plans/2026-10-23-panel-theme/`](plans/2026-10-23-panel-theme/00-overview.md): the panel in
+  the Rising sun brand with bundled fonts, following Figma's light or dark theme, plus a dev-build
+  Theme row that overrides it. The spec is the Figma page "Plugin UI screens". A folder plan; live
+  check in `live-check.md` beside the plan.

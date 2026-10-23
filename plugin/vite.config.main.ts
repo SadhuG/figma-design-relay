@@ -1,6 +1,6 @@
 import { defineConfig } from "vite";
 import { fileURLToPath } from "node:url";
-import { devManifestPlugin, readDevSlot } from "./dev-slot";
+import { devManifestPlugin, mainDefine, readDevSlot } from "./dev-slot";
 import manifest from "./manifest.json";
 
 // Emits the dev manifest too, so a watch rebuild of either pass restores it.
@@ -8,6 +8,8 @@ const slot = readDevSlot(fileURLToPath(new URL("..", import.meta.url)));
 
 export default defineConfig({
   plugins: [devManifestPlugin(manifest, slot)],
+  // The slot name, so the main thread sizes the window for the dev panel (panel-size.ts).
+  define: mainDefine(slot),
   build: {
     // Figma's sandbox runs es2020 code and beyond:
     // https://developers.figma.com/docs/plugins/how-plugins-run/

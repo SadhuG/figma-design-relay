@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
+  AppIcon as AppMark,
   ChevronIcon,
-  CursorIcon,
   DartsIcon,
-  DiagramIcon,
-  LayersIcon,
-  LostIcon,
-  PlaneIcon,
-  SelectionIcon,
+  MoonIcon,
+  MovedIcon,
+  OutlineStackIcon,
+  PixelCursorIcon,
+  SelectionOutIcon,
+  ShapeRelayIcon,
   SunIcon,
 } from "./icons";
 import {
@@ -27,6 +28,8 @@ import {
   workingLabel,
   type ChipTone,
 } from "./panel-state";
+import { nextOverride, resolveTheme, type Theme, themeRowText, watchFigmaTheme } from "./theme";
+import { parseThemeOverride, type ThemeOverride } from "../theme-override";
 
 type RequestType =
   | "get_document"
@@ -99,24 +102,29 @@ const RELAY_ADDRESS = relayAddress(WS_BASE_URL);
 const RELAY_PORT = relayPort(WS_BASE_URL);
 
 const VERSION = import.meta.env.VITE_FIGMA_DESIGN_RELAY_VERSION ?? "";
-/** Set only in a dev slot's build; it switches on the plane icon and the Dev pill. */
+/** Set only in a dev slot's build; it switches on the Dev app icon and the Dev pill. */
 const DEV_SLOT = import.meta.env.VITE_FIGMA_DESIGN_RELAY_SLOT;
 
-function AppIcon({ size, faded }: { size: number; faded: boolean }) {
+/** The sun is up only while the relay answers; connecting and lost both show it set. */
+function AppIcon({ size, live }: { size: number; live: boolean }) {
   return (
-    <span className={`app-icon${faded ? " faded" : ""}`}>
-      {DEV_SLOT ? <PlaneIcon size={size} /> : <SunIcon size={size} />}
+    <span className="app-icon">
+      <AppMark
+        channel={DEV_SLOT ? "dev" : "stable"}
+        state={live ? "live" : "offline"}
+        size={size}
+      />
     </span>
   );
 }
 
-/** Live and Connecting show a dot; every other state has a mark of its own. */
+/** Live and Connecting are text alone; every other state has a mark of its own. */
 const CHIP_ICONS: Partial<Record<ChipTone, (props: { size: number }) => React.JSX.Element>> = {
-  working: CursorIcon,
-  lost: LostIcon,
-  sent: SelectionIcon,
-  syncing: LayersIcon,
-  diagram: DiagramIcon,
+  working: PixelCursorIcon,
+  lost: MovedIcon,
+  sent: SelectionOutIcon,
+  syncing: OutlineStackIcon,
+  diagram: ShapeRelayIcon,
   leader: DartsIcon,
 };
 
@@ -134,7 +142,7 @@ function Chip({
   const Icon = CHIP_ICONS[tone];
   return (
     <span className={`chip ${tone}${Icon ? " has-icon" : ""}`} title={title}>
-      {Icon ? <Icon size={iconSize} /> : <span className="dot" />}
+      {Icon ? <Icon size={iconSize} /> : null}
       <span className="chip-text">{text}</span>
     </span>
   );
@@ -142,6 +150,25 @@ function Chip({
 
 function DevPill() {
   return DEV_SLOT ? <span className="dev-pill">Dev: {DEV_SLOT}</span> : null;
+}
+
+/** The dev Theme row's switch: on is dark. */
+function ThemeSwitch({ theme, onFlip }: { theme: Theme; onFlip: () => void }) {
+  const dark = theme === "dark";
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={dark}
+      aria-label="Dark theme"
+      className="theme-switch"
+      onClick={onFlip}
+    >
+      <span className="theme-switch-knob">
+        {dark ? <MoonIcon size={10} /> : <SunIcon size={10} />}
+      </span>
+    </button>
+  );
 }
 
 export default function App() {
@@ -181,6 +208,26 @@ export default function App() {
   // Bumped whenever the activity log changes or an entry leaves its window.
   const [activityVersion, setActivityVersion] = useState(0);
   const bumpActivity = () => setActivityVersion((version) => version + 1);
+  /** Figma's theme. CSS follows it on its own; the dev Theme row reads it. */
+  const [figmaUiTheme, setFigmaUiTheme] = useState<Theme>("light");
+
+  useEffect(() => watchFigmaTheme(document.documentElement, setFigmaUiTheme), []);
+  /** A dev build's override, from the main thread's storage; always null in a stable build. */
+  const [themeOverride, setThemeOverride] = useState<ThemeOverride>(null);
+
+  // data-theme wins over Figma's class in index.css. Only a dev build ever sets it.
+  useEffect(() => {
+    if (!DEV_SLOT) return;
+    const root = document.documentElement;
+    if (themeOverride) root.dataset.theme = themeOverride;
+    else delete root.dataset.theme;
+  }, [themeOverride]);
+
+  const flipTheme = () => {
+    const next = nextOverride(figmaUiTheme, themeOverride);
+    setThemeOverride(next);
+    parent.postMessage({ pluginMessage: { type: "set-theme-override", override: next } }, "*");
+  };
 
   const now = Date.now();
   const agents = activity.current.activeAgents(now);
@@ -255,6 +302,11 @@ export default function App() {
 
       if (msg.type === "ui-collapse-state") {
         setCollapsed(msg.payload?.collapsed === true);
+        return;
+      }
+
+      if (msg.type === "ui-theme-override") {
+        if (DEV_SLOT) setThemeOverride(parseThemeOverride(msg.payload?.override));
         return;
       }
 
@@ -446,12 +498,12 @@ export default function App() {
         aria-label={collapsed ? "Expand" : "Collapse"}
         aria-expanded={!collapsed}
       >
-        <ChevronIcon size={9} direction={collapsed ? "down" : "up"} />
+        <ChevronIcon size={14} direction={collapsed ? "down" : "up"} />
       </button>
 
       {collapsed ? (
         <div className="bar">
-          <AppIcon size={20} faded={lost} />
+          <AppIcon size={20} live={connected} />
           <span className="grow" />
           <DevPill />
           <Chip tone={chip.tone} text={chip.short} title={chipTitle} iconSize={12} />
@@ -471,12 +523,21 @@ export default function App() {
             </div>
             <div className="row">
               <span className="row-label">Relay</span>
-              <span className="row-value">{relayRowText(RELAY_ADDRESS, !lost)}</span>
+              <span className="row-value mono">{relayRowText(RELAY_ADDRESS, !lost)}</span>
             </div>
+            {DEV_SLOT ? (
+              <div className="row theme">
+                <span className="row-label">Theme</span>
+                <ThemeSwitch theme={resolveTheme(figmaUiTheme, themeOverride)} onFlip={flipTheme} />
+                <span className="row-value theme-value">
+                  {themeRowText(figmaUiTheme, themeOverride)}
+                </span>
+              </div>
+            ) : null}
           </div>
 
           <div className="footer">
-            <AppIcon size={16} faded={lost} />
+            <AppIcon size={16} live={connected} />
             <Chip tone={chip.tone} text={chip.text} title={chipTitle} iconSize={14} />
             <span className="grow" />
             {lost ? (

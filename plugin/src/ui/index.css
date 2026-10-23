@@ -1,26 +1,44 @@
-/* The panel from the Figma frame "Board 10: Plugin UI, final states". Light only for now. */
+/* The panel from the Figma page "Plugin UI screens" (Rising sun). Every colour is a role named after
+   its Figma variable (surface/paper → --surface-paper); the values are the light theme's. */
 :root {
-  --bg: #ffffff;
-  --text-label: #757575;
-  --text-value: #1e1e1e;
-  --divider: #e6e6e6;
-  --live: #14ae5c;
-  --live-bg: rgba(20, 174, 92, 0.12);
-  --working: #ff4fa3;
-  --working-bg: rgba(255, 79, 163, 0.12);
-  --lost: #e5484d;
-  --lost-bg: rgba(229, 72, 77, 0.12);
-  --sent: #ff4f1a;
-  --sent-bg: rgba(255, 79, 26, 0.12);
-  --syncing: #7c5cff;
-  --syncing-bg: rgba(124, 92, 255, 0.12);
-  --diagram: #d62828;
-  --diagram-bg: rgba(214, 40, 40, 0.12);
-  --leader: #3d5afe;
-  --leader-bg: rgba(61, 90, 254, 0.12);
-  --dev-pill: #ffb020;
-  --toggle-hover: rgba(0, 0, 0, 0.06);
-  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --surface-paper: #f7f4ee;
+  --surface-well: #ede7db;
+  --surface-raised: #ffffff;
+  --surface-ink: #1a1a1a;
+  --text-primary: #1a1a1a;
+  --text-secondary: #635c4e;
+  --text-on-ink: #f7f4ee;
+  --text-on-sun: #f7f4ee;
+  --sun-rising: #bc002d;
+  --sun-set: #7a7364;
+  --sun-on-ink: #f7f4ee;
+  --line-hairline: #dcd4c4;
+  --line-horizon: #1a1a1a;
+  --status-connected: #446c33;
+  --status-error: #bc002d;
+  --font-ui: "Zen Kaku Gothic New", system-ui, -apple-system, sans-serif;
+  --font-mono: "M PLUS 1 Code", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* Dark: Figma puts figma-dark on <html> (themeColors in code.ts). A dev build's override sets
+   data-theme, which wins either way; the stable build never sets it. */
+:root.figma-dark:not([data-theme="light"]),
+:root[data-theme="dark"] {
+  --surface-paper: #121110;
+  --surface-well: #1c1a17;
+  --surface-raised: #24211d;
+  --surface-ink: #f7f4ee;
+  --text-primary: #f7f4ee;
+  --text-secondary: #a39c8f;
+  --text-on-ink: #1a1a1a;
+  --text-on-sun: #f7f4ee;
+  --sun-rising: #d0103a;
+  --sun-set: #8a8376;
+  --sun-on-ink: #1a1a1a;
+  --line-hairline: #38342e;
+  --line-horizon: #f7f4ee;
+  --status-connected: #82ad66;
+  --status-error: #e8475f;
 }
 
 * {
@@ -31,15 +49,12 @@
 
 body {
   margin: 0;
-  font-family:
-    Inter,
-    system-ui,
-    -apple-system,
-    sans-serif;
+  font-family: var(--font-ui);
   font-size: 11px;
-  line-height: 13px;
-  background: var(--bg);
-  color: var(--text-value);
+  /* 140 %, rounded to the whole pixel the screens' rows use. */
+  line-height: 15px;
+  background: var(--surface-paper);
+  color: var(--text-primary);
   overflow: hidden;
 }
 
@@ -64,13 +79,13 @@ body {
   border: none;
   border-radius: 4px;
   background: transparent;
-  color: var(--text-label);
+  color: var(--text-secondary);
   cursor: pointer;
 }
 
 .toggle:hover {
-  background: var(--toggle-hover);
-  color: var(--text-value);
+  background: var(--surface-well);
+  color: var(--text-primary);
 }
 
 .toggle:focus-visible {
@@ -78,7 +93,7 @@ body {
   outline-offset: -2px;
 }
 
-/* Open view: 320 × 113 = rows (75) + spacer (4) + footer (34). */
+/* Open view: 320 × 121 = rows (81) + spacer (4) + footer (36). */
 .panel {
   display: flex;
   flex-direction: column;
@@ -102,7 +117,7 @@ body {
 
 .row-label {
   flex: 0 0 64px;
-  color: var(--text-label);
+  color: var(--text-secondary);
 }
 
 .row-value {
@@ -112,13 +127,17 @@ body {
   white-space: nowrap;
 }
 
+.row-value.mono {
+  font-family: var(--font-mono);
+}
+
 .footer {
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 34px;
+  height: 36px;
   padding: 0 12px;
-  border-top: 1px solid var(--divider);
+  border-top: 1px solid var(--line-hairline);
 }
 
 .grow {
@@ -140,10 +159,6 @@ body {
   flex-shrink: 0;
 }
 
-.app-icon.faded {
-  opacity: 0.4;
-}
-
 /* The state is what the panel is for: the chip keeps its width (up to a cap, then truncates) and the
    Dev pill gives way instead. */
 .chip {
@@ -152,11 +167,19 @@ body {
   gap: 5px;
   flex-shrink: 0;
   max-width: 200px;
-  height: 17px;
-  padding: 0 7px 0 6px;
-  border-radius: 999px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 2px;
+  background: var(--surface-well);
+  color: var(--text-primary);
   font-weight: 500;
   white-space: nowrap;
+}
+
+/* Connecting and Live carry no mark, so they get a little more room. */
+.chip:not(.has-icon) {
+  height: 19px;
+  padding: 0 7px;
 }
 
 .chip-text {
@@ -165,24 +188,12 @@ body {
   text-overflow: ellipsis;
 }
 
-.chip.has-icon {
-  padding-left: 5px;
-}
-
 .bar .chip {
   max-width: 170px;
-  height: 16px;
+  height: 18px;
   padding: 0 6px;
   font-size: 10px;
-  line-height: 12px;
-}
-
-.chip .dot {
-  flex-shrink: 0;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
+  line-height: 14px;
 }
 
 .chip svg {
@@ -190,64 +201,43 @@ body {
 }
 
 .chip.connecting {
-  color: var(--text-label);
-  background: rgba(0, 0, 0, 0.06);
+  color: var(--text-secondary);
 }
 
 .chip.live {
-  color: var(--live);
-  background: var(--live-bg);
-}
-
-.chip.working {
-  color: var(--working);
-  background: var(--working-bg);
+  color: var(--status-connected);
 }
 
 .chip.lost {
-  color: var(--lost);
-  background: var(--lost-bg);
+  color: var(--status-error);
 }
 
-.chip.sent {
-  color: var(--sent);
-  background: var(--sent-bg);
-}
-
-.chip.syncing {
-  color: var(--syncing);
-  background: var(--syncing-bg);
-}
-
-.chip.diagram {
-  color: var(--diagram);
-  background: var(--diagram-bg);
-}
-
-.chip.leader {
-  color: var(--leader);
-  background: var(--leader-bg);
+/* The one chip in ink: an agent is at work. */
+.chip.working {
+  background: var(--surface-ink);
+  color: var(--text-on-ink);
 }
 
 .version {
   flex-shrink: 0;
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 10px;
-  color: var(--text-label);
+  color: var(--text-secondary);
 }
 
 /* Shrinks before the state chip does, so the state stays readable next to a long slot name. */
 .dev-pill {
   flex-shrink: 100;
   min-width: 48px;
-  height: 17px;
+  height: 18px;
   padding: 0 6px;
-  border-radius: 4px;
-  background: var(--dev-pill);
-  color: var(--text-value);
-  font-family: var(--mono);
+  border-radius: 2px;
+  background: var(--sun-rising);
+  color: var(--text-on-sun);
+  font-family: var(--font-mono);
   font-size: 10px;
-  line-height: 17px;
+  font-weight: 500;
+  line-height: 18px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -257,26 +247,75 @@ body {
   flex-shrink: 0;
   height: 17px;
   padding: 0 8px;
-  border: 1px solid var(--divider);
-  border-radius: 5px;
-  background: var(--bg);
-  color: var(--text-value);
+  border: 1px solid var(--line-horizon);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--text-primary);
   font: inherit;
   font-weight: 500;
+  line-height: 15px;
   cursor: pointer;
 }
 
 .button:hover {
-  background: #f5f5f5;
+  background: var(--surface-well);
 }
 
-/* 06's Select it: filled in the diagram tone. */
+/* 06's Select it: filled in ink. */
 .button.diagram {
-  border-color: var(--diagram);
-  background: var(--diagram);
-  color: #ffffff;
+  border-color: var(--surface-ink);
+  background: var(--surface-ink);
+  color: var(--text-on-ink);
 }
 
 .button.diagram:hover {
-  background: #bf2323;
+  opacity: 0.85;
+}
+
+/* The dev build's Theme row (App.tsx): a switch as Figma's "Theme toggle", Size=Small. The track's
+   1 px border sits inside its 32 × 18, so the knob's 2 px inset is 1 px from the border. */
+.theme-switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 32px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--line-hairline);
+  border-radius: 9px;
+  background: var(--surface-well);
+  cursor: pointer;
+}
+
+.theme-switch:focus-visible {
+  outline: 2px solid #0d99ff;
+  outline-offset: 1px;
+}
+
+.theme-switch-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 7px;
+  background: var(--surface-raised);
+  color: var(--sun-rising);
+  transition: left 150ms ease-out;
+}
+
+.theme-switch[aria-checked="true"] .theme-switch-knob {
+  left: 15px;
+  color: var(--text-primary);
+}
+
+.row.theme {
+  align-items: center;
+  height: 18px;
+}
+
+.theme-value {
+  color: var(--text-secondary);
 }
