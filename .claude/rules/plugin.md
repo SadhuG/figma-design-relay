@@ -58,8 +58,9 @@ paths:
 - **Dev-only UI is gated on `VITE_FIGMA_DESIGN_RELAY_SLOT`**, set by `uiDefine` (UI) and
   `mainDefine` (main) in `dev-slot.ts` and absent from a stable build. In the stable UI the
   Theme row and override never render or run. The stable `code.js` still contains the override
-  helpers and its message handler, since the main build isn't minified or tree-shaken, but
-  `DEV_BUILD` guards keep it from reading, storing or posting an override. Test that behaviour
+  helpers and its message handler: `DEV_BUILD` is `Boolean(import.meta.env.…)`, a value Rollup's
+  tree-shaking doesn't fold, and the unminified main bundle keeps those guarded paths. The guards
+  keep it from reading, storing or posting an override. Test that behaviour
   (`theme-override.test.ts`'s stable cases), not the bundle text. A dev build opens at 145 px
   instead of 121 for its Theme row (`src/main/panel-size.ts`); change both if the panel's rows
   change.
