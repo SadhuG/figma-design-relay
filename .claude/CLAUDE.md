@@ -43,7 +43,7 @@ This file holds only what applies to every task. The rest loads when it is relev
 | `server/` | `bun test`                                | 459 tests (2 Windows skips): schemas, transport, file safety, SVG loader, follower round trips, codegen, assets, Code Connect, Mermaid, dashboard, relay-status |
 | `plugin/` | `bun run typecheck`                       | `tsc --noEmit`; must stay at zero errors                                                                                                                        |
 | `plugin/` | `bun run build`                           | typecheck, then two Vite passes: UI, then `main`                                                                                                                |
-| `plugin/` | `bun test`                                | 451 tests: scripts, serializer, read progress, capability table, library tools, diagrams, prototypes, layout, batches, dispatch, HTML images and panel          |
+| `plugin/` | `bun test`                                | 514 tests: scripts, serializer, read progress, capability table, library tools, diagrams, prototypes, layout, batches, dispatch, HTML images, panel and theme   |
 
 Tests live beside the code as `*.test.ts` (excluded from both tsconfigs). CI (`.github/workflows/ci.yml`)
 runs all of the above on every push to every branch.
@@ -97,8 +97,11 @@ plugin/src/
   main/library.ts           whoami, get_libraries, import_library_asset, search_design_system
   main/permissions.ts       permission and plan refusals → actionable errors
   main/search.ts            search_design_system's matcher and ranker
+  main/panel-size.ts        the window's width and heights: 121 open (145 in a dev build), 36 collapsed
+  theme-override.ts         a dev build's stored theme override, shared by main and ui
   html-figma/               vendored html-to-figma importer
-  ui/                       React panel; panel-state.ts holds its text and timing rules
+  ui/                       React panel; panel-state.ts holds its text and timing rules, theme.ts
+                            the theme rules, index.css the Rising sun roles, fonts.css the fonts
 scripts/        check-version.mjs; dev-slot.mjs claims a worktree's dev slot
 docs/           guides/ and reference/ for users; superpowers/ for specs and plans
 .claude/        this file, rules/ (path-scoped) and skills/ — the table above

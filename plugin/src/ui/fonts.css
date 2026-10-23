@@ -1,0 +1,39 @@
+/* The Rising sun panel fonts, bundled: the manifest lets the plugin reach only localhost, so nothing
+   can be fetched at run time. Latin subset and woff2 only; the build inlines each file as a data
+   URI. Text in other scripts falls back to the system font (see the stacks in index.css). */
+
+@font-face {
+  font-family: "Zen Kaku Gothic New";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("../../node_modules/@fontsource/zen-kaku-gothic-new/files/zen-kaku-gothic-new-latin-400-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Zen Kaku Gothic New";
+  font-style: normal;
+  font-weight: 500;
+  font-display: block;
+  src: url("../../node_modules/@fontsource/zen-kaku-gothic-new/files/zen-kaku-gothic-new-latin-500-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "M PLUS 1 Code";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("../../node_modules/@fontsource/m-plus-1-code/files/m-plus-1-code-latin-400-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "M PLUS 1 Code";
+  font-style: normal;
+  font-weight: 500;
+  font-display: block;
+  src: url("../../node_modules/@fontsource/m-plus-1-code/files/m-plus-1-code-latin-500-normal.woff2")
+    format("woff2");
+}
