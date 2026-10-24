@@ -9,7 +9,7 @@
     "prepare": "husky",
     "format": "prettier --write --ignore-unknown .",
     "format:check": "prettier --check --ignore-unknown .",
-    "test": "cd server && bun test && cd ../plugin && bun test",
+    "test": "bun test ./scripts && cd server && bun test && cd ../plugin && bun test",
     "check": "bun scripts/check-version.mjs && bun run test && cd server && bun run build && cd ../plugin && bun run build && cd .. && bun run format:check"
   },
   "lint-staged": {

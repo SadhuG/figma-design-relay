@@ -31,6 +31,11 @@ jobs:
       - name: Version and changelog agree
         run: bun scripts/check-version.mjs
 
+      # The repo scripts carry no dependencies, so they test before any install.
+      # package-release.mjs decides what ships in the release archive.
+      - name: Script tests
+        run: bun test ./scripts
+
       # ── Server ───────────────────────────────────────────────────────
       # The server has no separate type-check step because its build *is*
       # `tsc`, so building it type-checks it.
