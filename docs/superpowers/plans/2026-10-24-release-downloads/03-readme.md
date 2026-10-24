@@ -55,21 +55,21 @@ plugin missing from Development menu (import was done in the browser, use the de
 
 - Modify: `README.md:6-14` (table of contents), `README.md:37-87` (Quick Start)
 
-- [ ] **Step 1: Write the sections above**, in the README's existing voice (second person, short
+- [x] **Step 1: Write the sections above**, in the README's existing voice (second person, short
       paragraphs, `###` per step). Keep the panel and dashboard descriptions from today's steps 4–5.
 
-- [ ] **Step 2: Check nothing still tells a user to run Bun**
+- [x] **Step 2: Check nothing still tells a user to run Bun**
 
   Run: `git grep -n "install --production" -- README.md docs/guides`
   Expected: no output.
 
-- [ ] **Step 3: Check every Quick Start path matches the archive**
+- [x] **Step 3: Check every Quick Start path matches the archive**
 
   Against `.release-test/figma-design-relay/` from phase 1: `server/dist/index.js`,
   `plugin/manifest.json`, `SHA256SUMS.txt` naming (asset, not in the folder), `VERSION` all exist as
   written.
 
-- [ ] **Step 4: Format and commit**
+- [x] **Step 4: Format and commit**
 
   Run: `bun run format` then `bun run format:check`
   Expected: passes.

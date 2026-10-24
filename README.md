@@ -342,6 +342,8 @@ From the repository root, `bun run check` validates versions, runs both test sui
 packages (including type-checking), and checks formatting. `bun run test` runs only the suites.
 
 ```bash
+bun test ./scripts          # the release archive's layout and its refusals (dev-slot builds, wrong port,
+                            # missing shebang, missing runtime or present dev dependencies)
 cd server && bun test       # schemas, /rpc guards, codegen, content blocks, asset export, Code Connect,
                             # the Mermaid parser and diagram layout, the startup port and dev slots,
                             # cross-file search: file selection, result merging and fan-out,
@@ -373,7 +375,8 @@ Figma-Design-Relay/
 ├── CHANGELOG.md  # What changed in each version
 ├── docs/         # guides/ per tool family, reference/, and superpowers/ specs and plans
 ├── scripts/      # check-version.mjs: one version across server, plugin and changelog;
-│                 # dev-slot.mjs: claims a feature worktree's dev plugin name and port
+│                 # dev-slot.mjs: claims a feature worktree's dev plugin name and port;
+│                 # package-release.mjs: stages and checks the release archive
 ├── plugin/       # Figma plugin (TypeScript/React); src/main/layout-tree.ts: bounded geometry;
 │                 # prototype.ts, svg.ts, node-properties.ts, layout-actions.ts and
 │                 # text-target.ts: the upstream-synced tools' Figma-free logic;

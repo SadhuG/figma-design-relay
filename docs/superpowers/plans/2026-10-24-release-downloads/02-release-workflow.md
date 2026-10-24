@@ -44,23 +44,23 @@
   `bun scripts/check-version.mjs` and `--notes`.
 - Produces: step `decide` with outputs `version`, `publish` (`true`/`false`), `reason`.
 
-- [ ] **Step 1: Write the `decide` step**
+- [x] **Step 1: Write the `decide` step**
 
   Shell, with `GH_TOKEN: ${{ github.token }}`: version from `check-version.mjs`;
   `gh release view "v$version"` succeeding means released; `git ls-remote --tags origin "v$version"`
   gives the tag's sha for the stray-tag check (checkout with `fetch-depth: 0` is not needed).
 
-- [ ] **Step 2: Replace the build/package steps**
+- [x] **Step 2: Replace the build/package steps**
 
   Server install + build, plugin install + build (as today, minus the shebang check, now in phase 1's
   `checkStaged`), then `bun scripts/package-release.mjs release`, then
   `(cd release && zip -qr ../figma-design-relay.zip figma-design-relay)` and the checksum. Upload both
   files as artifact `figma-design-relay-v<version>` on every run.
 
-- [ ] **Step 3: Gate the release step on `steps.decide.outputs.publish == 'true'`** and write the
+- [x] **Step 3: Gate the release step on `steps.decide.outputs.publish == 'true'`** and write the
       summary from `reason`.
 
-- [ ] **Step 4: Format and commit**
+- [x] **Step 4: Format and commit**
 
   Run: `bun run format` then `bun run format:check`
   Expected: `All matched files use Prettier code style!`
@@ -70,7 +70,7 @@
   git commit -m "feat(release): publish a release for every new version on main"
   ```
 
-- [ ] **Step 5: Push the branch and dry-run it**
+- [x] **Step 5: Push the branch and dry-run it**
 
   Run: `git push -u origin fix/releases` then
   `gh workflow run release.yml --ref fix/releases -f dry_run=false` (deliberately not a dry run:
@@ -78,7 +78,7 @@
   Expected: success; summary says `not main`; `gh release list` is still empty; artifact holds
   `figma-design-relay.zip` and `SHA256SUMS.txt`.
 
-- [ ] **Step 6: Inspect the artifact**
+- [x] **Step 6: Inspect the artifact**
 
   Run: `gh run download <run-id> -D .release-test/ci` then
   `unzip -l .release-test/ci/*/figma-design-relay.zip | head -40` and

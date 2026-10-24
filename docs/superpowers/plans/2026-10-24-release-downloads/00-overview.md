@@ -71,7 +71,7 @@ The failure modes most likely to bite a user, and where each is pinned:
 
 | #   | Phase                                      | Summary                                                                                                                   | Status      |
 | --- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| 1   | [Packaging script](01-package-script.md)   | `scripts/package-release.mjs` stages the archive folder from the builds and fails on anything missing; tested, run in CI. | not started |
-| 2   | [Release workflow](02-release-workflow.md) | `release.yml` runs on every push to `main`, skips versions already released, publishes the fixed-name zip and checksums.  | not started |
-| 3   | [README download and setup](03-readme.md)  | Quick Start rewritten: requirements, download link, per-client MCP setup, Figma import, updating, troubleshooting.        | not started |
-| 4   | [Docs, bump and ship](04-ship.md)          | Release rule, finish-task and CLAUDE.md updated; bump to 0.11.1; dry run; live check of the archive; finish-task.         | not started |
+| 1   | [Packaging script](01-package-script.md)   | `scripts/package-release.mjs` stages the archive folder from the builds and fails on anything missing; tested, run in CI. | done        |
+| 2   | [Release workflow](02-release-workflow.md) | `release.yml` runs on every push to `main`, skips versions already released, publishes the fixed-name zip and checksums.  | done        |
+| 3   | [README download and setup](03-readme.md)  | Quick Start rewritten: requirements, download link, per-client MCP setup, Figma import, updating, troubleshooting.        | done        |
+| 4   | [Docs, bump and ship](04-ship.md)          | Release rule, finish-task and CLAUDE.md updated; bump to 0.11.1; dry run; live check of the archive; finish-task.         | in progress |

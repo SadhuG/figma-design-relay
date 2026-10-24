@@ -34,15 +34,15 @@ Figma, and land it through the normal gate. Merging the `dev` → `main` PR publ
 - Modify: `.claude/rules/release.md`, `.claude/skills/finish-task/SKILL.md`, `CLAUDE.md`,
   `docs/superpowers/README.md`, `CHANGELOG.md`, `server/package.json`, `plugin/package.json`
 
-- [ ] **Step 1: Edit the files per the requirements.** In `CLAUDE.md`'s Commands table add
+- [x] **Step 1: Edit the files per the requirements.** In `CLAUDE.md`'s Commands table add
       `bun test ./scripts` (root) and `bun scripts/package-release.mjs <dir>`; in Layout's
       `scripts/` line add `package-release.mjs`.
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
   Run: `bun scripts/check-version.mjs && bun run check`
   Expected: prints `0.11.1`; all tests, builds and format pass.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
   ```bash
   git commit -am "chore(release): 0.11.1 — publish a downloadable release for every version"
@@ -53,16 +53,16 @@ Figma, and land it through the normal gate. Merging the `dev` → `main` PR publ
 The archive's plugin has the stable id and dials 1994, so this check briefly stands in for the
 stable install. **Ask the user before starting**; they quit MCP clients using the stable relay.
 
-- [ ] **Step 1: Dry-run the final head** (`gh workflow run release.yml --ref fix/releases -f dry_run=true`)
+- [x] **Step 1: Dry-run the final head** (`gh workflow run release.yml --ref fix/releases -f dry_run=true`)
       and download its artifact into `.release-test/live/`; unzip it there.
-- [ ] **Step 2: Start the archived server with plain Node** —
+- [x] **Step 2: Start the archived server with plain Node** —
       `node .release-test/live/figma-design-relay/server/dist/index.js` from a shell with no Bun on
       `PATH` for that command. Expected: it becomes leader on 1994; `http://127.0.0.1:1994/` loads.
-- [ ] **Step 3: In the Figma desktop app**, import `.release-test/live/figma-design-relay/plugin/manifest.json`,
+- [x] **Step 3: In the Figma desktop app**, import `.release-test/live/figma-design-relay/plugin/manifest.json`,
       run it in a design file and in a FigJam board. Expected: chip **Live** in both.
-- [ ] **Step 4: Call tools** with `server/.smoke/call.mjs` against 1994: `list_files`, `get_selection`,
+- [x] **Step 4: Call tools** with `server/.smoke/call.mjs` against 1994: `list_files`, `get_selection`,
       and one node-addressed tool through a second (follower) server process. Expected: real results.
-- [ ] **Step 5: Restore** the stable relay, re-import the main checkout's `plugin/manifest.json`, and
+- [x] **Step 5: Restore** the stable relay, re-import the main checkout's `plugin/manifest.json`, and
       record commit, run id, setup, cases and results in
       `docs/superpowers/plans/2026-10-24-release-downloads/live-check.md`; commit it.
 

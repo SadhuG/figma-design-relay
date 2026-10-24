@@ -44,7 +44,7 @@ Move the archive's contents out of `release.yml` into a tested script that stage
     `check-version.mjs`, stages, checks, prints the staged file list (`node_modules` as one
     `server/node_modules/ (<n> packages)` line), exits 1 on any problem.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
   Each test builds a fixture repo in `mkdtempSync(join(tmpdir(), "relay-pkg-"))`: `plugin/manifest.json`
   (`{"id":"figma-design-relay","networkAccess":{"allowedDomains":["ws://localhost:1994"]}}`),
@@ -67,31 +67,31 @@ Move the archive's contents out of `release.yml` into a tested script that stage
   - `refuses missing runtime dependencies` — stub writes nothing; problems name `ws`.
   - `refuses missing dashboard files` — no `server/dashboard/index.html`; problems match `/dashboard/`.
 
-- [ ] **Step 2: Run them to see them fail**
+- [x] **Step 2: Run them to see them fail**
 
   Run: `bun test ./scripts`
   Expected: FAIL — `Cannot find module './package-release.mjs'`.
 
-- [ ] **Step 3: Implement `stageRelease` and `checkStaged` in `scripts/package-release.mjs`**
+- [x] **Step 3: Implement `stageRelease` and `checkStaged` in `scripts/package-release.mjs`**
 
   `rmSync(outDir, { recursive: true, force: true })`, then `cpSync` per path. Export both functions;
   run the CLI only when `import.meta.main`. The plugin port check reads `plugin/dist/index.html` (the
   UI holds the WebSocket address) and fails if it does not contain `ws://localhost:1994` or contains
   any other `ws://localhost:<port>`.
 
-- [ ] **Step 4: Run them to see them pass**
+- [x] **Step 4: Run them to see them pass**
 
   Run: `bun test ./scripts`
   Expected: 9 pass, 0 fail.
 
-- [ ] **Step 5: Run it on the real builds**
+- [x] **Step 5: Run it on the real builds**
 
   Run (in the worktree, after `mv .dev-slot.json /tmp/` so the plugin builds as stable, then both
   builds): `bun scripts/package-release.mjs .release-test`
   Expected: exit 0; the list has one line `server/node_modules/ (<n> packages)` instead of every
   file, and `node .release-test/figma-design-relay/server/dist/index.js` starts (Ctrl-C it). Restore `.dev-slot.json` and rebuild. Add `.release-test/` to `.gitignore`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
   ```bash
   git add scripts/package-release.mjs scripts/package-release.test.mjs package.json .github/workflows/ci.yml .gitignore
