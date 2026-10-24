@@ -4,6 +4,8 @@
 
 - [Demo](#demo)
 - [Quick Start](#quick-start)
+  - [Updating](#updating)
+  - [Troubleshooting](#troubleshooting)
 - [Available Tools](#available-tools)
 - [Local development](#local-development)
 - [Structure](#structure)
@@ -36,34 +38,80 @@ It also includes a small, opt-in set of **write tools** for safe agent-driven ed
 
 ## Quick Start
 
-### 1. Download the release
+### 1. Check the requirements
 
-Grab the archive from the [latest release](https://github.com/SadhuG/figma-design-relay/releases) page and unzip it. It contains both halves — `server/` and `plugin/`. What changed in each version is in [CHANGELOG.md](CHANGELOG.md).
+- **Node.js 20 or newer.** Run `node --version` to check; get it from [nodejs.org](https://nodejs.org) if it is missing or older.
+- **The Figma desktop app** (macOS or Windows). Importing a plugin from a manifest only works there, not in the browser.
+- **An AI tool that speaks MCP**, such as Claude Code, Claude Desktop, Cursor, Windsurf or Codex.
 
-> This fork is not published to npm. The upstream project owns the `@gethopp` scope, so there is no `npx` one-liner here. If you would rather build from source, see [Local development](#local-development).
+### 2. Download
 
-### 2. Add the MCP server to your favourite AI tool
+Download **[figma-design-relay.zip](https://github.com/SadhuG/figma-design-relay/releases/latest/download/figma-design-relay.zip)** (always the latest version; older ones are on the [releases page](https://github.com/SadhuG/figma-design-relay/releases)) and unzip it somewhere you will keep it, for example `~/figma-design-relay` or `C:\Users\<you>\figma-design-relay`. You get one `figma-design-relay` folder:
 
-Install the server's runtime dependencies once — they are not bundled:
-
-```bash
-cd server && bun install --production
+```
+figma-design-relay/
+  server/     the MCP server, ready to run: its dependencies are included
+  plugin/     the Figma plugin; you import plugin/manifest.json
+  VERSION     the version you have
+  CHANGELOG.md, README.md, LICENSE.md
 ```
 
-Then add the following to your AI tool's MCP configuration (e.g. Cursor, Windsurf, Claude Desktop), using the absolute path to the unzipped folder:
+This fork is distributed only through GitHub Releases — there is no npm package or `npx` command.
+
+<details>
+<summary>Optional: check the download</summary>
+
+Download `SHA256SUMS.txt` from the same release into the folder holding the zip, then run:
+
+```bash
+shasum -a 256 -c SHA256SUMS.txt          # macOS / Linux
+```
+
+```powershell
+Get-FileHash figma-design-relay.zip      # Windows: compare with the hash in SHA256SUMS.txt
+```
+
+</details>
+
+### 3. Connect your AI tool
+
+The server is one command: `node <folder>/server/dist/index.js`, with the absolute path to the folder you unzipped. Add it to your AI tool as `figma-design-relay`:
+
+**Claude Code**
+
+```bash
+claude mcp add --scope user figma-design-relay -- node /absolute/path/to/figma-design-relay/server/dist/index.js
+```
+
+**Claude Desktop, Cursor, Windsurf** — add this to the tool's MCP config file (Claude Desktop: _Settings → Developer → Edit Config_; Cursor: `~/.cursor/mcp.json`; Windsurf: `~/.codeium/windsurf/mcp_config.json`):
 
 ```json
 {
-  "figma-design-relay": {
-    "command": "node",
-    "args": ["/absolute/path/to/figma-design-relay/server/dist/index.js"]
+  "mcpServers": {
+    "figma-design-relay": {
+      "command": "node",
+      "args": ["/absolute/path/to/figma-design-relay/server/dist/index.js"]
+    }
   }
 }
 ```
 
-### 3. Add the Figma plugin
+**Codex** — add this to `~/.codex/config.toml`:
 
-In Figma go to `Plugins > Development > Import plugin from manifest` and select `manifest.json` from the unzipped `plugin/` folder.
+```toml
+[mcp_servers.figma-design-relay]
+command = "node"
+args = ["/absolute/path/to/figma-design-relay/server/dist/index.js"]
+```
+
+> [!TIP]
+> On Windows, write the path with forward slashes (`C:/Users/you/figma-design-relay/server/dist/index.js`) or doubled backslashes (`C:\\Users\\you\\…`). A single backslash breaks JSON and TOML.
+
+Restart the AI tool after changing its config.
+
+### 4. Add the Figma plugin
+
+In the Figma desktop app go to `Plugins > Development > Import plugin from manifest` and select `manifest.json` from the unzipped `plugin/` folder. It appears as **Figma Design Relay**.
 
 The plugin runs in design files, FigJam boards and Slides decks. It does not run in Dev Mode: Figma does not let one plugin support both Dev Mode and FigJam.
 
@@ -72,19 +120,39 @@ The plugin requests two permissions, which Figma shows when you import it:
 - `currentuser` — so `whoami` can report who is signed in.
 - `teamlibrary` — so `get_libraries`, `import_library_asset` and `search_design_system` can reach published libraries. Team library APIs are gated by Figma plan; on plans without them these tools return an explicit error naming the requirement (`search_design_system` falls back to the open file), and every other tool is unaffected.
 
-### 4. Start using it 🎉
+### 5. Check it works 🎉
 
-Open a Figma file, run the plugin, and start prompting your AI tool. The MCP server will automatically connect to the plugin.
+Open a Figma file and run the plugin (`Plugins > Development > Figma Design Relay`). With your AI tool running, the status chip says **Live**. Ask your AI tool to "list the connected Figma files"; it calls `list_files` and names your file.
 
-To work across multiple files, just open the plugin in each Figma file. The bridge keeps all connections active and your AI agent can target any of them by `fileKey`.
+To work across multiple files, just open the plugin in each Figma file. The relay keeps all connections active and your AI agent can target any of them by `fileKey`.
 
 The panel shows the file, the selection and the relay address it dials (`ws://localhost:1994`), with a status chip underneath: **Live**, **`<Agent>` is working** while an AI tool calls it (named after the app, e.g. "Claude Code is working"), or **Relay lost** with a countdown and a **Retry now** button. The chevron in its top-right corner collapses it to a 36 px bar that keeps the status chip visible; the choice is remembered across sessions.
 
+While your AI tool is running you can also open <http://127.0.0.1:1994/> in a browser. The relay's dashboard shows which Figma files the plugin is open in (and whether each is a design file, FigJam board or Slides deck), every request your AI tool sends to Figma with how long it took and any error, and the other relay processes sharing the connection. It is read-only, and it answers only on this machine.
+
 If you want to know more about how it works, read the [How it works](#how-it-works) section.
 
-### 5. Watch it work (optional)
+### Updating
 
-While your AI tool is running, open <http://127.0.0.1:1994/> in a browser. The relay's dashboard shows which Figma files the plugin is open in (and whether each is a design file, FigJam board or Slides deck), every request your AI tool sends to Figma with how long it took and any error, and the other relay processes sharing the connection. It is read-only, and it answers only on this machine. A dev plugin's relay shows its own on its dev port.
+Every new version is published as a [release](https://github.com/SadhuG/figma-design-relay/releases), with what changed in its notes. To be told when one comes out, use **Watch → Custom → Releases** at the top of the repository page.
+
+To update:
+
+1. Quit your AI tool, so nothing is running the old server.
+2. Delete everything inside your `figma-design-relay` folder.
+3. Download [figma-design-relay.zip](https://github.com/SadhuG/figma-design-relay/releases/latest/download/figma-design-relay.zip) again and unzip it in the same place.
+4. Start your AI tool, and in Figma close and re-run the plugin.
+
+The paths do not change, so your MCP config and the Figma import keep working without edits. Delete the old files first rather than unzipping over them: an update can drop a dependency, and its old files would be left behind. `VERSION` in the folder says which version you have.
+
+### Troubleshooting
+
+| Symptom                                                 | Fix                                                                                                                                                                                                   |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `node: command not found`, or `node --version` below 20 | Install Node.js 20 or newer, then restart the AI tool.                                                                                                                                                |
+| The chip stays on **Relay lost**                        | The AI tool is not running the server. Check that it is running, that its config path ends in `server/dist/index.js` and is absolute, and restart it. Your AI tool's MCP logs show any startup error. |
+| `Cannot find module …` in the AI tool's MCP logs        | The folder is incomplete. Delete it and unzip the whole archive again.                                                                                                                                |
+| No **Development** entry under Plugins                  | You are in Figma in the browser. Use the desktop app.                                                                                                                                                 |
 
 ## Available Tools
 
