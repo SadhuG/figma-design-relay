@@ -55,14 +55,19 @@ stable install. **Ask the user before starting**; they quit MCP clients using th
 
 - [x] **Step 1: Dry-run the final head** (`gh workflow run release.yml --ref fix/releases -f dry_run=true`)
       and download its artifact into `.release-test/live/`; unzip it there.
-- [x] **Step 2: Start the archived server with plain Node** —
+
+> **Open (review round 1, finding 3):** steps 2, 3 and 5 ran on dev port 1996 with the dev-slot
+> plugin, not the archive's stable-id plugin on 1994 (`live-check.md`). Re-run them as written, or
+> record the user's exception, before Task 3.
+
+- [ ] **Step 2: Start the archived server with plain Node** —
       `node .release-test/live/figma-design-relay/server/dist/index.js` from a shell with no Bun on
       `PATH` for that command. Expected: it becomes leader on 1994; `http://127.0.0.1:1994/` loads.
-- [x] **Step 3: In the Figma desktop app**, import `.release-test/live/figma-design-relay/plugin/manifest.json`,
+- [ ] **Step 3: In the Figma desktop app**, import `.release-test/live/figma-design-relay/plugin/manifest.json`,
       run it in a design file and in a FigJam board. Expected: chip **Live** in both.
 - [x] **Step 4: Call tools** with `server/.smoke/call.mjs` against 1994: `list_files`, `get_selection`,
       and one node-addressed tool through a second (follower) server process. Expected: real results.
-- [x] **Step 5: Restore** the stable relay, re-import the main checkout's `plugin/manifest.json`, and
+- [ ] **Step 5: Restore** the stable relay, re-import the main checkout's `plugin/manifest.json`, and
       record commit, run id, setup, cases and results in
       `docs/superpowers/plans/2026-10-24-release-downloads/live-check.md`; commit it.
 

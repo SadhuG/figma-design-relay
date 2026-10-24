@@ -46,6 +46,7 @@ beforeEach(() => {
   write("server/dashboard/index.html", "<!doctype html>");
   write("server/dashboard/render.js", "export {};");
   write("server/dashboard/dashboard.css", "body{}");
+  write("server/dashboard/dashboard.js", 'import "./render.js";');
   write("server/dashboard/render.test.ts", "// not shipped");
   write("README.md", "# Figma Design Relay");
   write("CHANGELOG.md", "# Changelog");
@@ -75,11 +76,10 @@ describe("stageRelease", () => {
     expect(existsSync(join(staged, "server/dashboard/render.test.ts"))).toBe(false);
   });
 
-  test("empties a stale out directory", () => {
-    mkdirSync(join(outDir, "figma-design-relay"), { recursive: true });
-    writeFileSync(join(outDir, "figma-design-relay", "old.txt"), "stale");
+  test("empties an earlier staging", () => {
+    writeFileSync(join(stage(), "plugin", "old.txt"), "stale");
     const staged = stage();
-    expect(existsSync(join(staged, "old.txt"))).toBe(false);
+    expect(existsSync(join(staged, "plugin", "old.txt"))).toBe(false);
   });
 });
 
@@ -116,5 +116,65 @@ describe("checkStaged", () => {
   test("refuses missing dashboard files", () => {
     rmSync(join(root, "server/dashboard/index.html"));
     expect(checkStaged(stage()).join("\n")).toMatch(/dashboard/);
+  });
+
+  test("refuses a dashboard without its entry script", () => {
+    rmSync(join(root, "server/dashboard/dashboard.js"));
+    expect(checkStaged(stage()).join("\n")).toMatch(/dashboard\.js/);
+  });
+
+  test("refuses a relay URL with another authority", () => {
+    write(
+      "plugin/dist/index.html",
+      '<script>new WebSocket("ws://localhost:1994@127.0.0.1:1996/ws")</script>'
+    );
+    expect(checkStaged(stage()).join("\n")).toMatch(/1994/);
+  });
+});
+
+describe("stageRelease's out directory", () => {
+  test("leaves everything but the staged folder alone", () => {
+    write(".release-test/keep.txt", "mine");
+    stage();
+    expect(readFileSync(join(outDir, "keep.txt"), "utf8")).toBe("mine");
+  });
+
+  test("refuses an out directory whose staged folder would be the repository", () => {
+    // The main checkout's own folder is named figma-design-relay.
+    const repo = join(root, "figma-design-relay");
+    mkdirSync(repo);
+    writeFileSync(join(repo, "keep.txt"), "mine");
+    expect(() =>
+      stageRelease({ root: repo, outDir: root, version: "0.11.1", install: installRuntime })
+    ).toThrow(/not an earlier staging/);
+    expect(existsSync(join(repo, "keep.txt"))).toBe(true);
+  });
+
+  test("refuses a sibling checkout named like the staged folder", () => {
+    // `package-release.mjs ..` from a worktree: ../figma-design-relay is the main checkout.
+    const sibling = join(outDir, "figma-design-relay");
+    for (const path of [".git/HEAD", "package.json", "VERSION", "README.md"]) {
+      mkdirSync(dirname(join(sibling, path)), { recursive: true });
+      writeFileSync(join(sibling, path), "mine");
+    }
+    expect(() => stage()).toThrow(/not an earlier staging/);
+    expect(readFileSync(join(sibling, ".git/HEAD"), "utf8")).toBe("mine");
+  });
+
+  test("refuses a folder with no VERSION", () => {
+    write(".release-test/figma-design-relay/README.md", "mine");
+    expect(() => stage()).toThrow(/not an earlier staging/);
+    expect(existsSync(join(outDir, "figma-design-relay/README.md"))).toBe(true);
+  });
+
+  test("stages into an existing empty folder", () => {
+    mkdirSync(join(outDir, "figma-design-relay"), { recursive: true });
+    expect(checkStaged(stage())).toEqual([]);
+  });
+
+  test("never deletes the repository when given its root", () => {
+    stageRelease({ root, outDir: root, version: "0.11.1", install: installRuntime });
+    expect(existsSync(join(root, "server/dist/index.js"))).toBe(true);
+    expect(existsSync(join(root, "README.md"))).toBe(true);
   });
 });

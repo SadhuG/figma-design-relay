@@ -16,12 +16,12 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const FOLDER = "figma-design-relay";
 const STABLE_ID = "figma-design-relay";
-const STABLE_WS = "ws://localhost:1994";
+const STABLE_WS = "ws://localhost:1994/ws";
 
 const installProduction = (serverDir) =>
   execFileSync("bun", ["install", "--production", "--frozen-lockfile"], {
@@ -29,10 +29,35 @@ const installProduction = (serverDir) =>
     stdio: "inherit",
   });
 
-/** Copy everything the archive carries into `<outDir>/figma-design-relay`, emptying it first. */
+// Everything stageRelease writes at the top of the staged folder.
+const STAGED_ENTRIES = new Set([
+  "plugin",
+  "server",
+  "README.md",
+  "CHANGELOG.md",
+  "LICENSE.md",
+  "VERSION",
+]);
+
+/**
+ * Copy everything the archive carries into `<outDir>/figma-design-relay`, emptying that folder
+ * first. Nothing else in outDir is touched. The folder is only emptied when it is missing, empty
+ * or an earlier staging: `../figma-design-relay` from a worktree is the main checkout.
+ */
 export function stageRelease({ root, outDir, version, install = installProduction }) {
-  const staged = join(outDir, FOLDER);
-  rmSync(outDir, { recursive: true, force: true });
+  const staged = resolve(outDir, FOLDER);
+  if (existsSync(staged)) {
+    const entries = readdirSync(staged);
+    const earlier =
+      entries.includes("VERSION") && entries.every((name) => STAGED_ENTRIES.has(name));
+    if (entries.length > 0 && !earlier) {
+      throw new Error(
+        `${staged} is not an earlier staging, so it was left alone — ` +
+          "pick an out directory such as .release-test"
+      );
+    }
+  }
+  rmSync(staged, { recursive: true, force: true });
   mkdirSync(staged, { recursive: true });
   const copy = (path) => {
     if (existsSync(join(root, path)))
@@ -96,7 +121,8 @@ export function checkStaged(dir) {
     }
   }
   if (has("plugin/dist/index.html")) {
-    const addresses = new Set(read("plugin/dist/index.html").match(/ws:\/\/localhost:\d+/g) ?? []);
+    // The whole URL, so a userinfo trick like ws://localhost:1994@host:1996 cannot pass.
+    const addresses = new Set(read("plugin/dist/index.html").match(/wss?:\/\/[^"'`\s]+/g) ?? []);
     if (!addresses.has(STABLE_WS) || addresses.size !== 1) {
       problems.push(
         `plugin/dist/index.html dials ${[...addresses].join(", ") || "no relay"}, not ${STABLE_WS} only — ` +
@@ -114,7 +140,7 @@ export function checkStaged(dir) {
   ) {
     problems.push("server/dist/index.js is missing the node shebang — check server/src/index.ts");
   }
-  for (const name of ["index.html", "render.js", "dashboard.css"]) {
+  for (const name of ["index.html", "dashboard.js", "render.js", "dashboard.css"]) {
     need(`server/dashboard/${name}`, "the leader serves the dashboard from server/dashboard/");
   }
   if (has("server/package.json")) {
@@ -177,7 +203,13 @@ if (import.meta.main) {
   const version = execFileSync(process.execPath, [join(root, "scripts/check-version.mjs")], {
     encoding: "utf8",
   }).trim();
-  const staged = stageRelease({ root, outDir, version });
+  let staged;
+  try {
+    staged = stageRelease({ root, outDir, version });
+  } catch (error) {
+    console.error(`ERROR: ${error.message}`);
+    process.exit(1);
+  }
   const problems = checkStaged(staged);
   if (problems.length > 0) {
     for (const problem of problems) console.error(`ERROR: ${problem}`);

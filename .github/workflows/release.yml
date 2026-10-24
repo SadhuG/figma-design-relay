@@ -27,10 +27,12 @@ on:
         default: true
         type: boolean
 
-# Two quick merges must queue, never cancel a release halfway through.
+# Runs that can publish share one group, and `queue: max` keeps every pending one: the default
+# keeps only the newest, so three quick merges would drop the middle release. Dry runs and branch
+# runs get a group each, so they never wait on or replace a release.
 concurrency:
-  group: release
-  cancel-in-progress: false
+  group: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'push' || inputs.dry_run == false) && 'release-publish' || format('release-preview-{0}', github.run_id) }}
+  queue: max
 
 permissions:
   contents: write

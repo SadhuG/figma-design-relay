@@ -14,8 +14,9 @@
 ## Requirements
 
 - `on: push: branches: [main]` and `workflow_dispatch` with `dry_run` (boolean, default `true`).
-- `concurrency: { group: release, cancel-in-progress: false }` — two quick merges must not cancel a
-  half-published release.
+- Concurrency: runs that can publish share group `release-publish` with `queue: max` (the default
+  keeps only the newest pending run, so a burst of merges would drop a release); every other run gets
+  its own `release-preview-<run_id>` group.
 - **Publish** only when all hold: ref is `refs/heads/main`; the event is `push`, or `dispatch` with
   `dry_run: false`; no GitHub Release named `v<version>` exists. Otherwise build and upload the
   artifact only, and say why in the step summary (`already released`, `dry run`, `not main`).
