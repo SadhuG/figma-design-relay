@@ -18,6 +18,20 @@ with its tag.
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-10-24
+
+### Changed
+
+- Every version merged to `main` is published as a GitHub Release by itself: the Release workflow
+  now runs on each push to `main`, tags the commit and skips versions that already have a
+  release. Manual runs stay dry runs and can never publish from a branch.
+- The release archive, `figma-design-relay.zip`, unpacks to one `figma-design-relay/` folder whose
+  server already has its runtime dependencies, so it runs with Node alone; `SHA256SUMS.txt` sits
+  beside it. The asset name never changes, so
+  `releases/latest/download/figma-design-relay.zip` always downloads the newest version.
+- README's Quick Start covers requirements, the download, setup for Claude Code, Claude Desktop,
+  Cursor, Windsurf and Codex, updating and troubleshooting.
+
 ## [0.11.0] - 2026-10-23
 
 ### Changed
