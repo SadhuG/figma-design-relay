@@ -74,7 +74,9 @@ Move the archive's contents out of `release.yml` into a tested script that stage
 
 - [x] **Step 3: Implement `stageRelease` and `checkStaged` in `scripts/package-release.mjs`**
 
-  `rmSync(outDir, { recursive: true, force: true })`, then `cpSync` per path. Export both functions;
+  Empty only `<outDir>/figma-design-relay`, and only when it is missing, empty or an earlier
+  staging (a `VERSION` plus staged names only) that neither is nor contains the repository by real
+  path; never `rmSync(outDir)`. Then `cpSync` per path. Export both functions;
   run the CLI only when `import.meta.main`. The plugin port check reads `plugin/dist/index.html` (the
   UI holds the WebSocket address) and fails if it does not contain `ws://localhost:1994` or contains
   any other `ws://localhost:<port>`.

@@ -46,7 +46,7 @@ It also includes a small, opt-in set of **write tools** for safe agent-driven ed
 
 ### 2. Download
 
-Download **[figma-design-relay.zip](https://github.com/SadhuG/figma-design-relay/releases/latest/download/figma-design-relay.zip)** (always the latest version; older ones are on the [releases page](https://github.com/SadhuG/figma-design-relay/releases)) and unzip it somewhere you will keep it, for example `~/figma-design-relay` or `C:\Users\<you>\figma-design-relay`. You get one `figma-design-relay` folder:
+Download **[figma-design-relay.zip](https://github.com/SadhuG/figma-design-relay/releases/latest/download/figma-design-relay.zip)** (always the latest version; older ones are on the [releases page](https://github.com/SadhuG/figma-design-relay/releases)) and unzip it into a folder you will keep it in, such as your home folder (`~` or `C:\Users\<you>`). The archive already holds one `figma-design-relay` folder, so you get `~/figma-design-relay` or `C:\Users\<you>\figma-design-relay`. Windows' **Extract All** suggests a destination named after the zip; change it to `C:\Users\<you>`, or you get `figma-design-relay\figma-design-relay`. The folder holds:
 
 ```
 figma-design-relay/
@@ -139,8 +139,8 @@ Every new version is published as a [release](https://github.com/SadhuG/figma-de
 To update:
 
 1. Quit your AI tool, so nothing is running the old server.
-2. Delete everything inside your `figma-design-relay` folder.
-3. Download [figma-design-relay.zip](https://github.com/SadhuG/figma-design-relay/releases/latest/download/figma-design-relay.zip) again and unzip it in the same place.
+2. Delete your `figma-design-relay` folder.
+3. Download [figma-design-relay.zip](https://github.com/SadhuG/figma-design-relay/releases/latest/download/figma-design-relay.zip) again and unzip it into the same parent folder as before (your home folder, for example), which recreates `figma-design-relay` at the same path.
 4. Start your AI tool, and in Figma close and re-run the plugin.
 
 The paths do not change, so your MCP config and the Figma import keep working without edits. Delete the old files first rather than unzipping over them: an update can drop a dependency, and its old files would be left behind. `VERSION` in the folder says which version you have.

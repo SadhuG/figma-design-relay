@@ -88,8 +88,16 @@ jobs:
           # action-gh-release attaches to an existing tag wherever it points, so a
           # stray tag would put this release on the wrong commit.
           if [ "$publish" = "true" ]; then
-            tag_sha=$(git ls-remote origin "refs/tags/v$version^{}" | cut -f1)
-            [ -n "$tag_sha" ] || tag_sha=$(git ls-remote origin "refs/tags/v$version" | cut -f1)
+            # A failed lookup must not read as "no tag": only a successful, empty
+            # listing means the tag is absent.
+            if ! refs=$(git ls-remote origin "refs/tags/v$version" "refs/tags/v$version^{}"); then
+              echo "ERROR: could not list tag v$version on origin — re-run the workflow."
+              exit 1
+            fi
+            # An annotated tag lists its own object and the commit it peels to (^{}).
+            peeled=$(printf '%s\n' "$refs" | awk -v ref="refs/tags/v$version^{}" '$2 == ref { print $1 }')
+            plain=$(printf '%s\n' "$refs" | awk -v ref="refs/tags/v$version" '$2 == ref { print $1 }')
+            tag_sha=${peeled:-$plain}
             if [ -n "$tag_sha" ] && [ "$tag_sha" != "$GITHUB_SHA" ]; then
               echo "ERROR: tag v$version points at $tag_sha, not this commit — bump the version or delete the stray tag."
               exit 1
