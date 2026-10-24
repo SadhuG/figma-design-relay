@@ -33,6 +33,12 @@ paths:
 - A manual run (`workflow_dispatch`) has `dry_run`, **default true**, and publishes only from
   `main`; on any other branch it builds and uploads the archive as an artifact with no tag or
   release, even with `dry_run` off. Dry-run the branch whenever the workflow or the archive changes.
+- **`gh` must target the fork.** A clone with the `upstream` remote can resolve `gh` to
+  `gethopp/figma-mcp-bridge` (a dispatch then fails with "Must have admin rights"). Run
+  `gh repo set-default SadhuG/figma-design-relay` once per clone before any `gh workflow`,
+  `gh release` or `gh pr` command.
+- A release only becomes **Latest** when its version is newer than the current latest one, so a
+  re-run of an older version cannot move `releases/latest/download/…` backwards.
 - `scripts/package-release.mjs` decides what ships and refuses a dev-slot build, a plugin that
   dials anything but 1994, a server without its shebang, missing runtime or present dev
   dependencies. The asset is always `figma-design-relay.zip` (plus `SHA256SUMS.txt`), so
