@@ -26,7 +26,8 @@
 - Assets: `figma-design-relay.zip` (zip of the staged `figma-design-relay/` folder) and
   `SHA256SUMS.txt` (`sha256sum figma-design-relay.zip`).
 - Release: `tag_name: v<version>`, `target_commitish: ${{ github.sha }}`,
-  `name: Figma Design Relay v<version>`, `make_latest: true`, body = the changelog entry followed by
+  `name: Figma Design Relay v<version>`, `make_latest` only when the version is newer than the current latest release (an out-of-order or
+  re-run older version must not move `releases/latest` backwards), body = the changelog entry followed by
   `\n\n---\nDownload **figma-design-relay.zip** below. Setup and updating: [README → Quick Start](https://github.com/SadhuG/figma-design-relay#quick-start).`
 - Every action stays on node24 (`.claude/rules/release.md`).
 

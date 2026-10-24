@@ -13,10 +13,11 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const FOLDER = "figma-design-relay";
@@ -47,6 +48,19 @@ const STAGED_ENTRIES = new Set([
 export function stageRelease({ root, outDir, version, install = installProduction }) {
   const staged = resolve(outDir, FOLDER);
   if (existsSync(staged)) {
+    // Real paths, so a junction, symlink or case variant cannot hide the checkout.
+    const fold = (path) => {
+      const real = realpathSync.native(path);
+      return process.platform === "win32" ? real.toLowerCase() : real;
+    };
+    const repo = fold(root);
+    const target = fold(staged);
+    if (repo === target || repo.startsWith(target.endsWith(sep) ? target : target + sep)) {
+      throw new Error(
+        `${staged} is or holds the repository, so it was left alone — ` +
+          "pick an out directory such as .release-test"
+      );
+    }
     const entries = readdirSync(staged);
     const earlier =
       entries.includes("VERSION") && entries.every((name) => STAGED_ENTRIES.has(name));

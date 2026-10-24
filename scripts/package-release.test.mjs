@@ -1,5 +1,13 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { checkStaged, stageRelease } from "./package-release.mjs";
@@ -146,7 +154,7 @@ describe("stageRelease's out directory", () => {
     writeFileSync(join(repo, "keep.txt"), "mine");
     expect(() =>
       stageRelease({ root: repo, outDir: root, version: "0.11.1", install: installRuntime })
-    ).toThrow(/not an earlier staging/);
+    ).toThrow(/repository/);
     expect(existsSync(join(repo, "keep.txt"))).toBe(true);
   });
 
@@ -165,6 +173,39 @@ describe("stageRelease's out directory", () => {
     write(".release-test/figma-design-relay/README.md", "mine");
     expect(() => stage()).toThrow(/not an earlier staging/);
     expect(existsSync(join(outDir, "figma-design-relay/README.md"))).toBe(true);
+  });
+
+  test("refuses a staged-looking folder that holds the repository", () => {
+    const outer = mkdtempSync(join(tmpdir(), "relay-pkg-outer-"));
+    try {
+      const staged = join(outer, "figma-design-relay");
+      const repo = join(staged, "server", "checkout");
+      mkdirSync(repo, { recursive: true });
+      writeFileSync(join(staged, "VERSION"), "0.11.0\n");
+      writeFileSync(join(repo, "README.md"), "mine");
+      expect(() =>
+        stageRelease({ root: repo, outDir: outer, version: "0.11.1", install: installRuntime })
+      ).toThrow(/repository/);
+      expect(existsSync(join(repo, "README.md"))).toBe(true);
+    } finally {
+      rmSync(outer, { recursive: true, force: true });
+    }
+  });
+
+  test("refuses the repository reached through a link", () => {
+    // The fixture's top level is all staged names, so with a VERSION it passes the shape check.
+    write("VERSION", "0.11.0\n");
+    const outer = mkdtempSync(join(tmpdir(), "relay-pkg-link-"));
+    try {
+      symlinkSync(root, join(outer, "figma-design-relay"), "junction");
+      expect(() =>
+        stageRelease({ root, outDir: outer, version: "0.11.1", install: installRuntime })
+      ).toThrow(/repository/);
+      expect(existsSync(join(root, "server/dist/index.js"))).toBe(true);
+    } finally {
+      rmSync(join(outer, "figma-design-relay"), { force: true });
+      rmSync(outer, { recursive: true, force: true });
+    }
   });
 
   test("stages into an existing empty folder", () => {

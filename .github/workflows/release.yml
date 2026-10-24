@@ -84,8 +84,24 @@ jobs:
             fi
           fi
 
+          # Runs can finish out of order (a re-run of an older failed run, or queued
+          # runs starting in another order), so only a newer version takes over
+          # releases/latest; an older one is published but not marked latest.
+          latest=true
+          current=$(gh release view --json tagName --jq .tagName 2> /dev/null || true)
+          if [ -n "$current" ]; then
+            newest=$(printf '%s\n%s\n' "${current#v}" "$version" | sort -V | tail -n 1)
+            if [ "$newest" != "$version" ] || [ "${current#v}" = "$version" ]; then
+              latest=false
+              if [ "$publish" = "true" ]; then
+                reason="publishing v$version (not latest: $current is newer)"
+              fi
+            fi
+          fi
+
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "publish=$publish" >> "$GITHUB_OUTPUT"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
           echo "reason=$reason" >> "$GITHUB_OUTPUT"
           echo "v$version: $reason"
 
@@ -142,7 +158,7 @@ jobs:
           target_commitish: ${{ github.sha }}
           name: Figma Design Relay v${{ steps.decide.outputs.version }}
           body_path: release-notes.md
-          make_latest: true
+          make_latest: ${{ steps.decide.outputs.latest }}
           fail_on_unmatched_files: true
           files: |
             figma-design-relay.zip
