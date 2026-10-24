@@ -38,6 +38,8 @@ This file holds only what applies to every task. The rest loads when it is relev
 | root      | `bun install`                             | installs Husky's pre-commit hook (Prettier via lint-staged)                                                                                                     |
 | root      | `bun run format` / `bun run format:check` | Prettier 3.9.6 over everything                                                                                                                                  |
 | root      | `bun scripts/check-version.mjs`           | server + plugin versions agree and have a changelog entry                                                                                                       |
+| root      | `bun test ./scripts`                      | tests for the repo scripts (`package-release.mjs`); CI runs them                                                                                                |
+| root      | `bun scripts/package-release.mjs <dir>`   | stage the release archive's folder from both builds; refuses a dev-slot build                                                                                   |
 | root      | `bun scripts/dev-slot.mjs [name]`         | in a feature worktree: claim its dev plugin name and port (1995–2019)                                                                                           |
 | `server/` | `bun run build`                           | `tsc` → `dist/`; this is the server's type-check                                                                                                                |
 | `server/` | `bun test`                                | 459 tests (2 Windows skips): schemas, transport, file safety, SVG loader, follower round trips, codegen, assets, Code Connect, Mermaid, dashboard, relay-status |
@@ -102,7 +104,8 @@ plugin/src/
   html-figma/               vendored html-to-figma importer
   ui/                       React panel; panel-state.ts holds its text and timing rules, theme.ts
                             the theme rules, index.css the Rising sun roles, fonts.css the fonts
-scripts/        check-version.mjs; dev-slot.mjs claims a worktree's dev slot
+scripts/        check-version.mjs; dev-slot.mjs claims a worktree's dev slot; package-release.mjs
+                stages the release archive
 docs/           guides/ and reference/ for users; superpowers/ for specs and plans
 .claude/        this file, rules/ (path-scoped) and skills/ — the table above
 ```

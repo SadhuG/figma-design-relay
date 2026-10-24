@@ -189,3 +189,6 @@ server/dist/
 
 # Playwright MCP session output (console logs, snapshots, screenshots)
 .playwright-mcp/
+
+# Staged release folders from scripts/package-release.mjs
+.release-test/
