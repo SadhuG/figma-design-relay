@@ -87,8 +87,17 @@ jobs:
           # Runs can finish out of order (a re-run of an older failed run, or queued
           # runs starting in another order), so only a newer version takes over
           # releases/latest; an older one is published but not marked latest.
+          # Only a 404 means "no release yet"; any other failure stops the run, so a
+          # lookup error can never let an older version become latest.
           latest=true
-          current=$(gh release view --json tagName --jq .tagName 2> /dev/null || true)
+          if current=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name 2> latest-error.txt); then
+            :
+          elif grep -q 'HTTP 404' latest-error.txt; then
+            current=""
+          else
+            echo "ERROR: could not read the latest release — re-run the workflow: $(cat latest-error.txt)"
+            exit 1
+          fi
           if [ -n "$current" ]; then
             newest=$(printf '%s\n%s\n' "${current#v}" "$version" | sort -V | tail -n 1)
             if [ "$newest" != "$version" ] || [ "${current#v}" = "$version" ]; then
