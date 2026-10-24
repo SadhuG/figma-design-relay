@@ -142,4 +142,5 @@ Drive it with `superpowers:subagent-driven-development` or `superpowers:executin
   check in `live-check.md` beside the plan.
 - [`plans/2026-10-24-release-downloads/`](plans/2026-10-24-release-downloads/00-overview.md): a
   GitHub Release with one Node-only archive (`figma-design-relay.zip`) for every version merged to
-  `main`, and README download, setup and update instructions. A folder plan; not started.
+  `main`, and README download, setup and update instructions. A folder plan; delivered in 0.11.1,
+  live check in `live-check.md` beside the plan.

@@ -113,10 +113,11 @@ admin/bypass options. Use GitHub merge commits, not squash or rebase, to preserv
    the required checks. Put that review record and the live-check results in its description, then
    **stop: the user merges it.**
 5. Update local checkouts with `git pull --ff-only` after a remote PR merges. The branches may
-   have different merge commit SHAs; do not push to make their tips identical. Tag only if this
-   task bumped the version: after the user has merged `dev` → `main`, tag the merged `origin/main`
-   commit and push that tag **by name** only. Never tag or release a candidate that has not
-   passed the `main` PR gate.
+   have different merge commit SHAs; do not push to make their tips identical. Do not tag: when
+   the user merges a `dev` → `main` PR carrying a new version, the Release workflow tags that
+   commit and publishes it. Check its run with `gh run list --workflow release.yml --limit 1`, and
+   that `gh release view v<version>` lists `figma-design-relay.zip`. Never tag or release a
+   candidate that has not passed the `main` PR gate.
 
 If any gate cannot pass, leave the PR open and report the blocker. Do not replace a missing PR or
 review with a local merge, test results, a tag, or permission inferred from the task request.

@@ -22,17 +22,25 @@ paths:
 
 - **Nothing goes to npm.** `@gethopp` is upstream's scope, so `server/package.json` is
   `figma-design-relay-server` with `"private": true`. Do not rename it back.
-- After merging onto `main`, tag that commit `vX.Y.Z` and push it by name
-  (`git push origin vX.Y.Z`). **Never `git push --tags`** — the local clone holds upstream's
-  `v0.0.x` tags, which do not belong on this fork's remote.
-- `.github/workflows/release.yml` is `workflow_dispatch` with one input, `dry_run`, **default
-  true**. It reads the version via `check-version.mjs` and uses the changelog entry as the notes,
-  so bump first. A dry run builds and uploads the archive as an artifact with no tag or release;
-  use one whenever the workflow changes.
-- The archive carries `plugin/` (self-contained) and `server/` (`dist` + `dashboard/` + `package.json` +
-  `bun.lock`; the user runs `bun install --production`). The dashboard assets sit beside `dist/`
-  so the leader can serve them. README's Quick Start documents that flow —
-  keep them in step.
+- **Every push to `main` with a new version publishes it.** `.github/workflows/release.yml` runs
+  on each push to `main`, reads the version via `check-version.mjs`, uses its changelog entry as
+  the notes, tags the pushed commit `vX.Y.Z` and creates the release. A version that already has
+  a release (a docs-only merge) builds and stops; a tag that exists on another commit fails the
+  run. So bump in the task's last commit, and the user's `dev` → `main` merge ships it.
+- **Nobody tags by hand.** If a tag must be pushed, push it by name (`git push origin vX.Y.Z`).
+  **Never `git push --tags`** — the local clone holds upstream's `v0.0.x` tags, which do not
+  belong on this fork's remote.
+- A manual run (`workflow_dispatch`) has `dry_run`, **default true**, and publishes only from
+  `main`; on any other branch it builds and uploads the archive as an artifact with no tag or
+  release, even with `dry_run` off. Dry-run the branch whenever the workflow or the archive changes.
+- `scripts/package-release.mjs` decides what ships and refuses a dev-slot build, a plugin that
+  dials anything but 1994, a server without its shebang, missing runtime or present dev
+  dependencies. The asset is always `figma-design-relay.zip` (plus `SHA256SUMS.txt`), so
+  `releases/latest/download/figma-design-relay.zip` is permanent. It unpacks to one unversioned
+  `figma-design-relay/` folder: `plugin/` (stable `manifest.json` + `dist/`), `server/` (`dist/`,
+  `dashboard/` beside it, `package.json`, `bun.lock` and production `node_modules/`, so the user
+  needs Node ≥ 20 and no Bun), `VERSION`, `README.md`, `CHANGELOG.md`, `LICENSE.md`. README's
+  Quick Start documents that layout — keep them in step.
 
 ## CI
 
