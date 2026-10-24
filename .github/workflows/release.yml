@@ -69,8 +69,20 @@ jobs:
             publish=false; reason="not main"
           elif [ "$EVENT" = "workflow_dispatch" ] && [ "$DRY_RUN" = "true" ]; then
             publish=false; reason="dry run"
-          elif gh release view "v$version" > /dev/null 2>&1; then
-            publish=false; reason="already released"
+          # Only a published release with both assets is done. A failed run can
+          # leave a draft or a release missing an asset; the release step finds it
+          # and finishes it. "release not found" is the only other safe answer.
+          elif state=$(gh release view "v$version" --json isDraft,assets --jq \
+            'if .isDraft then "draft" elif ((["figma-design-relay.zip", "SHA256SUMS.txt"] - [.assets[].name]) | length) == 0 then "complete" else "incomplete" end' \
+            2> release-error.txt); then
+            if [ "$state" = "complete" ]; then
+              publish=false; reason="already released"
+            else
+              reason="finishing v$version (an earlier run left it $state)"
+            fi
+          elif ! grep -q 'release not found' release-error.txt; then
+            echo "ERROR: could not look up release v$version — re-run the workflow: $(cat release-error.txt)"
+            exit 1
           fi
 
           # action-gh-release attaches to an existing tag wherever it points, so a
@@ -100,7 +112,8 @@ jobs:
           fi
           if [ -n "$current" ]; then
             newest=$(printf '%s\n%s\n' "${current#v}" "$version" | sort -V | tail -n 1)
-            if [ "$newest" != "$version" ] || [ "${current#v}" = "$version" ]; then
+            # Equal means finishing the release that is already latest: keep it so.
+            if [ "$newest" != "$version" ]; then
               latest=false
               if [ "$publish" = "true" ]; then
                 reason="publishing v$version (not latest: $current is newer)"

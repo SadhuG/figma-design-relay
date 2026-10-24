@@ -122,11 +122,11 @@ The plugin requests two permissions, which Figma shows when you import it:
 
 ### 5. Check it works 🎉
 
-Open a Figma file and run the plugin (`Plugins > Development > Figma Design Relay`). With your AI tool running, the status chip says **Live**. Ask your AI tool to "list the connected Figma files"; it calls `list_files` and names your file.
+Open a Figma file and run the plugin (`Plugins > Development > Figma Design Relay`). With your AI tool running, the status chip says **Live** (or **Leader · 2 followers** and similar when several AI tools share the relay; that is connected too). Ask your AI tool to "list the connected Figma files"; it calls `list_files` and names your file.
 
 To work across multiple files, just open the plugin in each Figma file. The relay keeps all connections active and your AI agent can target any of them by `fileKey`.
 
-The panel shows the file, the selection and the relay address it dials (`ws://localhost:1994`), with a status chip underneath: **Live**, **`<Agent>` is working** while an AI tool calls it (named after the app, e.g. "Claude Code is working"), or **Relay lost** with a countdown and a **Retry now** button. The chevron in its top-right corner collapses it to a 36 px bar that keeps the status chip visible; the choice is remembered across sessions.
+The panel shows the file, the selection and the relay address it dials (`ws://localhost:1994`), with a status chip underneath: **Live** (**Leader · N followers** when other AI tools' relay processes share the connection), **`<Agent>` is working** while an AI tool calls it (named after the app, e.g. "Claude Code is working"), or **Relay lost** with a countdown and a **Retry now** button. The chevron in its top-right corner collapses it to a 36 px bar that keeps the status chip visible; the choice is remembered across sessions.
 
 While your AI tool is running you can also open <http://127.0.0.1:1994/> in a browser. The relay's dashboard shows which Figma files the plugin is open in (and whether each is a design file, FigJam board or Slides deck), every request your AI tool sends to Figma with how long it took and any error, and the other relay processes sharing the connection. It is read-only, and it answers only on this machine.
 

@@ -18,7 +18,9 @@
   keeps only the newest pending run, so a burst of merges would drop a release); every other run gets
   its own `release-preview-<run_id>` group.
 - **Publish** only when all hold: ref is `refs/heads/main`; the event is `push`, or `dispatch` with
-  `dry_run: false`; no GitHub Release named `v<version>` exists. Otherwise build and upload the
+  `dry_run: false`; `v<version>` is not yet a published release carrying both assets (a draft or
+  a release missing an asset, left by a failed run, is finished by the next run; a lookup error
+  other than "release not found" fails the run). Otherwise build and upload the
   artifact only, and say why in the step summary (`already released`, `dry run`, `not main`).
 - If tag `v<version>` already exists and does not point at `github.sha`, **fail** before publishing:
   `ERROR: tag v<version> points at <sha>, not this commit — bump the version or delete the stray tag.`

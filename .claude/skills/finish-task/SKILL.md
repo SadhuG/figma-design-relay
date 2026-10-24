@@ -16,6 +16,7 @@ From the repo root:
 ```bash
 (cd server && bun test && bun run build)
 (cd plugin && bun run typecheck && bun test && bun run build)
+bun test ./scripts
 bun run format:check
 bun scripts/check-version.mjs
 ```
