@@ -50,7 +50,7 @@ Move the archive's contents out of `release.yml` into a tested script that stage
   (`{"id":"figma-design-relay","networkAccess":{"allowedDomains":["ws://localhost:1994"]}}`),
   `plugin/dist/code.js`, `plugin/dist/index.html` containing `ws://localhost:1994`,
   `server/dist/index.js` starting `#!/usr/bin/env node`, `server/package.json`, `server/bun.lock`,
-  `server/dashboard/index.html|render.js|dashboard.css`, root `README.md`, `CHANGELOG.md`,
+  `server/dashboard/index.html|dashboard.js|render.js|dashboard.css`, root `README.md`, `CHANGELOG.md`,
   `LICENSE.md`. The `install` stub writes `node_modules/{@modelcontextprotocol/sdk,ws,zod}/package.json`.
 
   - `stages the documented layout` — `checkStaged(staged)` is `[]`; `VERSION` reads `"0.11.1\n"`;
